@@ -1,0 +1,56 @@
+{
+  "rewrites": [
+    {
+      "source": "/sheets/roster-grid",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Burnham&range=A:I"
+    },
+    {
+      "source": "/sheets/oot/burnham",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Burnham&range=A:I"
+    },
+    {
+      "source": "/sheets/oot/rockford",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Rockford&range=A:F"
+    },
+    {
+      "source": "/sheets/oot/pontiac",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Pontiac&range=A:C"
+    },
+    {
+      "source": "/sheets/oot/arc",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=ARC%20Drivers&range=A:C"
+    },
+    {
+      "source": "/sheets/oot/zion",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Zion&range=A:C"
+    },
+    {
+      "source": "/sheets/roster",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Burnham&range=L13"
+    },
+    {
+      "source": "/sheets/offs",
+      "destination": "https://docs.google.com/spreadsheets/d/1FnKGIuWfKCPvcaSwchnIpQjdezHKWC5O23jECPcJzyM/gviz/tq?tqx=out:csv&gid=0"
+    },
+    {
+      "source": "/sheets/sat/burnham",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Sat-Burnham&range=I4"
+    },
+    {
+      "source": "/sheets/sat/rockford",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Sat-Rockford&range=I4"
+    },
+    {
+      "source": "/sheets/sat/pontiac",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Sat-Pontiac&range=H3"
+    },
+    {
+      "source": "/sheets/sat/arc",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Sat-Arc&range=H3"
+    },
+    {
+      "source": "/sheets/sat/zion",
+      "destination": "https://docs.google.com/spreadsheets/d/1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw/gviz/tq?tqx=out:csv&sheet=Sat-Zion&range=H3"
+    }
+  ]
+}

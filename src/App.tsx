@@ -1,0 +1,200 @@
+import { useState, type ReactNode } from "react";
+import { BrandMark } from "./components/BrandMark";
+import { SessionBar } from "./components/SessionBar";
+import { TabBar } from "./components/TabBar";
+import { chicagoToday } from "./lib/chicagoDate";
+import { useDesktopLayout } from "./lib/layout";
+import { EditLoadScreen } from "./screens/EditLoadScreen";
+import { LogLoadScreen } from "./screens/LogLoadScreen";
+import { LoginScreen } from "./screens/LoginScreen";
+import { AnalyticsScreen } from "./screens/AnalyticsScreen";
+import { SearchScreen } from "./screens/SearchScreen";
+import { TodayScreen } from "./screens/TodayScreen";
+import { TotalsScreen } from "./screens/TotalsScreen";
+import { AuthProvider, useAuth } from "./store/AuthContext";
+import { DriversProvider } from "./store/DriversContext";
+import { SpecialtyProvider } from "./store/SpecialtyContext";
+import { LoadsProvider, useLoads } from "./store/LoadsContext";
+import type { TabId } from "./types";
+
+type Overlay =
+  | { kind: "log"; truck?: string; date?: string }
+  | { kind: "edit"; loadId: string }
+  | null;
+
+function wrapOverlay(desktop: boolean, child: ReactNode) {
+  if (!desktop) return child;
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card">{child}</div>
+    </div>
+  );
+}
+
+function Gate({ children }: { children: ReactNode }) {
+  const { configured, loading, session } = useAuth();
+  if (configured && loading) {
+    return (
+      <div className="screen overlay-screen login-screen">
+        <BrandMark size="lg" />
+        <p className="field-hint">Signing in…</p>
+      </div>
+    );
+  }
+  if (configured && !session) return <LoginScreen />;
+  return children;
+}
+
+function Shell() {
+  const desktop = useDesktopLayout();
+  const { findById } = useLoads();
+  const [tab, setTab] = useState<TabId>("today");
+  const [feedDate, setFeedDate] = useState(chicagoToday);
+  const [overlay, setOverlay] = useState<Overlay>(null);
+  const [justEditedId, setJustEditedId] = useState<string | null>(null);
+
+  const editingLoad =
+    overlay?.kind === "edit" ? findById(overlay.loadId) : undefined;
+  const view: Overlay =
+    overlay?.kind === "edit" && !editingLoad ? null : overlay;
+
+  const afterSave = (id: string, date?: string) => {
+    setJustEditedId(id);
+    setOverlay(null);
+    if (date) setFeedDate(date);
+    if (tab === "totals" || tab === "analytics") return;
+    setTab("today");
+  };
+
+  const main = (
+    <>
+      {desktop ? (
+        <header className="desk-topbar">
+          <div className="desk-topbar-brand">
+            <BrandMark size="lg" />
+            <div>
+              <p className="eyebrow">Mr. Bult&apos;s, Inc.</p>
+              <h1 className="desk-brand">Load Tracker</h1>
+            </div>
+          </div>
+          <p className="desk-sub">Shared crew log · America/Chicago</p>
+        </header>
+      ) : null}
+
+      <SessionBar />
+
+      <div className={desktop ? "desk-main" : "phone-stack"}>
+        {desktop ? (
+          <TabBar vertical tab={tab} onChange={setTab} />
+        ) : null}
+
+        <div className="phone-body">
+          {tab === "today" && desktop ? (
+            <div className="desktop-split">
+              <TodayScreen
+                date={feedDate}
+                onDateChange={setFeedDate}
+                justEditedId={justEditedId}
+                onLog={(date) => setOverlay({ kind: "log", date })}
+                onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
+                showDayPicker={false}
+              />
+              <TotalsScreen
+                embedded
+                date={feedDate}
+                onDateChange={setFeedDate}
+                onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
+                onLog={(date) => setOverlay({ kind: "log", date })}
+              />
+            </div>
+          ) : null}
+
+          {tab === "today" && !desktop ? (
+            <TodayScreen
+              date={feedDate}
+              onDateChange={setFeedDate}
+              justEditedId={justEditedId}
+              onLog={(date) => setOverlay({ kind: "log", date })}
+              onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
+              showDayPicker
+            />
+          ) : null}
+
+          {tab === "trucks" ? (
+            <SearchScreen
+              editingId={view?.kind === "edit" ? view.loadId : null}
+              onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
+              onLogForTruck={(truck, date) =>
+                setOverlay({ kind: "log", truck, date })
+              }
+            />
+          ) : null}
+
+          {tab === "totals" ? (
+            <TotalsScreen
+              date={feedDate}
+              onDateChange={setFeedDate}
+              onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
+              onLog={(date) => setOverlay({ kind: "log", date })}
+            />
+          ) : null}
+
+          {tab === "analytics" ? <AnalyticsScreen /> : null}
+        </div>
+      </div>
+
+      {!desktop ? <TabBar tab={tab} onChange={setTab} /> : null}
+    </>
+  );
+
+  return (
+    <div className={desktop ? "app-shell is-desktop" : "app-shell"}>
+      <div className="phone">
+        {desktop || !view ? main : null}
+
+        {view?.kind === "log"
+          ? wrapOverlay(
+              desktop,
+              <LogLoadScreen
+                initialTruck={view.truck}
+                date={view.date}
+                onCancel={() => setOverlay(null)}
+                onSaved={afterSave}
+              />,
+            )
+          : null}
+
+        {view?.kind === "edit" && editingLoad
+          ? wrapOverlay(
+              desktop,
+              <EditLoadScreen
+                load={editingLoad}
+                onCancel={() => setOverlay(null)}
+                onSaved={afterSave}
+                onDeleted={() => {
+                  setJustEditedId(null);
+                  setOverlay(null);
+                }}
+              />,
+            )
+          : null}
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <LoadsProvider>
+        <DriversProvider>
+          <SpecialtyProvider>
+          <Gate>
+            <Shell />
+          </Gate>
+        </SpecialtyProvider>
+          </DriversProvider>
+      </LoadsProvider>
+    </AuthProvider>
+  );
+}

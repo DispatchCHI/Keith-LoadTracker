@@ -1,0 +1,215 @@
+﻿import { RefreshCw } from "lucide-react";
+import {
+  chicagoToday,
+  formatHeaderDate,
+  isChicagoSaturday,
+  isChicagoSunday,
+} from "../lib/chicagoDate";
+import { useDrivers } from "../store/DriversContext";
+
+function pulledLabel(iso: string | null): string {
+  if (!iso) return "Not pulled yet";
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Chicago",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+export function DriversCard({
+  compact = false,
+  date,
+}: {
+  compact?: boolean;
+  date?: string;
+}) {
+  const today = chicagoToday();
+  const viewed = date ?? today;
+  const saturday = isChicagoSaturday(viewed);
+  const sunday = isChicagoSunday(viewed);
+  const viewingToday = viewed === today;
+  const viewingFuture = viewed > today;
+  const {
+    status,
+    error,
+    fetchedAt,
+    availabilityOn,
+    ytdAverage,
+    refresh,
+    ootNames,
+    callOffNamesOn,
+  } = useDrivers();
+  const dayAvail = availabilityOn(viewed);
+  const avg = ytdAverage(today);
+  const callOffNames = callOffNamesOn(viewed);
+
+  // Today + future: live roster OOT. Past: locked day ootNames only (never backfill).
+  const displayedOot =
+    viewingToday || viewingFuture
+      ? ootNames
+      : dayAvail && Array.isArray(dayAvail.ootNames)
+        ? dayAvail.ootNames
+        : [];
+  const showOot =
+    !sunday &&
+    (viewingToday || viewingFuture
+      ? status === "live" || status === "cached" || ootNames.length > 0
+      : Boolean(dayAvail));
+
+  // Today + future: full-day call-offs for the viewed date.
+  const showCallOffs =
+    !sunday &&
+    (viewingToday || viewingFuture) &&
+    (status === "live" || status === "cached" || callOffNames.length > 0);
+
+  const whenLabel = viewingToday
+    ? saturday
+      ? "Saturday"
+      : "today"
+    : formatHeaderDate(viewed);
+
+  return (
+    <article className={compact ? "drivers-card drivers-card-compact" : "drivers-card"}>
+      <div className="drivers-card-top">
+        <div>
+          <p className="tally-label">Available drivers</p>
+          {sunday ? (
+            <p className="grand-headline">No Sunday tally</p>
+          ) : dayAvail ? (
+            <p className="grand-headline">
+              {dayAvail.available} available {whenLabel}
+            </p>
+          ) : viewingToday ? (
+            <p className="grand-headline">Roster not loaded</p>
+          ) : (
+            <p className="grand-headline">No snapshot for {formatHeaderDate(viewed)}</p>
+          )}
+          {sunday ? (
+            <p className="grand-sub">
+              Sundays are not tallied. {formatHeaderDate(viewed)}
+            </p>
+          ) : dayAvail && viewingFuture && saturday ? (
+            <p className="grand-sub">
+              Projected sat yards · {formatHeaderDate(viewed)} · from live sheet
+            </p>
+          ) : dayAvail && viewingFuture ? (
+            <p className="grand-sub">
+              Projected {dayAvail.base} roster − {dayAvail.offs} full-day off
+              {dayAvail.offs === 1 ? "" : "s"} · {formatHeaderDate(viewed)}
+            </p>
+          ) : dayAvail && saturday ? (
+            <p className="grand-sub">
+              Sat yards: Burnham + Rockford + Pontiac + Arc + Zion ·{" "}
+              {formatHeaderDate(viewed)}
+              {dayAvail.locked ? " · locked" : " · live today, locks at midnight"}
+            </p>
+          ) : dayAvail ? (
+            <p className="grand-sub">
+              {dayAvail.base} Chicago roster (Burnham!L13) − {dayAvail.offs}{" "}
+              full-day off{dayAvail.offs === 1 ? "" : "s"} ·{" "}
+              {formatHeaderDate(viewed)}
+              {dayAvail.locked ? " · locked" : " · live today, locks at midnight"}
+            </p>
+          ) : viewingToday ? (
+            <p className="grand-sub">
+              Share both sheets as Anyone with the link (Viewer), then refresh.
+            </p>
+          ) : (
+            <p className="grand-sub">
+              This Chicago day was never snapshotted. Today’s live sheet is not
+              written back onto past dates.
+            </p>
+          )}
+        </div>
+        <span className="grand-value">{dayAvail ? dayAvail.available : "—"}</span>
+      </div>
+
+      {showOot ? (
+        <div className="oot-block">
+          <p className="oot-label">Out of town</p>
+          <p className="oot-yards">
+            {viewingToday
+              ? "Live from Burnham · Rockford · Pontiac · ARC · Zion"
+              : viewingFuture
+                ? "Current roster OOT"
+                : dayAvail?.locked
+                  ? "Locked for this Chicago day"
+                  : "Saved with this day’s snapshot"}
+          </p>
+          {displayedOot.length ? (
+            <ul className="oot-list">
+              {displayedOot.map((name) => (
+                <li key={name} className="oot-chip">
+                  {name}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="oot-empty">
+              {viewingToday
+                ? "No OOT"
+                : dayAvail && Array.isArray(dayAvail.ootNames)
+                  ? "No OOT"
+                  : "No OOT saved for this day"}
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {showCallOffs ? (
+        <div className="oot-block">
+          <p className="oot-label">Call offs</p>
+          <p className="oot-yards">Full-day Off.</p>
+          {callOffNames.length ? (
+            <ul className="oot-list">
+              {callOffNames.map((name) => (
+                <li key={name} className="oot-chip">
+                  {name}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="oot-empty">No full-day call offs</p>
+          )}
+        </div>
+      ) : null}
+
+      {!compact && avg !== null ? (
+        <p className="drivers-avg">
+          YTD average {avg.toFixed(0)} available · Mon–Sat (no Sundays)
+        </p>
+      ) : null}
+
+      <div className="drivers-actions">
+        <button
+          type="button"
+          className="text-btn amber"
+          onClick={() => void refresh()}
+          disabled={status === "loading"}
+        >
+          <RefreshCw size={16} />
+          {status === "loading" ? "Pulling sheets…" : "Refresh sheets"}
+        </button>
+        <span className="field-hint tight">
+          {status === "live"
+            ? `Live · ${pulledLabel(fetchedAt)}`
+            : status === "cached"
+              ? `Cached · ${pulledLabel(fetchedAt)}`
+              : status === "error"
+                ? "Sheets unreachable"
+                : "Pulling…"}
+        </span>
+      </div>
+      {error ? <p className="field-hint">{error}</p> : null}
+    </article>
+  );
+}
+
+
+

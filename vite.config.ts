@@ -1,0 +1,98 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+
+const host = process.env.TAURI_DEV_HOST;
+
+const ROSTER_ID =
+  process.env.VITE_ROSTER_SHEET_ID || "1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw";
+const CALLOFF_ID =
+  process.env.VITE_CALLOFF_SHEET_ID || "1FnKGIuWfKCPvcaSwchnIpQjdezHKWC5O23jECPcJzyM";
+
+const SAT_CELLS = [
+  { slug: "burnham", tab: "Sat-Burnham", range: "I4" },
+  { slug: "rockford", tab: "Sat-Rockford", range: "I4" },
+  { slug: "pontiac", tab: "Sat-Pontiac", range: "H3" },
+  { slug: "arc", tab: "Sat-Arc", range: "H3" },
+  { slug: "zion", tab: "Sat-Zion", range: "H3" },
+] as const;
+
+const OOT_YARDS = [
+  { slug: "burnham", tab: "Burnham", range: "A:I" },
+  { slug: "rockford", tab: "Rockford", range: "A:F" },
+  { slug: "pontiac", tab: "Pontiac", range: "A:C" },
+  { slug: "arc", tab: "ARC Drivers", range: "A:C" },
+  { slug: "zion", tab: "Zion", range: "A:C" },
+] as const;
+
+function gviz(sheetId: string, query: string): string {
+  return `/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&${query}`;
+}
+
+// Longer /sheets/roster-grid path must be registered before /sheets/roster.
+// Vite's proxy matches by prefix, so roster would otherwise steal roster-grid.
+const sheetProxy: Record<string, { target: string; changeOrigin: boolean; rewrite: () => string }> = {
+  "/sheets/roster-grid": {
+    target: "https://docs.google.com",
+    changeOrigin: true,
+    rewrite: () => gviz(ROSTER_ID, "sheet=Burnham&range=A:I"),
+  },
+  "/sheets/roster": {
+    target: "https://docs.google.com",
+    changeOrigin: true,
+    rewrite: () => gviz(ROSTER_ID, "sheet=Burnham&range=L13"),
+  },
+  "/sheets/offs": {
+    target: "https://docs.google.com",
+    changeOrigin: true,
+    rewrite: () => gviz(CALLOFF_ID, "gid=0"),
+  },
+};
+
+for (const cell of SAT_CELLS) {
+  sheetProxy[`/sheets/sat/${cell.slug}`] = {
+    target: "https://docs.google.com",
+    changeOrigin: true,
+    rewrite: () =>
+      gviz(ROSTER_ID, `sheet=${encodeURIComponent(cell.tab)}&range=${cell.range}`),
+  };
+}
+
+for (const yard of OOT_YARDS) {
+  sheetProxy[`/sheets/oot/${yard.slug}`] = {
+    target: "https://docs.google.com",
+    changeOrigin: true,
+    rewrite: () =>
+      gviz(
+        ROSTER_ID,
+        `sheet=${encodeURIComponent(yard.tab)}&range=${encodeURIComponent(yard.range)}`,
+      ),
+  };
+}
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  clearScreen: false,
+  server: {
+    host: host || "0.0.0.0",
+    port: 4521,
+    strictPort: true,
+    hmr: host
+      ? {
+          protocol: "ws",
+          host,
+          port: 4522,
+        }
+      : undefined,
+    proxy: sheetProxy,
+    watch: {
+      ignored: ["**/src-tauri/**"],
+    },
+  },
+  preview: {
+    host: "0.0.0.0",
+    port: 4521,
+    strictPort: true,
+    proxy: sheetProxy,
+  },
+});

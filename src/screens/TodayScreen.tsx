@@ -1,0 +1,173 @@
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Plus } from "lucide-react";
+import { dailyCounts } from "../lib/analytics";
+import {
+  chicagoToday,
+  formatHeaderDate,
+  weekStartingMonday,
+} from "../lib/chicagoDate";
+import { tallyLabel } from "../lib/commodity";
+import { useDrivers } from "../store/DriversContext";
+import { useLoads } from "../store/LoadsContext";
+import { BrandMark } from "../components/BrandMark";
+import { DayPicker } from "../components/DayPicker";
+import { DriversCard } from "../components/DriversCard";
+import { StationCallsCard } from "../components/StationCallsCard";
+import { SpecialtyBoardCard } from "../components/SpecialtyBoardCard";
+import { ChicagoTrafficCard } from "../components/ChicagoTrafficCard";
+import { isTauriDesktop } from "../lib/chicagoTraffic";
+import { LoadRow } from "../components/LoadRow";
+
+type TodayScreenProps = {
+  date: string;
+  onDateChange: (iso: string) => void;
+  justEditedId: string | null;
+  onLog: (date: string) => void;
+  onEdit: (id: string) => void;
+  showDayPicker?: boolean;
+};
+
+export function TodayScreen({
+  date,
+  onDateChange,
+  justEditedId,
+  onLog,
+  onEdit,
+  showDayPicker = false,
+}: TodayScreenProps) {
+  const today = chicagoToday();
+  const { loads, loadsOn } = useLoads();
+  const { availabilityOn } = useDrivers();
+  const dayLoads = loadsOn(date);
+  const viewingToday = date === today;
+  const [loadsOpen, setLoadsOpen] = useState(false);
+
+  useEffect(() => {
+    setLoadsOpen(false);
+  }, [date]);
+
+  const countByDate = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of dailyCounts(loads, weekStartingMonday(date))) {
+      map.set(row.date, row.count);
+    }
+    return map;
+  }, [loads, date]);
+
+  const counts = new Map<string, number>();
+  for (const load of dayLoads) {
+    const key = tallyLabel(load.commodity);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const topCommodities = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  const loadWord = dayLoads.length === 1 ? "load" : "loads";
+
+  return (
+    <div className="screen">
+      <header className="page-header">
+        <div className="page-header-brand">
+          <BrandMark />
+          <div>
+            <p className="eyebrow">Load Tracker</p>
+            <h1 className="page-title">{formatHeaderDate(date)}</h1>
+          </div>
+        </div>
+        {justEditedId ? <span className="updated-badge">Updated</span> : null}
+      </header>
+
+      {showDayPicker ? (
+        <DayPicker
+          date={date}
+          onChange={onDateChange}
+          loadCountFor={(iso) => countByDate.get(iso) ?? 0}
+          driverCountFor={(iso) => availabilityOn(iso)?.available ?? null}
+        />
+      ) : !viewingToday ? (
+        <button type="button" className="text-btn amber" onClick={() => onDateChange(today)}>
+          Jump to today
+        </button>
+      ) : null}
+
+      <div className="tally-row">
+        {topCommodities.slice(0, 2).map(([label, count]) => (
+          <article key={label} className="tally-card">
+            <span className="tally-label">{label}</span>
+            <span className="tally-value">{count}</span>
+          </article>
+        ))}
+        <article className="tally-card tally-loads">
+          <span className="tally-label">LOADS</span>
+          <span className="tally-value">{dayLoads.length}</span>
+        </article>
+      </div>
+
+      {isTauriDesktop() ? <ChicagoTrafficCard /> : null}
+
+      <DriversCard compact date={date} />
+
+      <StationCallsCard date={date} />
+
+      <SpecialtyBoardCard date={date} />
+
+      {justEditedId ? (
+        <p className="recalc-note">
+          Totals recalculate after every edit. Same load, new facts.
+        </p>
+      ) : null}
+
+      {dayLoads.length === 0 ? (
+        <div className="empty">
+          <h2>No loads {viewingToday ? "yet today" : `on ${formatHeaderDate(date)}`}</h2>
+          <p>
+            Log the first haul for this Chicago calendar day with the button
+            below. You can keep adding more without losing this date. Use the
+            week list to change days.
+          </p>
+        </div>
+      ) : (
+        <section
+          className={
+            loadsOpen ? "totals-block day-loads-block" : "totals-block day-loads-block totals-block-collapsed"
+          }
+        >
+          <button
+            type="button"
+            className="totals-toggle"
+            aria-expanded={loadsOpen}
+            onClick={() => setLoadsOpen((v) => !v)}
+          >
+            <span className="totals-toggle-copy">
+              <span className="totals-toggle-title">Day loads</span>
+              <span className="totals-toggle-count">
+                {dayLoads.length} {loadWord}
+                {loadsOpen ? "" : " · tap to expand"}
+              </span>
+            </span>
+            <ChevronDown
+              size={18}
+              className={loadsOpen ? "totals-chevron open" : "totals-chevron"}
+              aria-hidden
+            />
+          </button>
+          {loadsOpen ? (
+            <div className="feed day-loads-feed">
+              {dayLoads.map((load) => (
+                <LoadRow
+                  key={load.id}
+                  load={load}
+                  onEdit={() => onEdit(load.id)}
+                  highlight={load.id === justEditedId ? "just-edited" : null}
+                />
+              ))}
+            </div>
+          ) : null}
+        </section>
+      )}
+
+      <button type="button" className="fab" onClick={() => onLog(date)}>
+        <Plus size={22} strokeWidth={2.6} />
+        Log load
+      </button>
+    </div>
+  );
+}

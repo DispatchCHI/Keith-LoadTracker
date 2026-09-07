@@ -1,0 +1,297 @@
+﻿import {
+  addDays,
+  dateInInclusiveRange,
+  parseSheetDate,
+  startOfYear,
+} from "./chicagoDate";
+
+export type CallOffRow = {
+  name: string;
+  start: string;
+  end: string | null;
+  reason: string;
+};
+
+export type DayAvailability = {
+  date: string;
+  base: number;
+  offs: number;
+  available: number;
+  ootNames?: string[];
+};
+
+function normalizeReason(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u02bc]/g, "'")
+    .replace(/\bok;d\b/g, "ok'd")
+    .replace(/\bokd\b/g, "ok'd")
+    .replace(/[^a-z0-9'/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const WORKING_RE = [
+  /\bneeds? to be parked\b/,
+  /\bneeds? to park\b/,
+  /\bneeding to park\b/,
+  /\bneed to park\b/,
+  /\bparked by\b/,
+  /\bparked at\b/,
+  /\bto park (empty|early|by|at)\b/,
+  /\bok'?d to park\b/,
+  /\bok'?d to do\b/,
+  /\bok'?d to come\b/,
+  /\bcoming in\b/,
+  /\bcome in (late|at|after)\b/,
+  /\btrailer work\b/,
+  /\bsign papers\b/,
+];
+
+const FULL_DAY_OFF_RE = [
+  /\bp[\s-]?days?\b/,
+  /\bcall[\s-]?offs?\b/,
+  /\bfmla\b/,
+  /\bok'?d (day )?off\b/,
+  /\bjury\s+duty\b/,
+  /\bcourt\b/,
+  /\bvacation(\s+days?)?\b/,
+  /\bbereavement\b/,
+  /\blast\s+day\b/,
+  /\bretir(?:e|ed|ing)\b/,
+];
+
+/**
+ * True only when the reason is a full-day / status off.
+ * Operational notes (park by noon, half loads, coming in late) stay on the
+ * roster. Unsure reasons do not subtract.
+ */
+export function isFullDayOff(reason: string): boolean {
+  const n = normalizeReason(reason);
+  if (!n) return false;
+  if (WORKING_RE.some((re) => re.test(n))) return false;
+  return FULL_DAY_OFF_RE.some((re) => re.test(n));
+}
+
+export function callOffAppliesToDay(row: CallOffRow, day: string): boolean {
+  if (!isFullDayOff(row.reason)) return false;
+  return dateInInclusiveRange(day, row.start, row.end);
+}
+
+export function fullDayOffCount(rows: CallOffRow[], day: string): number {
+  const names = new Set<string>();
+  for (const row of rows) {
+    if (!callOffAppliesToDay(row, day)) continue;
+    const key = row.name.trim().toLowerCase() || `${row.start}|${row.reason}`;
+    names.add(key);
+  }
+  return names.size;
+}
+
+export function fullDayOffNames(rows: CallOffRow[], day: string): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const row of rows) {
+    if (!callOffAppliesToDay(row, day)) continue;
+    const name = row.name.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+  }
+  return names.sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+}
+
+
+export function availableDrivers(
+  base: number,
+  rows: CallOffRow[],
+  day: string,
+): DayAvailability {
+  const offs = fullDayOffCount(rows, day);
+  return {
+    date: day,
+    base,
+    offs,
+    available: Math.max(0, Math.floor(base) - offs),
+  };
+}
+
+export function averageAvailable(
+  base: number,
+  rows: CallOffRow[],
+  start: string,
+  end: string,
+): number | null {
+  if (base <= 0 || start > end) return null;
+  let sum = 0;
+  let days = 0;
+  for (let d = start; d <= end; d = addDays(d, 1)) {
+    sum += availableDrivers(base, rows, d).available;
+    days += 1;
+    if (days > 400) break;
+  }
+  return days === 0 ? null : sum / days;
+}
+
+export function ytdAverageAvailable(
+  base: number,
+  rows: CallOffRow[],
+  today: string,
+): number | null {
+  return averageAvailable(base, rows, startOfYear(today), today);
+}
+
+export function parseBaseHeadcount(raw: string): number | null {
+  const match = raw.replace(/,/g, "").match(/(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const n = Number(match[1]);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n);
+}
+
+export function parseCallOffCsv(text: string): CallOffRow[] {
+  const table = parseCsv(text);
+  if (table.length === 0) return [];
+  const header = table[0].map((cell) => cell.trim().toLowerCase());
+  const nameIdx = header.findIndex((h) => h === "name" || h.startsWith("name"));
+  const startIdx = header.findIndex(
+    (h) => h.startsWith("call off") || h === "calloff" || h === "date",
+  );
+  const throughIdx = header.findIndex((h) => h.includes("through"));
+  const reasonIdx = header.findIndex((h) => h.startsWith("reason"));
+  if (nameIdx < 0 || startIdx < 0 || reasonIdx < 0) return [];
+
+  const rows: CallOffRow[] = [];
+  for (const line of table.slice(1)) {
+    const name = (line[nameIdx] ?? "").trim();
+    const start = parseSheetDate(line[startIdx] ?? "");
+    if (!name || !start) continue;
+    const endRaw = throughIdx >= 0 ? (line[throughIdx] ?? "").trim() : "";
+    const end = endRaw ? parseSheetDate(endRaw) : null;
+    rows.push({
+      name,
+      start,
+      end,
+      reason: (line[reasonIdx] ?? "").trim(),
+    });
+  }
+  return rows;
+}
+
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  const src = text.replace(/^\uFEFF/, "");
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (src[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+      continue;
+    }
+    if (ch === ",") {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+    if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && src[i + 1] === "\n") i += 1;
+      row.push(cell);
+      cell = "";
+      if (row.some((c) => c.trim())) rows.push(row);
+      row = [];
+      continue;
+    }
+    cell += ch;
+  }
+  row.push(cell);
+  if (row.some((c) => c.trim())) rows.push(row);
+  return rows;
+}
+
+/** 0-based [name, status] columns. */
+export type OotPair = readonly [nameIdx: number, statusIdx: number];
+
+/** Burnham A:I â€” name/status pairs in B/C, E/F, H/I. */
+export const BURNHAM_OOT_PAIRS: readonly OotPair[] = [
+  [1, 2],
+  [4, 5],
+  [7, 8],
+];
+
+/** Rockford â€” B/C and E/F. */
+export const ROCKFORD_OOT_PAIRS: readonly OotPair[] = [
+  [1, 2],
+  [4, 5],
+];
+
+/** Pontiac / ARC Drivers / Zion â€” B/C only. */
+export const SINGLE_COL_OOT_PAIRS: readonly OotPair[] = [[1, 2]];
+
+function cleanRosterName(raw: string): string {
+  return raw.replace(/\s+/g, " ").trim();
+}
+
+export function isOotStatus(raw: string): boolean {
+  return raw.trim().toLowerCase() === "oot";
+}
+
+function sortOotNames(names: string[]): string[] {
+  return names.sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+}
+
+/** Names whose matching status cell is OOT. Deduped, sorted. */
+export function parseOotNames(
+  csv: string,
+  pairs: readonly OotPair[] = BURNHAM_OOT_PAIRS,
+): string[] {
+  const table = parseCsv(csv);
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const row of table) {
+    for (const [nameIdx, statusIdx] of pairs) {
+      if (!isOotStatus(row[statusIdx] ?? "")) continue;
+      const name = cleanRosterName(row[nameIdx] ?? "");
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      names.push(name);
+    }
+  }
+  return sortOotNames(names);
+}
+
+/** Merge yard lists, case-insensitive dedupe, sorted. */
+export function combineOotNames(groups: readonly (readonly string[])[]): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const group of groups) {
+    for (const raw of group) {
+      const name = cleanRosterName(raw);
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      names.push(name);
+    }
+  }
+  return sortOotNames(names);
+}
+
