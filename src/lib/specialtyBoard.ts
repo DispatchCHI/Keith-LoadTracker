@@ -38,7 +38,6 @@ export const SPECIALTY_STATIONS: SpecialtyStation[] = [
   { id: "hodgkins", name: "Hodgkins" },
   { id: "grayslake", name: "GraysLake" },
   { id: "liberty-tank", name: "Liberty" },
-  { id: "herthside", name: "Hearthside" },
   { id: "custom-1", name: CUSTOM_SPECIALTY_DEFAULT_NAMES["custom-1"] },
   { id: "custom-2", name: CUSTOM_SPECIALTY_DEFAULT_NAMES["custom-2"] },
   { id: "custom-3", name: CUSTOM_SPECIALTY_DEFAULT_NAMES["custom-3"] },
@@ -66,7 +65,7 @@ export const SPECIALTY_DESTINATIONS = [
 ] as const;
 
 /** Stations whose dest chips follow the pickup catalog instead of the global list. */
-const SPECIALTY_CATALOG_DEST_IDS = new Set(["grayslake", "herthside", "hodgkins"]);
+const SPECIALTY_CATALOG_DEST_IDS = new Set(["grayslake", "hodgkins"]);
 
 /**
  * Walking-floor cards whose + chips are commodities (stored in `destination`).
@@ -94,7 +93,7 @@ const SPECIALTY_DEST_OVERRIDES: Record<string, readonly string[]> = {
     "DuPage",
   ],
   melrose: ["Hodgkins", "RSI", "Willow Ranch", "Homewood"],
-  batavia: ["Hodgkins", "Lake Co MRF", "RSI", "Trash"],
+  batavia: ["Hodgkins", "Lake Co MRF", "RSI"],
   northlake: ["Hodgkins", "Thelens", "Organix"],
   arc: ["Organix", "Hodgkins", "Thelens", "Resource MGT"],
   citiwaste: [
@@ -112,7 +111,7 @@ const SPECIALTY_DEST_OVERRIDES: Record<string, readonly string[]> = {
   rockdale: ["Recycle", "Yard Waste", "Cardboard"],
   dekalb: ["Wood", "Recycle", "Yard Waste", "C&D"],
   roscoe: ["Recycle"],
-  ford: ["Cardboard", "Trash", "Recycle"],
+  ford: ["Cardboard", "Recycle"],
   "prairie-hill": ["C&D", "Yard Waste"],
   "liberty-tank": ["CID", "Kankakee", "Reworld", "KanSpcl", "Sun Chem"],
   // Catalog union includes Hodgkins for Recycle; specialty chips stay tank/leachate.
@@ -126,16 +125,24 @@ export function specialtyChipMode(
 }
 
 /** Per-station dest chips; restricted yards match (or subset) log-load dests. */
+function withoutTrashChips(chips: readonly string[]): readonly string[] {
+  return chips.filter((chip) => !/^trash\b/i.test(chip.trim()));
+}
+
 export function specialtyDestinationsFor(stationId: string): readonly string[] {
   if (isCustomSpecialtyId(stationId)) return [];
-  if (SPECIALTY_DEST_OVERRIDES[stationId]) return SPECIALTY_DEST_OVERRIDES[stationId];
-  if (SPECIALTY_CATALOG_DEST_IDS.has(stationId)) return destinationsFor(stationId);
-  return SPECIALTY_DESTINATIONS;
+  if (SPECIALTY_DEST_OVERRIDES[stationId]) {
+    return withoutTrashChips(SPECIALTY_DEST_OVERRIDES[stationId]);
+  }
+  if (SPECIALTY_CATALOG_DEST_IDS.has(stationId)) {
+    return withoutTrashChips(destinationsFor(stationId));
+  }
+  return withoutTrashChips(SPECIALTY_DESTINATIONS);
 }
 
 export function specialtyDestHint(stationId: string): string {
   if (isCustomSpecialtyId(stationId)) {
-    return "Name the pickup · Leachate / Walking-floor / Trash · type the dest";
+    return "Name the pickup · Leachate / Walking-floor · type the dest";
   }
   if (stationId === "herthside") return "Trash destination for new open load";
   if (stationId === "hodgkins") {
@@ -151,7 +158,7 @@ export function specialtyDestHint(stationId: string): string {
     return "Hodgkins · RSI · Willow Ranch · Homewood";
   }
   if (stationId === "batavia") {
-    return "Hodgkins · Lake Co MRF · RSI · Trash";
+    return "Hodgkins · Lake Co MRF · RSI";
   }
   if (stationId === "grayslake") {
     return "FRWRD · CID · Dekalb Sanitary";
@@ -184,7 +191,7 @@ export function specialtyDestHint(stationId: string): string {
     return "Recycle commodity for new open load";
   }
   if (stationId === "ford") {
-    return "Cardboard · Trash · Recycle";
+    return "Cardboard · Recycle";
   }
   if (stationId === "prairie-hill") {
     return "C&D · Yard Waste";
@@ -765,9 +772,7 @@ export function resolveSpecialtyStationId(
 
 /**
  * Specialty-board commodity for this card.
- * Commodity-keyed walking-floor cards match the + chip list (Ford Trash only).
- * Dest-keyed cards treat ordinary trash as a board lane only when dest is an
- * explicit Trash chip (Batavia) or the card is Hearthside.
+ * Trash / MSW never counts as a specialty-board lane (walking-floor / leachate only).
  */
 function isSpecialtyBoardCommodity(
   specialtyId: string,
@@ -779,19 +784,15 @@ function isSpecialtyBoardCommodity(
     return isCustomSpecialtyCommodity(commodity, destination);
   }
   const key = tallyLabel(commodity);
+  // Ordinary trash/MSW never specialty-tallies. C&D / tires EOD-roll into TRASH
+  // but still use walking-floor specialty chips.
+  if (key === "TRASH") {
+    const c = commodity.toLowerCase();
+    if (!c.includes("c&d") && !c.includes("tire")) return false;
+  }
   if (specialtyChipMode(specialtyId) === "commodity") {
     return specialtyDestinationsFor(specialtyId).some((chip) =>
       sameSpecialtyDest(chip, commodity),
-    );
-  }
-  // Ordinary trash is off-board except Ford (commodity chip), Hearthside
-  // (Newton County dest), and dest-mode cards with an explicit Trash chip
-  // (Batavia end-of-night tally — dest must be that chip, not DeKalb/Rockford).
-  if (key === "TRASH") {
-    if (specialtyId === "herthside") return true;
-    return specialtyDestinationsFor(specialtyId).some(
-      (chip) =>
-        sameSpecialtyDest(chip, "Trash") && sameSpecialtyDest(destination, chip),
     );
   }
   if (specialtyId === "liberty-tank" || specialtyId === "grayslake") {
@@ -820,7 +821,7 @@ export function specialtyLaneChipLabel(
   const chips = specialtyDestinationsFor(specialtyId);
   const needle =
     specialtyChipMode(specialtyId) === "commodity" ? commodity : destination;
-  if (!needle.trim()) return null;
+  if (!needle || !String(needle).trim()) return null;
   return chips.find((chip) => sameSpecialtyDest(chip, needle)) ?? null;
 }
 
@@ -873,8 +874,7 @@ export type SpecialtyBoardLane = {
 /**
  * Specialty Loads lane: board station + chip(s) for that card.
  * Walking-floor commodity cards match the load commodity; Liberty / dest cards
- * match destination. Ordinary trash is a board lane only on Ford, Hearthside,
- * and Batavia's explicit Trash dest chip.
+ * match destination. Ordinary trash/MSW is never a specialty-board lane.
  * Commodity-mode also lists the load destination so legacy dest opens burn.
  */
 export function resolveSpecialtyBoardMatch(
