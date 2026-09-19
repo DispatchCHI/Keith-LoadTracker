@@ -7,6 +7,7 @@ import {
   rateForLoad,
   removeCustomerByName,
   seededCustomerLaneStore,
+  customersWithRealLanes,
   upsertCustomerLane,
 } from "./customerLanes";
 
@@ -117,5 +118,25 @@ describe("upsertCustomerLane natural key", () => {
     expect(second.lane?.id).toBe(first.lane?.id);
     expect(Object.keys(second.store.lanes)).toHaveLength(1);
     expect(second.lane?.tier1).toBe(155.21);
+  });
+});
+
+describe("customersWithRealLanes", () => {
+  it("skips stubs and lists customers with a destination", () => {
+    let store: CustomerLaneStore = { lanes: {} };
+    store = upsertCustomerLane(store, {
+      customer: "LRS",
+      destination: "",
+      commodity: "Trash (MSW)",
+      effectiveDate: "2025-01-01",
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "GraysLake",
+      destination: "CID",
+      commodity: "Leachate (tanker)",
+      effectiveDate: "2025-01-01",
+      tier1: 155.21,
+    }).store;
+    expect(customersWithRealLanes(store)).toEqual(["GraysLake"]);
   });
 });

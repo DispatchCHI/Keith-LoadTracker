@@ -5,6 +5,7 @@ import {
   getStation,
   type Station,
 } from "../data/stations";
+import { placesMatch } from "./customerLanes";
 
 export type PickupCountLoad = {
   stationId: string;
@@ -52,4 +53,25 @@ export function rankPickupStations(
     if (byFrequent !== 0) return byFrequent;
     return (catalogIndex.get(a.id) ?? 0) - (catalogIndex.get(b.id) ?? 0);
   });
+}
+
+/** Keep catalog stations whose name matches a customer with real lanes. */
+export function filterStationsByCustomerLanes(
+  stations: readonly Station[],
+  customerNames: readonly string[],
+): Station[] {
+  if (!customerNames.length) return [];
+  return stations.filter((station) =>
+    customerNames.some((name) => placesMatch(station.name, name)),
+  );
+}
+
+/** Lane-book customers that do not match any catalog station (shown as custom chips). */
+export function unmatchedLaneCustomers(
+  customerNames: readonly string[],
+  stations: readonly Station[],
+): string[] {
+  return customerNames.filter(
+    (name) => !stations.some((station) => placesMatch(station.name, name)),
+  );
 }

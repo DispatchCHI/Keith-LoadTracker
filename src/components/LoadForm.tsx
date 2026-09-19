@@ -16,7 +16,13 @@ import {
   lookupCustomSpecialtyIdByName,
   readCustomSpecialtyNames,
 } from "../lib/customSpecialty";
-import { rankPickupStations } from "../lib/pickupRank";
+import {
+  filterStationsByCustomerLanes,
+  rankPickupStations,
+  unmatchedLaneCustomers,
+} from "../lib/pickupRank";
+import { customersWithRealLanes } from "../lib/customerLanes";
+import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useLoads } from "../store/LoadsContext";
 import { Chip } from "./Chip";
 
@@ -50,11 +56,24 @@ export function LoadForm({
   driverName,
 }: LoadFormProps) {
   const { loads } = useLoads();
-  const rankedStations = useMemo(
-    () => rankPickupStations(STATIONS, loads),
-    [loads],
+  const { store: customerLanes } = useCustomerLanes();
+  const laneCustomers = useMemo(
+    () => customersWithRealLanes(customerLanes),
+    [customerLanes],
   );
-  const visibleCount = FREQUENT_STATION_IDS.length;
+  const laneStations = useMemo(
+    () => filterStationsByCustomerLanes(STATIONS, laneCustomers),
+    [laneCustomers],
+  );
+  const extraLaneCustomers = useMemo(
+    () => unmatchedLaneCustomers(laneCustomers, STATIONS),
+    [laneCustomers],
+  );
+  const rankedStations = useMemo(
+    () => rankPickupStations(laneStations, loads),
+    [laneStations, loads],
+  );
+  const visibleCount = Math.min(FREQUENT_STATION_IDS.length, rankedStations.length);
   const rest = rankedStations.slice(visibleCount);
   const [showAllStations, setShowAllStations] = useState(() => {
     if (!value.stationId || value.stationId === CUSTOM_ID) return false;
@@ -143,7 +162,21 @@ export function LoadForm({
               onClick={() => selectStation(station.id)}
             />
           ))}
-          {!showAllStations ? (
+          {extraLaneCustomers.map((name) => (
+            <Chip
+              key={`lane-${name}`}
+              label={name}
+              selected={isCustom && value.pickup.trim().toLowerCase() === name.toLowerCase()}
+              onClick={() =>
+                onChange({
+                  ...value,
+                  stationId: CUSTOM_ID,
+                  pickup: name,
+                })
+              }
+            />
+          ))}
+          {!showAllStations && rest.length > 0 ? (
             <Chip
               label={`+ ${rest.length} more`}
               muted
@@ -152,7 +185,7 @@ export function LoadForm({
           ) : null}
           <Chip
             label="Custom..."
-            selected={isCustom && !customPickupId}
+            selected={isCustom && !customPickupId && !extraLaneCustomers.some((n) => n.toLowerCase() === value.pickup.trim().toLowerCase())}
             onClick={() => selectStation(CUSTOM_ID)}
           />
           {CUSTOM_SPECIALTY_IDS.map((id) => (
@@ -181,7 +214,9 @@ export function LoadForm({
         ) : cascadeNote ? (
           <p className="field-hint">{cascadeNote}</p>
         ) : (
-          <p className="field-hint">Pick a transfer station or Custom.</p>
+          <p className="field-hint">
+            Pickups with a Customers lane book entry, or Custom.
+          </p>
         )}
       </section>
 

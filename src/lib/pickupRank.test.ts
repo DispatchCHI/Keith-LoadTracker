@@ -1,6 +1,12 @@
+import { STATIONS } from "../data/stations";
 import { describe, expect, it } from "vitest";
 import { FREQUENT_STATION_IDS, STATIONS } from "../data/stations";
-import { countPickupsByStationId, rankPickupStations } from "./pickupRank";
+import {
+  countPickupsByStationId,
+  filterStationsByCustomerLanes,
+  rankPickupStations,
+  unmatchedLaneCustomers,
+} from "./pickupRank";
 
 function load(stationId: string, pickup: string) {
   return { stationId, pickup };
@@ -61,5 +67,18 @@ describe("rankPickupStations", () => {
     const apollo = STATIONS.findIndex((s) => s.id === "apollo");
     expect(calumet).toBeLessThan(apollo);
     expect(ranked.slice(0, 2).map((s) => s.id)).toEqual(["calumet", "apollo"]);
+  });
+});
+
+describe("filterStationsByCustomerLanes", () => {
+  it("keeps only stations that match lane customers", () => {
+    const filtered = filterStationsByCustomerLanes(STATIONS, ["Melrose", "Batavia"]);
+    expect(filtered.map((s) => s.name).sort()).toEqual(["Batavia", "Melrose"]);
+  });
+
+  it("lists lane customers with no catalog station", () => {
+    expect(unmatchedLaneCustomers(["Acme Hauling", "Melrose"], STATIONS)).toEqual([
+      "Acme Hauling",
+    ]);
   });
 });

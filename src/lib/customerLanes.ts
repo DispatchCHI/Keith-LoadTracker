@@ -398,6 +398,17 @@ export function removeCustomerByName(
   return { store: { lanes }, removedIds };
 }
 
+
+/** Customers that have at least one real lane (destination filled — not an add-customer stub). */
+export function customersWithRealLanes(store: CustomerLaneStore): string[] {
+  const names = new Set<string>();
+  for (const lane of Object.values(store.lanes)) {
+    if (isLaneStub(lane)) continue;
+    names.add(lane.customer);
+  }
+  return [...names].sort((a, b) => a.localeCompare(b, "en"));
+}
+
 export function customerNames(store: CustomerLaneStore): string[] {
   const names = new Set<string>();
   for (const lane of Object.values(store.lanes)) names.add(lane.customer);
