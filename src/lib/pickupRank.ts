@@ -5,7 +5,8 @@ import {
   getStation,
   type Station,
 } from "../data/stations";
-import { placesMatch } from "./customerLanes";
+import { normalizePlaceName, placesMatch } from "./customerLanes";
+import { chicagoToday } from "./chicagoDate";
 
 export type PickupCountLoad = {
   stationId: string;
@@ -74,4 +75,74 @@ export function unmatchedLaneCustomers(
   return customerNames.filter(
     (name) => !stations.some((station) => placesMatch(station.name, name)),
   );
+}
+
+
+export type PickupChoice =
+  | { kind: "station"; station: Station }
+  | { kind: "lane"; name: string };
+
+export type DatedPickupLoad = PickupCountLoad & { date?: string };
+
+/** Count logged pickups by normalized place name (catalog + custom lane names). */
+export function countPickupsByPlaceName(
+  loads: readonly DatedPickupLoad[],
+  opts?: { recentDays?: number; asOf?: string },
+): Map<string, number> {
+  const recentDays = opts?.recentDays ?? 45;
+  const asOf = opts?.asOf ?? chicagoToday();
+  const cutoff = (() => {
+    const d = new Date(`${asOf}T12:00:00`);
+    d.setDate(d.getDate() - recentDays);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  })();
+  const counts = new Map<string, number>();
+  for (const load of loads) {
+    const label =
+      (load.stationId && load.stationId !== CUSTOM_ID
+        ? getStation(load.stationId)?.name
+        : null) ?? load.pickup;
+    const key = normalizePlaceName(label);
+    if (!key) continue;
+    const weight =
+      !load.date || load.date >= cutoff ? 3 : load.date >= asOf.slice(0, 4) + "-01-01" ? 1 : 0;
+    if (!weight) continue;
+    counts.set(key, (counts.get(key) ?? 0) + weight);
+  }
+  return counts;
+}
+
+/**
+ * Station + unmatched lane-customer chips, most-used first.
+ * Recent hauls weigh more so the top row matches what dispatch is running now.
+ */
+export function rankPickupChoices(
+  stations: readonly Station[],
+  laneCustomerNames: readonly string[],
+  loads: readonly DatedPickupLoad[],
+  opts?: { recentDays?: number; asOf?: string },
+): PickupChoice[] {
+  const counts = countPickupsByPlaceName(loads, opts);
+  const score = (name: string) => counts.get(normalizePlaceName(name)) ?? 0;
+  const stationChoices: PickupChoice[] = stations.map((station) => ({
+    kind: "station",
+    station,
+  }));
+  const stationNameKeys = new Set(
+    stations.map((station) => normalizePlaceName(station.name)),
+  );
+  const laneChoices: PickupChoice[] = laneCustomerNames
+    .filter((name) => !stationNameKeys.has(normalizePlaceName(name)))
+    .map((name) => ({ kind: "lane", name }));
+  const all = [...stationChoices, ...laneChoices];
+  return all.sort((a, b) => {
+    const nameA = a.kind === "station" ? a.station.name : a.name;
+    const nameB = b.kind === "station" ? b.station.name : b.name;
+    const byScore = score(nameB) - score(nameA);
+    if (byScore !== 0) return byScore;
+    return nameA.localeCompare(nameB, "en");
+  });
 }

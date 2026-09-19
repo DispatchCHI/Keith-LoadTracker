@@ -12,12 +12,13 @@ import { chicagoToday } from "../lib/chicagoDate";
 import {
   CUSTOM_SPECIALTY_IDS,
   CUSTOM_SPECIALTY_LOAD_TYPES,
+  isCustomSpecialtyRenamed,
   lookupCustomSpecialtyIdByName,
   readCustomSpecialtyNames,
 } from "../lib/customSpecialty";
 import {
   filterStationsByCustomerLanes,
-  rankPickupStations,
+  rankPickupChoices,
   unmatchedLaneCustomers,
 } from "../lib/pickupRank";
 import {
@@ -75,24 +76,40 @@ export function LoadForm({
     () => unmatchedLaneCustomers(laneCustomers, STATIONS),
     [laneCustomers],
   );
-  const rankedStations = useMemo(
-    () => rankPickupStations(laneStations, loads),
-    [laneStations, loads],
+  const rankedPickups = useMemo(
+    () => rankPickupChoices(laneStations, extraLaneCustomers, loads),
+    [laneStations, extraLaneCustomers, loads],
   );
-  const visibleCount = Math.min(FREQUENT_STATION_IDS.length, rankedStations.length);
-  const rest = rankedStations.slice(visibleCount);
+  const visibleCount = Math.min(
+    Math.max(FREQUENT_STATION_IDS.length, 12),
+    rankedPickups.length,
+  );
+  const rest = rankedPickups.slice(visibleCount);
   const [showAllStations, setShowAllStations] = useState(() => {
-    if (!value.stationId || value.stationId === CUSTOM_ID) return false;
-    return !rankedStations
+    if (!value.stationId || value.stationId === CUSTOM_ID) {
+      if (!value.pickup.trim()) return false;
+      return !rankedPickups.slice(0, visibleCount).some(
+        (choice) =>
+          choice.kind === "lane" &&
+          choice.name.toLowerCase() === value.pickup.trim().toLowerCase(),
+      );
+    }
+    return !rankedPickups
       .slice(0, visibleCount)
-      .some((station) => station.id === value.stationId);
+      .some(
+        (choice) =>
+          choice.kind === "station" && choice.station.id === value.stationId,
+      );
   });
 
-  const visibleStations = showAllStations
-    ? rankedStations
-    : rankedStations.slice(0, visibleCount);
+  const visiblePickups = showAllStations
+    ? rankedPickups
+    : rankedPickups.slice(0, visibleCount);
 
   const customNames = readCustomSpecialtyNames();
+  const namedOddballs = CUSTOM_SPECIALTY_IDS.filter((id) =>
+    isCustomSpecialtyRenamed(id, customNames[id]),
+  );
   const customPickupId = lookupCustomSpecialtyIdByName(value.pickup);
   const isCustom = value.stationId === CUSTOM_ID;
   const today = chicagoToday();
@@ -227,22 +244,26 @@ export function LoadForm({
       <section className="field">
         <div className="field-label">Pickup</div>
         <div className="chip-row">
-          {visibleStations.map((station) => (
-            <Chip
-              key={station.id}
-              label={station.name}
-              selected={value.stationId === station.id}
-              onClick={() => selectStation(station.id)}
-            />
-          ))}
-          {extraLaneCustomers.map((name) => (
-            <Chip
-              key={`lane-${name}`}
-              label={name}
-              selected={isCustom && value.pickup.trim().toLowerCase() === name.toLowerCase()}
-              onClick={() => selectLaneCustomer(name)}
-            />
-          ))}
+          {visiblePickups.map((choice) =>
+            choice.kind === "station" ? (
+              <Chip
+                key={choice.station.id}
+                label={choice.station.name}
+                selected={value.stationId === choice.station.id}
+                onClick={() => selectStation(choice.station.id)}
+              />
+            ) : (
+              <Chip
+                key={`lane-${choice.name}`}
+                label={choice.name}
+                selected={
+                  isCustom &&
+                  value.pickup.trim().toLowerCase() === choice.name.toLowerCase()
+                }
+                onClick={() => selectLaneCustomer(choice.name)}
+              />
+            ),
+          )}
           {!showAllStations && rest.length > 0 ? (
             <Chip
               label={`+ ${rest.length} more`}
@@ -252,10 +273,21 @@ export function LoadForm({
           ) : null}
           <Chip
             label="Custom..."
-            selected={isCustom && !customPickupId && !extraLaneCustomers.some((n) => n.toLowerCase() === value.pickup.trim().toLowerCase())}
+            selected={
+              isCustom &&
+              !customPickupId &&
+              !namedOddballs.some(
+                (id) =>
+                  customNames[id].toLowerCase() ===
+                  value.pickup.trim().toLowerCase(),
+              ) &&
+              !extraLaneCustomers.some(
+                (n) => n.toLowerCase() === value.pickup.trim().toLowerCase(),
+              )
+            }
             onClick={() => selectStation(CUSTOM_ID)}
           />
-          {CUSTOM_SPECIALTY_IDS.map((id) => (
+          {namedOddballs.map((id) => (
             <Chip
               key={id}
               label={customNames[id]}

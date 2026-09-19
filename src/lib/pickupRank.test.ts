@@ -1,9 +1,9 @@
-import { STATIONS } from "../data/stations";
 import { describe, expect, it } from "vitest";
 import { FREQUENT_STATION_IDS, STATIONS } from "../data/stations";
 import {
   countPickupsByStationId,
   filterStationsByCustomerLanes,
+  rankPickupChoices,
   rankPickupStations,
   unmatchedLaneCustomers,
 } from "./pickupRank";
@@ -79,6 +79,45 @@ describe("filterStationsByCustomerLanes", () => {
   it("lists lane customers with no catalog station", () => {
     expect(unmatchedLaneCustomers(["Acme Hauling", "Melrose"], STATIONS)).toEqual([
       "Acme Hauling",
+    ]);
+  });
+});
+
+
+describe("rankPickupChoices", () => {
+  it("puts the most-used pickups first, including lane-only customers", () => {
+    const stations = [
+      { id: "melrose", name: "Melrose", commodities: [], destinations: [] },
+      { id: "rockdale", name: "Rockdale", commodities: [], destinations: [] },
+    ];
+    const loads = [
+      ...Array.from({ length: 5 }, (_, i) => ({
+        stationId: "rockdale",
+        pickup: "Rockdale",
+        date: "2026-09-18",
+      })),
+      ...Array.from({ length: 2 }, (_, i) => ({
+        stationId: "melrose",
+        pickup: "Melrose",
+        date: "2026-09-18",
+      })),
+      ...Array.from({ length: 8 }, (_, i) => ({
+        stationId: "custom",
+        pickup: "Freedman Seeding",
+        date: "2026-09-18",
+      })),
+    ];
+    const ranked = rankPickupChoices(
+      stations as never,
+      ["Freedman Seeding", "Quiet Yard"],
+      loads,
+      { asOf: "2026-09-19" },
+    );
+    expect(ranked.map((c) => (c.kind === "station" ? c.station.name : c.name))).toEqual([
+      "Freedman Seeding",
+      "Rockdale",
+      "Melrose",
+      "Quiet Yard",
     ]);
   });
 });

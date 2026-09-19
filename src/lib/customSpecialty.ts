@@ -63,6 +63,17 @@ export function writeCustomSpecialtyName(id: CustomSpecialtyId, name: string): v
   localStorage.setItem(NAMES_KEY, JSON.stringify(names));
 }
 
+
+/** True when the specialty box has a real name (not the Odd-ball N placeholder). */
+export function isCustomSpecialtyRenamed(
+  id: CustomSpecialtyId,
+  name = readCustomSpecialtyNames()[id],
+): boolean {
+  const cleaned = cleanLabel(name);
+  if (!cleaned) return false;
+  return cleaned.toLowerCase() !== CUSTOM_SPECIALTY_DEFAULT_NAMES[id].toLowerCase();
+}
+
 export function customSpecialtyDisplayName(id: string): string {
   if (!isCustomSpecialtyId(id)) return id;
   return cleanLabel(readCustomSpecialtyNames()[id]) || CUSTOM_SPECIALTY_DEFAULT_NAMES[id];

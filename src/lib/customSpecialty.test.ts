@@ -8,6 +8,7 @@ import {
   parseCustomSpecialtyChip,
   readCustomSpecialtyNameField,
   writeCustomSpecialtyName,
+  isCustomSpecialtyRenamed,
 } from "./customSpecialty";
 import {
   isSpecialtyStationId,
@@ -105,5 +106,16 @@ describe("custom odd-ball specialty cards", () => {
     const indexCss = readFileSync(new URL("../index.css", import.meta.url), "utf8");
     expect(indexCss).toContain(".specialty-extra-list");
     expect(indexCss).toContain("minmax(280px, 1fr)");
+  });
+});
+
+
+describe("isCustomSpecialtyRenamed", () => {
+  it("is false for Odd-ball placeholders and true after a real name", () => {
+    expect(isCustomSpecialtyRenamed("custom-1")).toBe(false);
+    writeCustomSpecialtyName("custom-1", "Acme Special");
+    expect(isCustomSpecialtyRenamed("custom-1")).toBe(true);
+    writeCustomSpecialtyName("custom-1", CUSTOM_SPECIALTY_DEFAULT_NAMES["custom-1"]);
+    expect(isCustomSpecialtyRenamed("custom-1")).toBe(false);
   });
 });
