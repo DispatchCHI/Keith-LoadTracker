@@ -10,7 +10,12 @@ import {
   isCustomSpecialtyId,
   lookupCustomSpecialtyIdByName,
 } from "./customSpecialty";
-import { placesMatch } from "./customerLanes";
+import {
+  isLaneStub,
+  isSpecialtyBoardCommodity as isSpecialtyLaneCommodity,
+  placesMatch,
+  type CustomerLaneStore,
+} from "./customerLanes";
 
 export type SpecialtyStation = {
   id: string;
@@ -34,7 +39,7 @@ export const SPECIALTY_STATIONS: SpecialtyStation[] = [
   { id: "dekalb", name: "Dekalb" },
   { id: "roscoe", name: "Roscoe" },
   { id: "ford", name: "Ford" },
-  { id: "prairie-hill", name: "PrairieHill" },
+  { id: "prairie-hill", name: "Prairie Hill RFD" },
   { id: "hodgkins", name: "Hodgkins" },
   { id: "grayslake", name: "GraysLake" },
   { id: "liberty-tank", name: "Liberty" },
@@ -1140,3 +1145,38 @@ export function filterSpecialtyStationsByLanes(
     specialtyCustomerNames.some((name) => placesMatch(station.name, name)),
   );
 }
+
+
+/**
+ * Chips for a specialty card from the Customers book.
+ * Commodity-mode yards use lane commodity labels (Recycle, Yard Waste, …);
+ * dest-mode yards (Liberty / GraysLake) use destinations. Falls back to [].
+ */
+export function specialtyChipsFromCustomerLanes(
+  store: CustomerLaneStore,
+  customer: string,
+  specialtyId: string,
+): string[] {
+  const mode = specialtyChipMode(specialtyId);
+  const rows = Object.values(store.lanes)
+    .filter(
+      (lane) =>
+        !isLaneStub(lane) &&
+        placesMatch(lane.customer, customer) &&
+        isSpecialtyLaneCommodity(lane.commodity),
+    )
+    .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const lane of rows) {
+    const raw =
+      mode === "commodity" ? lane.commodity.trim() : lane.destination.trim();
+    if (!raw) continue;
+    const key = specialtyDestKey(raw);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(raw);
+  }
+  return out;
+}
+

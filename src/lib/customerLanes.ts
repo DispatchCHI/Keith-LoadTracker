@@ -8,10 +8,13 @@ export const CUSTOMER_LANES_STORE_KEY = "chitrader.load-tracker.customer-lanes.v
 export const CUSTOMER_LANES_TABLE = "customer_lanes";
 
 export const LANE_COMMODITIES = [
-  "Trash (MSW)",
-  "Walking Floor",
+  "Yard Waste",
+  "Residual",
   "Recycle",
+  "Cardboard",
+  "Glass",
   "Leachate (tanker)",
+  "Trash (MSW)",
 ] as const;
 export type LaneCommodity = (typeof LANE_COMMODITIES)[number];
 
@@ -135,11 +138,17 @@ export function placesMatch(a: string, b: string): boolean {
 export function laneCommodityKey(raw: string): string {
   const label = tallyLabel(raw);
   if (label === "LEACHATE") return "leachate";
-  // Homewood / MRF recycle hauls are logged as Recycle but priced on Walking Floor lanes.
+  // Everything except trash + leachate is walking-floor for pay / specialty tallies.
   if (
     label === "WOOD" ||
     label === "RECYCLE" ||
-    /walking|wf|recycle/.test(raw.toLowerCase())
+    label === "YARD" ||
+    label === "RESIDUAL" ||
+    label === "CARDBOARD" ||
+    label === "GLASS" ||
+    /walking|\bwf\b|recycle|yard|residual|residue|cardboard|glass|wood/.test(
+      raw.toLowerCase(),
+    )
   ) {
     return "walking-floor";
   }
@@ -400,11 +409,10 @@ export function removeCustomerByName(
 
 
 
-/** Walking-floor or leachate lane (specialty board tallies — not trash/MSW stubs). */
+/** Walking-floor class or leachate (specialty board). Trash/MSW is never specialty. */
 export function isSpecialtyBoardCommodity(commodity: string): boolean {
   const key = laneCommodityKey(commodity);
-  if (key === "leachate") return true;
-  return /walking|\bwf\b/i.test(commodity);
+  return key === "leachate" || key === "walking-floor";
 }
 
 /** Customers with at least one real Walking-floor or Leachate lane. */

@@ -15,17 +15,13 @@ import {
 import {
   SPECIALTY_STATIONS,
   destSummary,
-  filterSpecialtyStationsByLanes,
   slotsForStation,
+  specialtyChipsFromCustomerLanes,
   specialtyDestHint,
   specialtyDestinationsFor,
   type SpecialtyDayBoard,
   type SpecialtyStation,
 } from "../lib/specialtyBoard";
-import {
-  customersWithSpecialtyLanes,
-  specialtyDestinationsForCustomer,
-} from "../lib/customerLanes";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useSpecialty } from "../store/SpecialtyContext";
 import { Chip } from "./Chip";
@@ -39,17 +35,9 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
 
   const board = useMemo(() => boardOn(date), [boardOn, date]);
   const totalOpen = board.length;
-  const specialtyCustomers = useMemo(
-    () => customersWithSpecialtyLanes(customerLanes),
-    [customerLanes],
-  );
   const regularStations = useMemo(
-    () =>
-      filterSpecialtyStationsByLanes(
-        SPECIALTY_STATIONS.filter((station) => !isCustomSpecialtyId(station.id)),
-        specialtyCustomers,
-      ),
-    [specialtyCustomers],
+    () => SPECIALTY_STATIONS.filter((station) => !isCustomSpecialtyId(station.id)),
+    [],
   );
   const extraStations = useMemo(
     () => SPECIALTY_STATIONS.filter((station) => isCustomSpecialtyId(station.id)),
@@ -82,14 +70,9 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
       {open ? (
         <div className="specialty-body">
           <p className="specialty-hint">
-            Walking-floor / leachate only · from Customers lanes · + dest · − or tap chip to remove
+            Walking-floor + leachate tallies · + uses Customers lanes when present · − or tap
+            chip to remove
           </p>
-          {regularStations.length === 0 ? (
-            <p className="field-hint">
-              No Walking-floor or Leachate lanes in Customers yet — add those there and
-              they show up here.
-            </p>
-          ) : null}
           <ul className="specialty-list">
             {regularStations.map((station) => (
               <StationRow
@@ -107,10 +90,16 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
                 }}
                 onRemove={() => void removeOpen(date, station.id)}
                 onRemoveDest={(dest) => void removeOpen(date, station.id, dest)}
-                laneDestinations={specialtyDestinationsForCustomer(
-                  customerLanes,
-                  station.name,
-                )}
+                laneDestinations={(() => {
+                  const fromLanes = specialtyChipsFromCustomerLanes(
+                    customerLanes,
+                    station.name,
+                    station.id,
+                  );
+                  return fromLanes.length
+                    ? fromLanes
+                    : [...specialtyDestinationsFor(station.id)];
+                })()}
               />
             ))}
           </ul>
@@ -170,7 +159,7 @@ function StationRow({
   const destChips =
     laneDestinations && laneDestinations.length > 0
       ? laneDestinations
-      : specialtyDestinationsFor(station.id);
+      : [...specialtyDestinationsFor(station.id)];
 
   return (
     <li

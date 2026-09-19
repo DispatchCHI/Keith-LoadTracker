@@ -481,7 +481,8 @@ describe("specialty walking-floor catalog", () => {
     expect(resolveSpecialtyStationId("gray-tank", "Gray Tank")).toBeNull();
     expect(resolveSpecialtyStationId("grayslake", "GraysLake")).toBe("grayslake");
     expect(resolveSpecialtyStationId("laraway", "Laraway")).toBeNull();
-    expect(resolveSpecialtyStationId("prairie-hill-rfd", "Prairie Hill RFD")).toBeNull();
+    expect(resolveSpecialtyStationId("prairie-hill-rfd", "Prairie Hill RFD")).toBe("prairie-hill");
+    expect(resolveSpecialtyStationId(undefined, "Prairie Hill RFD")).toBe("prairie-hill");
   });
 });
 
@@ -1202,7 +1203,7 @@ describe("specialty consume on logged loads", () => {
       store,
       date,
       "prairie-hill",
-      "PrairieHill",
+      "Prairie Hill RFD",
       "Hodgkins",
       1,
       "C&D",

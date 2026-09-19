@@ -144,7 +144,7 @@ describe("customersWithRealLanes", () => {
 });
 
 describe("customersWithSpecialtyLanes", () => {
-  it("keeps WF/leachate customers and skips trash-only", () => {
+  it("keeps WF-class and leachate customers; skips trash-only", () => {
     let store: CustomerLaneStore = { lanes: {} };
     store = upsertCustomerLane(store, {
       customer: "Melrose",
@@ -163,12 +163,26 @@ describe("customersWithSpecialtyLanes", () => {
     store = upsertCustomerLane(store, {
       customer: "Wheeling",
       destination: "Hodgkins",
-      commodity: "Walking Floor",
+      commodity: "Recycle",
       effectiveDate: "2025-01-01",
       tier1: 90,
     }).store;
+    store = upsertCustomerLane(store, {
+      customer: "Northlake",
+      destination: "Hodgkins",
+      commodity: "Yard Waste",
+      effectiveDate: "2025-01-01",
+      tier1: 80,
+    }).store;
     expect(isSpecialtyBoardCommodity("Trash (MSW)")).toBe(false);
     expect(isSpecialtyBoardCommodity("Leachate (tanker)")).toBe(true);
-    expect(customersWithSpecialtyLanes(store).sort()).toEqual(["GraysLake", "Wheeling"]);
+    expect(isSpecialtyBoardCommodity("Recycle")).toBe(true);
+    expect(isSpecialtyBoardCommodity("Yard Waste")).toBe(true);
+    expect(isSpecialtyBoardCommodity("Residual")).toBe(true);
+    expect(customersWithSpecialtyLanes(store).sort()).toEqual([
+      "GraysLake",
+      "Northlake",
+      "Wheeling",
+    ]);
   });
 });

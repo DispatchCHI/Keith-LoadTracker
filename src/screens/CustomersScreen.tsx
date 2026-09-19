@@ -62,15 +62,17 @@ export function CustomersScreen() {
 
   const visibleNames = names.filter((name) => {
     if (filter === "all") return true;
-    return current.some(
-      (lane) =>
-        lane.customer === name &&
-        (filter === "Trash (MSW)"
-          ? /trash|msw/i.test(lane.commodity)
-          : filter === "Walking Floor"
-            ? /walking|wf/i.test(lane.commodity)
-            : /leachate/i.test(lane.commodity)),
-    );
+    return current.some((lane) => {
+      if (lane.customer !== name) return false;
+      if (filter === "Trash (MSW)") return /trash|msw/i.test(lane.commodity);
+      if (filter === "Leachate (tanker)") return /leachate/i.test(lane.commodity);
+      if (filter === "walking-floor") {
+        return (
+          !/trash|msw/i.test(lane.commodity) && !/leachate/i.test(lane.commodity)
+        );
+      }
+      return true;
+    });
   });
 
   const saveForm = async () => {
@@ -107,7 +109,7 @@ export function CustomersScreen() {
         {[
           { id: "all", label: "All" },
           { id: "Trash (MSW)", label: "Trash / MSW" },
-          { id: "Walking Floor", label: "Walking-floor" },
+          { id: "walking-floor", label: "Walking-floor" },
           { id: "Leachate (tanker)", label: "Leachate" },
         ].map((item) => (
           <button
