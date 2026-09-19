@@ -21,6 +21,22 @@ import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
 import { LoadRow } from "../components/LoadRow";
 import { SheetTotalsForm } from "../components/SheetTotalsForm";
 
+
+function scrollParentFor(el: HTMLElement | null): HTMLElement | null {
+  let node: HTMLElement | null = el?.parentElement ?? null;
+  while (node) {
+    const { overflowY } = getComputedStyle(node);
+    if (
+      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+      node.scrollHeight > node.clientHeight + 1
+    ) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
 type TodayScreenProps = {
   date: string;
   onDateChange: (iso: string) => void;
@@ -56,7 +72,19 @@ export function TodayScreen({
   useLayoutEffect(() => {
     if (!loadsOpen || !pinDayLoadsTopRef.current) return;
     pinDayLoadsTopRef.current = false;
-    dayLoadsBlockRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    const el = dayLoadsBlockRef.current;
+    if (!el) return;
+    // Pin the Day Loads header to the top of the scroll container. Expanding a
+    // long list otherwise leaves scroll stuck at the document bottom.
+    const pad = 8;
+    const scroller = scrollParentFor(el);
+    if (scroller) {
+      const delta =
+        el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - pad;
+      scroller.scrollTop += delta;
+    } else {
+      window.scrollBy(0, el.getBoundingClientRect().top - pad);
+    }
   }, [loadsOpen]);
 
   const countByDate = useMemo(() => {
@@ -159,6 +187,10 @@ export function TodayScreen({
             type="button"
             className="totals-toggle"
             aria-expanded={loadsOpen}
+            onMouseDown={(event) => {
+              // Keep focus from scrolling the newly expanded list into view.
+              event.preventDefault();
+            }}
             onClick={() => {
               setLoadsOpen((v) => {
                 if (!v) pinDayLoadsTopRef.current = true;

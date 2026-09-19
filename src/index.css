@@ -85,6 +85,7 @@ button {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overflow-anchor: none;
 }
 
 .phone-stack,
@@ -2729,11 +2730,13 @@ body.app-ready .splash {
 
 
 .day-loads-block {
-  /* Expanding 80+ rows must not scroll-anchor the viewport to the bottom. */
   overflow-anchor: none;
 }
 .day-loads-block .day-loads-feed {
   margin-top: 10px;
+  overflow-anchor: none;
+}
+.day-loads-block .day-loads-feed .load-row {
   overflow-anchor: none;
 }
 .day-loads-block.totals-block-collapsed {
