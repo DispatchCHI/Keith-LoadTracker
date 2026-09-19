@@ -28,7 +28,7 @@ export const SPECIALTY_STATIONS: SpecialtyStation[] = [
   { id: "apollo", name: "Apollo" },
   { id: "melrose", name: "Melrose" },
   { id: "batavia", name: "Batavia" },
-  { id: "northlake", name: "N. Lake" },
+  { id: "northlake", name: "Northlake" },
   { id: "arc", name: "Arc" },
   { id: "citiwaste", name: "Citi Waste" },
   { id: "schererville", name: "Schererville" },

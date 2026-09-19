@@ -365,7 +365,7 @@ describe("specialty walking-floor catalog", () => {
   it("lists only Hodgkins, Thelens, Organix on the N. Lake specialty card", () => {
     expect(SPECIALTY_STATIONS.find((s) => s.id === "northlake")).toEqual({
       id: "northlake",
-      name: "N. Lake",
+      name: "Northlake",
     });
     expect(specialtyDestinationsFor("northlake")).toEqual([
       "Hodgkins",
@@ -376,7 +376,7 @@ describe("specialty walking-floor catalog", () => {
     expect(specialtyDestinationsFor("northlake")).not.toContain("Pontiac");
     expect(specialtyDestinationsFor("northlake")).not.toContain("Winnebago");
     expect(resolveSpecialtyStationId("northlake", "Northlake")).toBe("northlake");
-    expect(resolveSpecialtyStationId(undefined, "N. Lake")).toBe("northlake");
+    expect(resolveSpecialtyStationId(undefined, "Northlake")).toBe("northlake");
     expect(applyPickupCascade("northlake", "Trash (MSW)", "Newton County")).toMatchObject({
       commodityValid: true,
       destinationValid: true,
