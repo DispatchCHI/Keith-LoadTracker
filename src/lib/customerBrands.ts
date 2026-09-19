@@ -131,6 +131,16 @@ export function setCustomerBrandOverride(
   writeOverrides(next);
 }
 
+/** Drop a persisted brand override so static map (or none) applies again. */
+export function clearCustomerBrandOverride(name: string): void {
+  const key = normalizeCustomerKey(name);
+  if (!key) return;
+  const next = readOverrides();
+  if (!Object.prototype.hasOwnProperty.call(next, key)) return;
+  delete next[key];
+  writeOverrides(next);
+}
+
 export function brandForCompanyId(
   company: BrandCompanyId,
 ): CustomerBrand | null {

@@ -6,6 +6,7 @@ import {
   TRI_STATE,
   WASTE_MANAGEMENT,
   brandForCustomer,
+  clearCustomerBrandOverride,
   setCustomerBrandOverride,
 } from "./customerBrands";
 
@@ -62,5 +63,21 @@ describe("brandForCustomer", () => {
     const raw = localStorage.getItem(CUSTOMER_BRAND_OVERRIDES_KEY);
     expect(raw).toContain("new yard");
     expect(raw).toContain("republic");
+  });
+});
+
+describe("clearCustomerBrandOverride", () => {
+  it("removes a persisted override so the static map applies again", () => {
+    setCustomerBrandOverride("Apollo", "lrs");
+    expect(brandForCustomer("Apollo")).toEqual(LRS);
+    clearCustomerBrandOverride("Apollo");
+    expect(brandForCustomer("Apollo")).toEqual(REPUBLIC);
+    const raw = localStorage.getItem(CUSTOMER_BRAND_OVERRIDES_KEY);
+    expect(raw ?? "").not.toContain("apollo");
+  });
+
+  it("is a no-op when no override exists", () => {
+    clearCustomerBrandOverride("Apollo");
+    expect(brandForCustomer("Apollo")).toEqual(REPUBLIC);
   });
 });

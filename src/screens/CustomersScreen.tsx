@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ConfirmOverlay } from "../components/ConfirmOverlay";
 import { chicagoToday } from "../lib/chicagoDate";
 import {
   CURRENT_CONTRACT_START,
@@ -46,7 +47,7 @@ type LaneFormState = {
 };
 
 export function CustomersScreen() {
-  const { store, saveLane, deleteLane } = useCustomerLanes();
+  const { store, saveLane, deleteLane, deleteCustomer } = useCustomerLanes();
   const today = chicagoToday();
   const [filter, setFilter] = useState<string>("all");
   const [addingCustomer, setAddingCustomer] = useState(false);
@@ -54,6 +55,7 @@ export function CustomersScreen() {
   const [newCustomerBrand, setNewCustomerBrand] = useState<BrandCompanyId>("none");
   const [openCustomer, setOpenCustomer] = useState<string | null>(null);
   const [laneForm, setLaneForm] = useState<LaneFormState | null>(null);
+  const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState<string | null>(null);
 
   const names = useMemo(() => customerNames(store), [store]);
   const current = useMemo(() => currentLanesByCustomer(store, today), [store, today]);
@@ -250,6 +252,15 @@ export function CustomersScreen() {
               </header>
               {open ? (
                 <div className="cust-body">
+                  <div className="vac-add-actions">
+                    <button
+                      type="button"
+                      className="text-btn danger"
+                      onClick={() => setConfirmDeleteCustomer(name)}
+                    >
+                      Delete customer
+                    </button>
+                  </div>
                   {laneForm && laneForm.customer === name ? (
                     <LaneForm laneForm={laneForm} setLaneForm={setLaneForm} onSave={saveForm} />
                   ) : null}
@@ -302,6 +313,40 @@ export function CustomersScreen() {
           );
         })}
       </div>
+
+      {confirmDeleteCustomer ? (
+        <ConfirmOverlay onDismiss={() => setConfirmDeleteCustomer(null)}>
+          <p>
+            Delete <strong>{confirmDeleteCustomer}</strong> from the book? This removes
+            all lanes for that customer. Old loads will no longer look up rates from this
+            book.
+          </p>
+          <div className="overlay-footer tight">
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setConfirmDeleteCustomer(null)}
+            >
+              Keep
+            </button>
+            <button
+              type="button"
+              className="btn-danger grow"
+              onClick={() => {
+                const name = confirmDeleteCustomer;
+                setConfirmDeleteCustomer(null);
+                void (async () => {
+                  await deleteCustomer(name);
+                  setOpenCustomer((open) => (open === name ? null : open));
+                  setLaneForm((form) => (form?.customer === name ? null : form));
+                })();
+              }}
+            >
+              Delete customer
+            </button>
+          </div>
+        </ConfirmOverlay>
+      ) : null}
     </section>
   );
 }

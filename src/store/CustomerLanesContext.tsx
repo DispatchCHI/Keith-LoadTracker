@@ -10,11 +10,14 @@ import {
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { clearCustomerBrandOverride } from "../lib/customerBrands";
 import {
   CUSTOMER_LANES_TABLE,
   customerLaneToRow,
   mergeSeededLanes,
+  normalizePlaceName,
   readCustomerLanePersisted,
+  removeCustomerByName,
   removeCustomerLane,
   rowToCustomerLane,
   upsertCustomerLane,
@@ -33,6 +36,7 @@ type CustomerLanesContextValue = {
   cloud: boolean;
   saveLane: (input: CustomerLaneInput) => Promise<CustomerLane | null>;
   deleteLane: (id: string) => Promise<void>;
+  deleteCustomer: (name: string) => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -41,17 +45,30 @@ const CustomerLanesContext = createContext<CustomerLanesContextValue | null>(nul
 export function CustomerLanesProvider({ children }: { children: ReactNode }) {
   const { configured, session, user } = useAuth();
   const cloud = configured && !!session;
+  const deletedCustomersRef = useRef<Set<string>>(
+    new Set(readCustomerLanePersisted().deletedCustomerNames),
+  );
   const [store, setStore] = useState<CustomerLaneStore>(() => {
     const persisted = readCustomerLanePersisted();
+    deletedCustomersRef.current = new Set(persisted.deletedCustomerNames);
     if (Object.keys(persisted.lanes).length) {
       return { lanes: persisted.lanes };
     }
-    const seeded = mergeSeededLanes({ lanes: {} });
+    // Already seeded (or customers intentionally wiped) — do not resurrect the full book.
+    if (persisted.seededAt || persisted.deletedCustomerNames.length) {
+      return { lanes: {} };
+    }
+    const seeded = mergeSeededLanes(
+      { lanes: {} },
+      undefined,
+      deletedCustomersRef.current,
+    );
     writeCustomerLanePersisted({
       version: 1,
       lanes: seeded.lanes,
       seenRemoteIds: persisted.seenRemoteIds,
       seededAt: new Date().toISOString(),
+      deletedCustomerNames: [...deletedCustomersRef.current],
     });
     return seeded;
   });
@@ -66,6 +83,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       lanes: next.lanes,
       seenRemoteIds: [...seenRef.current],
       seededAt: readCustomerLanePersisted().seededAt,
+      deletedCustomerNames: [...deletedCustomersRef.current],
     };
     writeCustomerLanePersisted(snapshot);
     storeRef.current = next;
@@ -136,16 +154,29 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
         toUpload.push(lane);
       }
     }
+    // Strip tombstoned customers so a stale remote row cannot resurrect them.
+    const tombstoneIds: string[] = [];
+    for (const [id, lane] of Object.entries(merged)) {
+      if (deletedCustomersRef.current.has(normalizePlaceName(lane.customer))) {
+        delete merged[id];
+        tombstoneIds.push(id);
+      }
+    }
     for (const id of Object.keys(remote.lanes)) seenRef.current.add(id);
     persistLocal({ lanes: merged });
     if (toUpload.length) await cloudUpsert(toUpload);
-    const seeded = mergeSeededLanes(storeRef.current);
+    if (tombstoneIds.length) await cloudDelete(tombstoneIds);
+    const seeded = mergeSeededLanes(
+      storeRef.current,
+      undefined,
+      deletedCustomersRef.current,
+    );
     if (Object.keys(seeded.lanes).length !== Object.keys(storeRef.current.lanes).length) {
       persistLocal(seeded);
       const extras = Object.values(seeded.lanes).filter((lane) => !remote.lanes[lane.id]);
       if (extras.length) await cloudUpsert(extras);
     }
-  }, [cloud, cloudUpsert, persistLocal, pullRemote]);
+  }, [cloud, cloudDelete, cloudUpsert, persistLocal, pullRemote]);
 
   const refresh = useCallback(() => {
     const run = refreshTailRef.current.then(refreshInner, refreshInner);
@@ -188,6 +219,10 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     async (input: CustomerLaneInput) => {
       const result = upsertCustomerLane(storeRef.current, input);
       if (!result.lane) return null;
+      const key = normalizePlaceName(result.lane.customer);
+      if (key && deletedCustomersRef.current.has(key)) {
+        deletedCustomersRef.current.delete(key);
+      }
       persistLocal(result.store);
       if (cloud) await cloudUpsert([result.lane]);
       return result.lane;
@@ -205,9 +240,21 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     [cloud, cloudDelete, persistLocal],
   );
 
+  const deleteCustomer = useCallback(
+    async (name: string) => {
+      const result = removeCustomerByName(storeRef.current, name);
+      const key = normalizePlaceName(name);
+      if (key) deletedCustomersRef.current.add(key);
+      clearCustomerBrandOverride(name);
+      persistLocal(result.store);
+      if (cloud && result.removedIds.length) await cloudDelete(result.removedIds);
+    },
+    [cloud, cloudDelete, persistLocal],
+  );
+
   const value = useMemo<CustomerLanesContextValue>(
-    () => ({ store, cloud, saveLane, deleteLane, refresh }),
-    [store, cloud, saveLane, deleteLane, refresh],
+    () => ({ store, cloud, saveLane, deleteLane, deleteCustomer, refresh }),
+    [store, cloud, saveLane, deleteLane, deleteCustomer, refresh],
   );
 
   return (

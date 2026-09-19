@@ -52,6 +52,8 @@ export type CustomerLanePersisted = {
   lanes: Record<string, CustomerLane>;
   seenRemoteIds: string[];
   seededAt: string | null;
+  /** Normalized customer names removed from the book; seed must not resurrect them. */
+  deletedCustomerNames: string[];
 };
 
 export type CustomerLaneRow = {
@@ -254,7 +256,7 @@ export function cleanCustomerLane(raw: unknown): CustomerLane | null {
 export function readCustomerLanePersisted(): CustomerLanePersisted {
   try {
     const raw = localStorage.getItem(CUSTOMER_LANES_STORE_KEY);
-    if (!raw) return { version: 1, lanes: {}, seenRemoteIds: [], seededAt: null };
+    if (!raw) return { version: 1, lanes: {}, seenRemoteIds: [], seededAt: null, deletedCustomerNames: [] };
     const parsed = JSON.parse(raw) as Partial<CustomerLanePersisted>;
     const lanes: Record<string, CustomerLane> = {};
     if (parsed.lanes && typeof parsed.lanes === "object") {
@@ -266,14 +268,21 @@ export function readCustomerLanePersisted(): CustomerLanePersisted {
     const seen = Array.isArray(parsed.seenRemoteIds)
       ? parsed.seenRemoteIds.filter((id): id is string => typeof id === "string")
       : [];
+    const deleted = Array.isArray(parsed.deletedCustomerNames)
+      ? parsed.deletedCustomerNames
+          .filter((name): name is string => typeof name === "string")
+          .map((name) => normalizePlaceName(name))
+          .filter(Boolean)
+      : [];
     return {
       version: 1,
       lanes,
       seenRemoteIds: seen,
       seededAt: typeof parsed.seededAt === "string" ? parsed.seededAt : null,
+      deletedCustomerNames: [...new Set(deleted)],
     };
   } catch {
-    return { version: 1, lanes: {}, seenRemoteIds: [], seededAt: null };
+    return { version: 1, lanes: {}, seenRemoteIds: [], seededAt: null, deletedCustomerNames: [] };
   }
 }
 
@@ -358,6 +367,23 @@ export function removeCustomerLane(
   return { store: { lanes }, removed };
 }
 
+/** Remove every lane whose customer matches `customerName` (same normalization as customerNames / placesMatch). */
+export function removeCustomerByName(
+  store: CustomerLaneStore,
+  customerName: string,
+): { store: CustomerLaneStore; removedIds: string[] } {
+  const name = cleanPlaceName(customerName);
+  if (!name) return { store, removedIds: [] };
+  const lanes = { ...store.lanes };
+  const removedIds: string[] = [];
+  for (const [id, lane] of Object.entries(lanes)) {
+    if (!placesMatch(lane.customer, name)) continue;
+    delete lanes[id];
+    removedIds.push(id);
+  }
+  return { store: { lanes }, removedIds };
+}
+
 export function customerNames(store: CustomerLaneStore): string[] {
   const names = new Set<string>();
   for (const lane of Object.values(store.lanes)) names.add(lane.customer);
@@ -398,10 +424,20 @@ export function rateForLoad(
   return best;
 }
 
-export function mergeSeededLanes(store: CustomerLaneStore, at?: string): CustomerLaneStore {
+export function mergeSeededLanes(
+  store: CustomerLaneStore,
+  at?: string,
+  deletedCustomerNames?: Iterable<string>,
+): CustomerLaneStore {
+  const deleted = new Set(
+    [...(deletedCustomerNames ?? [])]
+      .map((name) => normalizePlaceName(name))
+      .filter(Boolean),
+  );
   const seeded = lanesFromSeed(at);
   const lanes = { ...store.lanes };
   for (const row of seeded) {
+    if (deleted.has(normalizePlaceName(row.customer))) continue;
     if (!lanes[row.id]) lanes[row.id] = row;
   }
   return { lanes };

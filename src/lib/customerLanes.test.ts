@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   commoditiesMatch,
   currentLanesByCustomer,
+  mergeSeededLanes,
   placesMatch,
   rateForLoad,
+  removeCustomerByName,
   seededCustomerLaneStore,
   upsertCustomerLane,
 } from "./customerLanes";
@@ -57,5 +59,35 @@ describe("seeded rate book", () => {
     expect(names).toContain("LRS");
     expect(names).toContain("Ford");
     expect(names).toContain("Melrose");
+  });
+});
+
+describe("removeCustomerByName", () => {
+  it("removes every lane for the matching customer and returns ids", () => {
+    const store = seededCustomerLaneStore();
+    const before = Object.values(store.lanes).filter((lane) => lane.customer === "Melrose");
+    expect(before.length).toBeGreaterThan(0);
+    const { store: next, removedIds } = removeCustomerByName(store, "melrose");
+    expect(removedIds.length).toBe(before.length);
+    expect(Object.values(next.lanes).some((lane) => lane.customer === "Melrose")).toBe(false);
+    expect(Object.values(next.lanes).some((lane) => lane.customer === "Batavia")).toBe(true);
+    for (const id of removedIds) expect(next.lanes[id]).toBeUndefined();
+  });
+
+  it("is a no-op for unknown names", () => {
+    const store = seededCustomerLaneStore();
+    const { store: next, removedIds } = removeCustomerByName(store, "No Such Yard");
+    expect(removedIds).toEqual([]);
+    expect(Object.keys(next.lanes).length).toBe(Object.keys(store.lanes).length);
+  });
+});
+
+describe("mergeSeededLanes tombstones", () => {
+  it("does not resurrect a deleted customer from seed", () => {
+    const store = seededCustomerLaneStore();
+    const wiped = removeCustomerByName(store, "Melrose").store;
+    const merged = mergeSeededLanes(wiped, undefined, ["Melrose"]);
+    expect(Object.values(merged.lanes).some((lane) => lane.customer === "Melrose")).toBe(false);
+    expect(Object.values(merged.lanes).some((lane) => lane.customer === "Batavia")).toBe(true);
   });
 });
