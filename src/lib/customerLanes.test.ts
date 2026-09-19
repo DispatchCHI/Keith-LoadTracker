@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  cascadeCustomerLaneRoute,
+  commoditiesForCustomer,
   commoditiesMatch,
   currentLanesByCustomer,
+  destinationsForCustomer,
   mergeSeededLanes,
   placesMatch,
   rateForLoad,
@@ -11,6 +14,7 @@ import {
   customersWithSpecialtyLanes,
   isSpecialtyBoardCommodity,
   upsertCustomerLane,
+  type CustomerLaneStore,
 } from "./customerLanes";
 
 describe("place matching", () => {
@@ -186,3 +190,70 @@ describe("customersWithSpecialtyLanes", () => {
     ]);
   });
 });
+
+describe("lane-book commodities and destinations", () => {
+  it("lists only that customer's commodities and destinations", () => {
+    const store = seededCustomerLaneStore();
+    const commodities = commoditiesForCustomer(store, "Melrose", "2026-09-16");
+    expect(commodities.length).toBeGreaterThan(0);
+    expect(commodities.every((c) => typeof c === "string")).toBe(true);
+    // Melrose trash goes to DeKalb in seed — not every station catalog dest
+    const dests = destinationsForCustomer(store, "Melrose", "Trash (MSW)", "2026-09-16");
+    expect(dests.some((d) => placesMatch(d, "DeKalb"))).toBe(true);
+    expect(destinationsForCustomer(store, "Melrose", "Leachate (tanker)", "2026-09-16")).toEqual([]);
+  });
+
+  it("cascades commodity then destination from the lane book", () => {
+    const store = seededCustomerLaneStore();
+    const empty = cascadeCustomerLaneRoute(store, "Melrose", "", "", "2026-09-16");
+    expect(empty.commodity).toBeTruthy();
+    expect(empty.destination).toBeTruthy();
+    const keep = cascadeCustomerLaneRoute(
+      store,
+      "Melrose",
+      empty.commodity,
+      empty.destination,
+      "2026-09-16",
+    );
+    expect(commoditiesMatch(keep.commodity, empty.commodity)).toBe(true);
+    expect(placesMatch(keep.destination, empty.destination)).toBe(true);
+    const bad = cascadeCustomerLaneRoute(
+      store,
+      "Melrose",
+      "Not A Real Commodity",
+      "Nowhere",
+      "2026-09-16",
+    );
+    expect(bad.commodity).toBe(empty.commodity);
+    expect(placesMatch(bad.destination, empty.destination)).toBe(true);
+  });
+
+  it("ignores stubs and future effective dates", () => {
+    let store: CustomerLaneStore = { lanes: {} };
+    store = upsertCustomerLane(store, {
+      customer: "Acme Yard",
+      destination: "",
+      commodity: "Trash (MSW)",
+      effectiveDate: "2025-01-01",
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "Acme Yard",
+      destination: "CID",
+      commodity: "Recycle",
+      effectiveDate: "2027-01-01",
+      tier1: 50,
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "Acme Yard",
+      destination: "Pontiac",
+      commodity: "Yard Waste",
+      effectiveDate: "2025-06-01",
+      tier1: 70,
+    }).store;
+    expect(commoditiesForCustomer(store, "Acme Yard", "2026-09-16")).toEqual(["Yard Waste"]);
+    expect(destinationsForCustomer(store, "Acme Yard", "Yard Waste", "2026-09-16")).toEqual([
+      "Pontiac",
+    ]);
+  });
+});
+

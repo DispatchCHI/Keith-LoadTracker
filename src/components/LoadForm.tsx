@@ -4,12 +4,11 @@ import {
   CUSTOM_ID,
   FREQUENT_STATION_IDS,
   STATIONS,
-  commoditiesFor,
-  destinationsFor,
   getStation,
   sameDestination,
 } from "../data/stations";
-import { applyPickupCascade, pickupLabel } from "../lib/cascade";
+import { pickupLabel } from "../lib/cascade";
+import { chicagoToday } from "../lib/chicagoDate";
 import {
   CUSTOM_SPECIALTY_IDS,
   CUSTOM_SPECIALTY_LOAD_TYPES,
@@ -21,7 +20,14 @@ import {
   rankPickupStations,
   unmatchedLaneCustomers,
 } from "../lib/pickupRank";
-import { customersWithRealLanes } from "../lib/customerLanes";
+import {
+  cascadeCustomerLaneRoute,
+  commoditiesForCustomer,
+  commoditiesMatch,
+  customersWithRealLanes,
+  destinationsForCustomer,
+  placesMatch,
+} from "../lib/customerLanes";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useLoads } from "../store/LoadsContext";
 import { Chip } from "./Chip";
@@ -88,33 +94,96 @@ export function LoadForm({
 
   const customNames = readCustomSpecialtyNames();
   const customPickupId = lookupCustomSpecialtyIdByName(value.pickup);
-  const commodities = commoditiesFor(value.stationId);
-  const destinations = destinationsFor(value.stationId, value.commodity);
   const isCustom = value.stationId === CUSTOM_ID;
+  const today = chicagoToday();
+  const pickupName = pickupLabel(value.stationId, value.pickup).trim();
+  const laneBookPickup = useMemo(() => {
+    if (!pickupName) return null;
+    if (laneCustomers.some((name) => placesMatch(name, pickupName))) return pickupName;
+    return null;
+  }, [laneCustomers, pickupName]);
+
+  const commodities = useMemo(() => {
+    if (laneBookPickup) {
+      return commoditiesForCustomer(customerLanes, laneBookPickup, today);
+    }
+    if (isCustom) return [];
+    return [];
+  }, [customerLanes, isCustom, laneBookPickup, today]);
+
+  const destinations = useMemo(() => {
+    if (laneBookPickup && value.commodity.trim()) {
+      return destinationsForCustomer(
+        customerLanes,
+        laneBookPickup,
+        value.commodity,
+        today,
+      );
+    }
+    return [];
+  }, [customerLanes, laneBookPickup, today, value.commodity]);
 
   const cascadeNote = useMemo(() => {
-    if (!value.stationId || isCustom) return null;
-    const station = getStation(value.stationId);
-    if (!station) return null;
-    return `${station.name} commodities refresh when pickup changes.`;
-  }, [isCustom, value.stationId]);
+    if (!laneBookPickup) return null;
+    return `${laneBookPickup} commodity and destination come from Customers lanes.`;
+  }, [laneBookPickup]);
 
   const selectStation = (stationId: string) => {
-    const cascaded = applyPickupCascade(
-      stationId,
-      value.commodity,
-      value.destination,
-    );
     const pickup =
       stationId === CUSTOM_ID
         ? value.stationId === CUSTOM_ID
           ? value.pickup
           : ""
         : (getStation(stationId)?.name ?? "");
+    if (stationId === CUSTOM_ID && !pickup.trim()) {
+      onChange({
+        ...value,
+        stationId,
+        pickup: "",
+        commodity: "",
+        destination: "",
+      });
+      return;
+    }
+    const name = stationId === CUSTOM_ID ? pickup.trim() : pickup;
+    if (name && laneCustomers.some((n) => placesMatch(n, name))) {
+      const cascaded = cascadeCustomerLaneRoute(
+        customerLanes,
+        name,
+        value.commodity,
+        value.destination,
+        today,
+      );
+      onChange({
+        ...value,
+        stationId,
+        pickup: name,
+        commodity: cascaded.commodity,
+        destination: cascaded.destination,
+      });
+      return;
+    }
     onChange({
       ...value,
       stationId,
       pickup,
+      commodity: "",
+      destination: "",
+    });
+  };
+
+  const selectLaneCustomer = (name: string) => {
+    const cascaded = cascadeCustomerLaneRoute(
+      customerLanes,
+      name,
+      value.commodity,
+      value.destination,
+      today,
+    );
+    onChange({
+      ...value,
+      stationId: CUSTOM_ID,
+      pickup: name,
       commodity: cascaded.commodity,
       destination: cascaded.destination,
     });
@@ -123,16 +192,20 @@ export function LoadForm({
   const invalidCommodity =
     Boolean(original?.commodity) &&
     original!.commodity !== value.commodity &&
-    value.stationId !== CUSTOM_ID &&
+    Boolean(laneBookPickup) &&
     original!.commodity !== "" &&
-    !commodities.includes(original!.commodity);
+    !commodities.some((item) => commoditiesMatch(item, original!.commodity));
 
   const invalidDestination =
     Boolean(original?.destination) &&
     original!.destination !== value.destination &&
-    value.stationId !== CUSTOM_ID &&
+    Boolean(laneBookPickup) &&
     original!.destination !== "" &&
-    !destinations.some((item) => sameDestination(item, original!.destination));
+    !destinations.some(
+      (item) =>
+        placesMatch(item, original!.destination) ||
+        sameDestination(item, original!.destination),
+    );
 
   return (
     <div className="form-stack">
@@ -167,13 +240,7 @@ export function LoadForm({
               key={`lane-${name}`}
               label={name}
               selected={isCustom && value.pickup.trim().toLowerCase() === name.toLowerCase()}
-              onClick={() =>
-                onChange({
-                  ...value,
-                  stationId: CUSTOM_ID,
-                  pickup: name,
-                })
-              }
+              onClick={() => selectLaneCustomer(name)}
             />
           ))}
           {!showAllStations && rest.length > 0 ? (
@@ -215,14 +282,14 @@ export function LoadForm({
           <p className="field-hint">{cascadeNote}</p>
         ) : (
           <p className="field-hint">
-            Pickups with a Customers lane book entry, or Custom.
+            Pick a Customers-board pickup (or Custom for odd-balls).
           </p>
         )}
       </section>
 
       <section className="field">
         <div className="field-label">Commodity</div>
-        {isCustom ? (
+        {isCustom && !laneBookPickup ? (
           <>
             <div className="chip-row">
               {(customPickupId
@@ -241,7 +308,7 @@ export function LoadForm({
             </div>
             <input
               className="text-input"
-              placeholder="Commodity (Leachate, Walking-floor, or Trash)"
+              placeholder="Commodity (Leachate, Recycle, Trash…)"
               value={value.commodity}
               onChange={(e) => onChange({ ...value, commodity: e.target.value })}
               autoComplete="off"
@@ -256,14 +323,16 @@ export function LoadForm({
               <Chip
                 key={item}
                 label={item}
-                selected={value.commodity === item}
-                muted={!value.stationId}
+                selected={commoditiesMatch(value.commodity, item)}
+                muted={!laneBookPickup}
                 onClick={() => {
-                  if (!value.stationId) return;
-                  const cascaded = applyPickupCascade(
-                    value.stationId,
+                  if (!laneBookPickup) return;
+                  const cascaded = cascadeCustomerLaneRoute(
+                    customerLanes,
+                    laneBookPickup,
                     item,
                     value.destination,
+                    today,
                   );
                   onChange({
                     ...value,
@@ -273,8 +342,10 @@ export function LoadForm({
                 }}
               />
             ))}
-            {!value.stationId ? (
+            {!laneBookPickup ? (
               <p className="field-hint">Select a pickup first.</p>
+            ) : commodities.length === 0 ? (
+              <p className="field-hint">No lanes for this customer yet — add them on Customers.</p>
             ) : null}
           </div>
         )}
@@ -282,7 +353,7 @@ export function LoadForm({
 
       <section className="field">
         <div className="field-label">Destination</div>
-        {isCustom ? (
+        {isCustom && !laneBookPickup ? (
           <>
             <div className="chip-row">
               {CUSTOM.exampleDestinations.map((item) => (
@@ -318,13 +389,21 @@ export function LoadForm({
               <Chip
                 key={item}
                 label={item}
-                selected={sameDestination(value.destination, item)}
-                muted={!value.stationId}
+                selected={
+                  placesMatch(value.destination, item) ||
+                  sameDestination(value.destination, item)
+                }
+                muted={!laneBookPickup || !value.commodity.trim()}
                 onClick={() =>
-                  value.stationId && onChange({ ...value, destination: item })
+                  laneBookPickup &&
+                  value.commodity.trim() &&
+                  onChange({ ...value, destination: item })
                 }
               />
             ))}
+            {laneBookPickup && value.commodity.trim() && destinations.length === 0 ? (
+              <p className="field-hint">No destinations for this commodity on Customers.</p>
+            ) : null}
           </div>
         )}
       </section>
