@@ -59,7 +59,6 @@ describe("no Google Sheets in the app", () => {
     expect(src).not.toContain("Pull Dispatch Board");
     expect(src).not.toContain("docs.google.com");
     expect(src).not.toContain("fetchDispatchBoardTotals");
-    expect(src).toContain("Enter day totals");
     expect(src).toContain('source: "manual"');
   });
 });

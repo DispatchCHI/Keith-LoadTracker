@@ -19,7 +19,6 @@ import { SpecialtyBoardCard } from "../components/SpecialtyBoardCard";
 import { ChicagoTrafficCard } from "../components/ChicagoTrafficCard";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
 import { LoadRow } from "../components/LoadRow";
-import { SheetTotalsForm } from "../components/SheetTotalsForm";
 
 
 function scrollParentFor(el: HTMLElement | null): HTMLElement | null {
@@ -56,7 +55,7 @@ export function TodayScreen({
 }: TodayScreenProps) {
   const today = chicagoToday();
   const { loads, loadsOn } = useLoads();
-  const { totalsOn, upsertTotals } = useDailyEod();
+  const { totalsOn } = useDailyEod();
   const { availabilityOn } = useDrivers();
   const dayLoads = useMemo(() => sortLoadsNewestFirst(loadsOn(date)), [date, loadsOn]);
   const snapshot = totalsOn(date);
@@ -149,13 +148,6 @@ export function TodayScreen({
       </div>
 
       <ChicagoTrafficCard />
-
-      <SheetTotalsForm
-        key={`${date}:${snapshot?.updatedAt ?? "new"}`}
-        date={date}
-        existing={snapshot}
-        onSave={upsertTotals}
-      />
 
       <StationCallsCard date={date} />
 

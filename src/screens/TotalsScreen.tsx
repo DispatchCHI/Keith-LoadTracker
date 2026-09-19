@@ -3,7 +3,6 @@ import { BrandMark } from "../components/BrandMark";
 import { CollapsibleRank } from "../components/CollapsibleRank";
 import { DayPicker } from "../components/DayPicker";
 import { LoadRow } from "../components/LoadRow";
-import { SheetTotalsForm } from "../components/SheetTotalsForm";
 import { dailyCounts } from "../lib/analytics";
 import {
   applyDailyEodToSummary,
@@ -84,7 +83,7 @@ export function TotalsScreen({
 }: TotalsScreenProps) {
   const today = chicagoToday();
   const { loads, loadsOn, exportCsv, hasSampleLoads, clearSampleLoads } = useLoads();
-  const { totalsOn, upsertTotals } = useDailyEod();
+  const { totalsOn } = useDailyEod();
   const { availabilityOn } = useDrivers();
   const [filter, setFilter] = useState<TotalsFilter | null>(null);
   const board = useStationCallBoard(date);
@@ -173,12 +172,6 @@ export function TotalsScreen({
             );
           })}
         </div>
-        <SheetTotalsForm
-          key={`${date}:${snapshot?.updatedAt ?? "new"}`}
-          date={date}
-          existing={snapshot}
-          onSave={upsertTotals}
-        />
         <div className="eod-table-wrap">
           <table className="eod-table">
             <thead>
