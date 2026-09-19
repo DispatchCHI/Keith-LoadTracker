@@ -6,7 +6,7 @@ import { rosterNameKey, rosterNamesMatch } from "./rosterVacation";
 export const P_DAY_ALLOTMENT = 5;
 export const CALL_OFF_ALLOTMENT = 6;
 
-export type AllotmentKind = "p-day" | "call-off";
+export type AllotmentKind = "p-day" | "call-off" | "okd-off";
 
 export type AllotmentUse = {
   name: string;
@@ -17,11 +17,16 @@ export type AllotmentUse = {
 export type DriverAllotment = {
   pDayUsed: number;
   callOffUsed: number;
+  /** Calendar-year count of Ok'd Off days (no bank / left). */
+  okdOffUsed: number;
   pDayLeft: number;
   callOffLeft: number;
 };
 
-/** Only explicit P-Day / Call Off. Vacation, FMLA, Ok'd Off, NCNS do not spend the bank. */
+/**
+ * P-Day / Call Off spend the yearly bank. Ok'd Off is tracked for the yellow
+ * roster bubble only (does not reduce P-Day or Call-off left).
+ */
 export function allotmentKindFromReason(reason: string): AllotmentKind | null {
   const n = reason
     .toLowerCase()
@@ -31,6 +36,9 @@ export function allotmentKindFromReason(reason: string): AllotmentKind | null {
     .trim();
   if (/\bp\s*days?\b/.test(n) || n === "p day" || n === "pday") return "p-day";
   if (/\bcall\s*offs?\b/.test(n) || n === "co") return "call-off";
+  if (/\bok\s*d\s*(day\s*)?off\b/.test(n) || /\bokd\s*(day\s*)?off\b/.test(n)) {
+    return "okd-off";
+  }
   return null;
 }
 
@@ -72,7 +80,9 @@ export function allotmentUsesFromManuals(
   for (const [date, list] of Object.entries(manuals)) {
     if (!isValidISODate(date) || yearOfISO(date) !== year) continue;
     for (const off of list) {
-      if (off.kind !== "p-day" && off.kind !== "call-off") continue;
+      if (off.kind !== "p-day" && off.kind !== "call-off" && off.kind !== "okd-off") {
+        continue;
+      }
       const name = off.name.trim();
       if (!name) continue;
       uses.push({ name, date, kind: off.kind });
@@ -99,6 +109,7 @@ function emptyAllotment(): DriverAllotment {
   return {
     pDayUsed: 0,
     callOffUsed: 0,
+    okdOffUsed: 0,
     pDayLeft: P_DAY_ALLOTMENT,
     callOffLeft: CALL_OFF_ALLOTMENT,
   };
@@ -113,7 +124,8 @@ export function allotmentForName(
   for (const use of uses) {
     if (!rosterNamesMatch(name, use.name)) continue;
     if (use.kind === "p-day") next.pDayUsed += 1;
-    else next.callOffUsed += 1;
+    else if (use.kind === "call-off") next.callOffUsed += 1;
+    else next.okdOffUsed += 1;
   }
   next.pDayLeft = Math.max(0, P_DAY_ALLOTMENT - next.pDayUsed);
   next.callOffLeft = Math.max(0, CALL_OFF_ALLOTMENT - next.callOffUsed);

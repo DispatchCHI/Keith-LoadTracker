@@ -24,10 +24,11 @@ function log(
 }
 
 describe("allotmentKindFromReason", () => {
-  it("only spends P-Day and Call Off", () => {
+  it("classifies P-Day, Call Off, and Ok'd Off", () => {
     expect(allotmentKindFromReason("P-Day")).toBe("p-day");
     expect(allotmentKindFromReason("Call Off")).toBe("call-off");
-    expect(allotmentKindFromReason("ok'd off")).toBeNull();
+    expect(allotmentKindFromReason("ok'd off")).toBe("okd-off");
+    expect(allotmentKindFromReason("Ok'd Off")).toBe("okd-off");
     expect(allotmentKindFromReason("Vacation Day")).toBeNull();
     expect(allotmentKindFromReason("FMLA Day")).toBeNull();
     expect(allotmentKindFromReason("NCNS")).toBeNull();
@@ -41,6 +42,7 @@ describe("yearly allotment", () => {
     expect(tally).toEqual({
       pDayUsed: 0,
       callOffUsed: 0,
+      okdOffUsed: 0,
       pDayLeft: 5,
       callOffLeft: 6,
     });
@@ -71,18 +73,23 @@ describe("yearly allotment", () => {
     expect(allotmentForName("James Carter", uses).callOffUsed).toBe(2);
   });
 
-  it("does not spend Ok'd Off or last year's rows", () => {
+  it("counts Ok'd Off for the year without spending P-Day / Call-off banks", () => {
     const uses = yearlyAllotmentUses(
       [
         log("Kevin Bray", "2026-02-01", "ok'd off"),
+        log("Kevin Bray", "2026-03-15", "Ok'd Off"),
         log("Kevin Bray", "2025-11-01", "P-Day"),
       ],
-      { "2025-12-01": [{ name: "Kevin Bray", kind: "call-off" }] },
+      {
+        "2025-12-01": [{ name: "Kevin Bray", kind: "call-off" }],
+        "2026-04-01": [{ name: "Kevin Bray", kind: "okd-off" }],
+      },
       2026,
     );
     expect(allotmentForName("Kevin Bray", uses)).toEqual({
       pDayUsed: 0,
       callOffUsed: 0,
+      okdOffUsed: 3,
       pDayLeft: 5,
       callOffLeft: 6,
     });

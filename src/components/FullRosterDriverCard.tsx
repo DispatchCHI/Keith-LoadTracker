@@ -256,6 +256,16 @@ export function FullRosterDriverCard({
               >
                 Call-off {allot.callOffLeft}
               </span>
+              <span
+                className={
+                  allot.okdOffUsed
+                    ? "drv-allot-tag drv-allot-okdoff"
+                    : "drv-allot-tag drv-allot-okdoff is-empty"
+                }
+                title={`Ok'd Off days logged this calendar year`}
+              >
+                OK'd Off {allot.okdOffUsed}
+              </span>
             </div>
           </div>
 

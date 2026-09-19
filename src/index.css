@@ -4042,6 +4042,16 @@ body.app-ready .splash {
   color: #ffffff;
 }
 
+.drv-allot-okdoff {
+  background: #facc15;
+  color: #422006;
+}
+
+.drv-allot-okdoff.is-empty {
+  background: #e8e8ea;
+  color: #6b6b70;
+}
+
 .drv-allot-tag.is-empty {
   background: #e8e8ea;
   color: #6b6b70;
