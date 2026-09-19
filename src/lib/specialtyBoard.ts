@@ -70,7 +70,7 @@ export const SPECIALTY_DESTINATIONS = [
 ] as const;
 
 /** Stations whose dest chips follow the pickup catalog instead of the global list. */
-const SPECIALTY_CATALOG_DEST_IDS = new Set(["grayslake", "hodgkins"]);
+const SPECIALTY_CATALOG_DEST_IDS = new Set<string>([]);
 
 /**
  * Walking-floor cards whose + chips are commodities (stored in `destination`).
@@ -119,7 +119,7 @@ const SPECIALTY_DEST_OVERRIDES: Record<string, readonly string[]> = {
   ford: ["Cardboard", "Recycle"],
   "prairie-hill": ["C&D", "Yard Waste"],
   "liberty-tank": ["CID", "Kankakee", "Reworld", "KanSpcl", "Sun Chem"],
-  // Catalog union includes Hodgkins for Recycle; specialty chips stay tank/leachate.
+  hodgkins: ["Pontiac", "Liberty", "Strategic", "Resource MGT"],
   grayslake: ["FRWRD", "CID", "Dekalb Sanitary"],
 };
 

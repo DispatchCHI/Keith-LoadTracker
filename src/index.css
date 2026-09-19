@@ -2813,9 +2813,9 @@ body.app-ready .splash {
   position: relative;
 }
 .specialty-row.is-picking {
-  grid-column: 1 / -1;
+  grid-column: auto;
   overflow: visible;
-  z-index: 2;
+  z-index: 3;
   padding-bottom: 10px;
 }
 .specialty-row-main {

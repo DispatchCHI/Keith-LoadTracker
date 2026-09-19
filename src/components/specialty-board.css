@@ -25,7 +25,9 @@
 .specialty-extra-list .specialty-row.is-picking {
   min-width: 0;
   overflow: visible;
-  grid-column: 1 / -1;
+  /* Keep card in its grid cell so neighbors don't reflow away */
+  grid-column: auto;
+  z-index: 3;
 }
 
 .specialty-extra-main {
@@ -139,9 +141,17 @@
   gap: 8px;
 }
 .specialty-row.is-picking {
-  grid-column: 1 / -1;
+  /* Stay in-cell — full-row span was shoving Hodgkins/GraysLake/Liberty off-screen */
+  grid-column: auto;
   overflow: visible;
-  z-index: 2;
+  z-index: 3;
+}
+.specialty-picker {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel, #fff);
 }
 .specialty-picker .chip {
   min-height: 36px;
@@ -149,5 +159,5 @@
   padding: 8px 12px;
   font-size: 13px;
   line-height: 1.2;
-  white-space: nowrap;
+  white-space: normal;
 }
