@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { dailyCounts } from "../lib/analytics";
 import { displayLoadCount } from "../lib/dailyEod";
@@ -46,10 +46,18 @@ export function TodayScreen({
   const snapshot = totalsOn(date);
   const viewingToday = date === today;
   const [loadsOpen, setLoadsOpen] = useState(false);
+  const dayLoadsBlockRef = useRef<HTMLElement | null>(null);
+  const pinDayLoadsTopRef = useRef(false);
 
   useEffect(() => {
     setLoadsOpen(false);
   }, [date]);
+
+  useLayoutEffect(() => {
+    if (!loadsOpen || !pinDayLoadsTopRef.current) return;
+    pinDayLoadsTopRef.current = false;
+    dayLoadsBlockRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [loadsOpen]);
 
   const countByDate = useMemo(() => {
     const map = new Map<string, number>();
@@ -142,6 +150,7 @@ export function TodayScreen({
         </div>
       ) : (
         <section
+          ref={dayLoadsBlockRef}
           className={
             loadsOpen ? "totals-block day-loads-block" : "totals-block day-loads-block totals-block-collapsed"
           }
@@ -150,7 +159,12 @@ export function TodayScreen({
             type="button"
             className="totals-toggle"
             aria-expanded={loadsOpen}
-            onClick={() => setLoadsOpen((v) => !v)}
+            onClick={() => {
+              setLoadsOpen((v) => {
+                if (!v) pinDayLoadsTopRef.current = true;
+                return !v;
+              });
+            }}
           >
             <span className="totals-toggle-copy">
               <span className="totals-toggle-title">Day loads</span>

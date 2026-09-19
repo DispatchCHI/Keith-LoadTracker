@@ -2728,8 +2728,13 @@ body.app-ready .splash {
 }
 
 
+.day-loads-block {
+  /* Expanding 80+ rows must not scroll-anchor the viewport to the bottom. */
+  overflow-anchor: none;
+}
 .day-loads-block .day-loads-feed {
   margin-top: 10px;
+  overflow-anchor: none;
 }
 .day-loads-block.totals-block-collapsed {
   padding-bottom: 10px;
