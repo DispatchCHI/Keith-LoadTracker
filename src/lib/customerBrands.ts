@@ -20,7 +20,7 @@ export const TRI_STATE: CustomerBrand = {
 };
 
 export const LRS: CustomerBrand = {
-  src: "/brand/lrs.svg",
+  src: "/brand/lrs.png",
   alt: "LRS Services",
 };
 
