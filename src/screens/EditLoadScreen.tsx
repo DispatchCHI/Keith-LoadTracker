@@ -81,7 +81,7 @@ export function EditLoadScreen({
     [rosterStore, truckDigits],
   );
 
-    const finishSave = async () => {
+    const finishSave = () => {
     const pickup = pickupLabel(form.stationId, form.pickup);
     const destination = form.destination.trim();
     const now = new Date().toISOString();
@@ -114,13 +114,15 @@ export function EditLoadScreen({
       load.pickup.trim().toLowerCase() !== pickup.toLowerCase() ||
       load.commodity.trim().toLowerCase() !== form.commodity.trim().toLowerCase();
 
-    if (lane && routeChanged) {
-      await consumeOpens(date, lane.specialtyId, lane.chips, 1);
-    }
-
     setDuplicate(null);
     setSpecialtyWarn(null);
     onSaved(load.id, date);
+
+    if (lane && routeChanged) {
+      void consumeOpens(date, lane.specialtyId, lane.chips, 1).catch((err) =>
+        console.warn("specialty consume after edit failed", err),
+      );
+    }
   };
 
   const commit = (opts?: { forceDuplicate?: boolean; forceSpecialty?: boolean }) => {

@@ -74,7 +74,7 @@ export function LogLoadScreen({
     setStep("form");
   };
 
-  const finishSave = async () => {
+  const finishSave = () => {
     const now = new Date().toISOString();
     const pickup = pickupLabel(form.stationId, form.pickup);
     const destination = form.destination.trim();
@@ -102,6 +102,11 @@ export function LogLoadScreen({
       });
     }
 
+    // Dismiss immediately — specialty cloud deletes must not block the log screen.
+    setDuplicate(null);
+    setSpecialtyWarn(null);
+    onSaved(lastId, targetDate);
+
     const lane = resolveSpecialtyBoardMatch(
       form.stationId,
       pickup,
@@ -109,12 +114,10 @@ export function LogLoadScreen({
       form.commodity,
     );
     if (lane) {
-      await consumeOpens(targetDate, lane.specialtyId, lane.chips, qty);
+      void consumeOpens(targetDate, lane.specialtyId, lane.chips, qty).catch(
+        (err) => console.warn("specialty consume after save failed", err),
+      );
     }
-
-    setDuplicate(null);
-    setSpecialtyWarn(null);
-    onSaved(lastId, targetDate);
   };
 
   const commit = (opts?: {
