@@ -193,6 +193,13 @@ describe("chicago Full Roster available base", () => {
     expect(src).not.toMatch(/liveSheetFromRoster\(\{[\s\S]*?saturdayUsesWeekdayBase:\s*true/);
   });
 
+  it("DriversContext always recomputes today — never returns stored today snapshot as-is", () => {
+    const src = readFileSync(new URL("../store/DriversContext.tsx", import.meta.url), "utf8");
+    expect(src).not.toMatch(/if \(date === today\) return stored/);
+    expect(src).toContain("lockedDayFromLiveSheet");
+    expect(src).toContain("liveSheetFromRoster");
+  });
+
   it("empty Sat Roster stays at 0 — never falls back to Full hired", () => {
     const roster = rosterWith([
       { name: "Full Only One" },

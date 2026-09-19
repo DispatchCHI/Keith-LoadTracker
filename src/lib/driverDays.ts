@@ -1,4 +1,4 @@
-﻿import {
+import {
   addDays,
   isChicagoSaturday,
   isChicagoSunday,
@@ -114,6 +114,31 @@ export function computeAvailability(live: LiveSheet, day: string): DayAvailabili
   const rows = withManualOffs(live.offs, live.manualOffs, day);
   return availableDrivers(live.base, rows, day, live.rosterTotal);
 }
+
+/**
+ * Build today’s (or any live-view) LockedDay from a LiveSheet.
+ * Used by availabilityOn so a stale Full Roster day-store snapshot
+ * (e.g. 130/158 · saturday-weekday) cannot stick on a Chicago Saturday.
+ */
+export function lockedDayFromLiveSheet(
+  live: LiveSheet,
+  date: string,
+  nowIso: string,
+): LockedDay | null {
+  if (!isDriverTallyDay(date)) return null;
+  const computed = computeAvailability(live, date);
+  const ootNames = Array.isArray(live.ootNames) ? [...live.ootNames] : [];
+  const callOffs = fullDayOffEntries(live.offs, live.manualOffs, date);
+  return {
+    ...computed,
+    ootNames,
+    callOffs,
+    locked: false,
+    lockedAt: nowIso,
+    source: availabilitySource(live, date),
+  };
+}
+
 
 /**
  * Recompute one stored day's offs / available / callOffs from its locked

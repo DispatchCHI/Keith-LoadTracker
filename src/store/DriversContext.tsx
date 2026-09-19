@@ -15,6 +15,7 @@ import {
   availabilityWithManuals,
   callOffsOnDay,
   lockEndedDays,
+  lockedDayFromLiveSheet,
   refreshPastDayManuals,
   lookupDay,
   mergeDayStores,
@@ -323,23 +324,32 @@ export function DriversProvider({ children }: { children: ReactNode }) {
   const availabilityOn = useCallback(
     (date: string): LockedDay | null => {
       const today = chicagoToday();
+      const liveFor = (d: string) =>
+        liveSheetFromRoster({
+          roster: rosterStore,
+          vacation: vacationStore,
+          date: d,
+          offs,
+          manuals: manualOffs[d],
+          saturdayUsesWeekdayBase: !isChicagoSaturday(d),
+        });
       if (date > today) {
-        return projectFutureDay(
-          liveSheetFromRoster({
-            roster: rosterStore,
-            vacation: vacationStore,
-            date,
-            offs,
-            manuals: manualOffs[date],
-            saturdayUsesWeekdayBase: !isChicagoSaturday(date),
-          }),
-          date,
+        return projectFutureDay(liveFor(date), date, today);
+      }
+      // Always recompute today from live Sat/Full roster so a stale day-store
+      // snapshot (Full Roster 130/158, saturday-weekday) cannot stick — especially
+      // on Chicago Saturday when the card must follow Sat Roster names left.
+      if (date === today) {
+        const live = liveFor(today);
+        const stored = lookupDay(days, today);
+        return lockedDayFromLiveSheet(
+          live,
           today,
+          stored?.lockedAt ?? new Date().toISOString(),
         );
       }
       const stored = lookupDay(days, date);
       if (!stored) return null;
-      if (date === today) return stored;
       return availabilityWithManuals(stored, {
         base: stored.base,
         saturdayBase: stored.base,

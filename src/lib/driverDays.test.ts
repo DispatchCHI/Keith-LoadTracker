@@ -5,8 +5,10 @@ import {
   applyLiveSheet,
   applyManualsToStoredDay,
   callOffsOnDay,
+  computeAvailability,
   isDriverTallyDay,
   lockEndedDays,
+  lockedDayFromLiveSheet,
   lookupDay,
   mergeDayStores,
   refreshPastDayManuals,
@@ -725,5 +727,69 @@ describe("ootNames day lock", () => {
     );
     expect(next["2026-09-04"]).not.toHaveProperty("ootNames");
     expect(next["2026-09-05"]?.ootNames).toEqual(["Should Not Appear On Friday"]);
+  });
+});
+
+
+describe("lockedDayFromLiveSheet (live today / Saturday)", () => {
+  it("recomputes Saturday from Sat Roster live sheet, ignoring stale Full numbers", () => {
+    // Stale day-store would have been ~130 available / 158 rosterTotal (Full).
+    const live = {
+      base: 41,
+      saturdayBase: 41,
+      rosterTotal: 45,
+      saturdayUsesWeekdayBase: false as const,
+      offs: [],
+      ootNames: ["Glen Barker"],
+    };
+    const day = lockedDayFromLiveSheet(live, "2026-09-19", "2026-09-19T13:52:00.000Z");
+    expect(day).toMatchObject({
+      date: "2026-09-19",
+      base: 41,
+      available: 41,
+      rosterTotal: 45,
+      source: "saturday",
+      locked: false,
+    });
+    expect(day?.rosterTotal).not.toBe(158);
+    expect(day?.available).not.toBe(130);
+    expect(day?.ootNames).toEqual(["Glen Barker"]);
+  });
+
+  it("empty Sat Roster stays 0/0 — never invents Full Roster headcount", () => {
+    const live = {
+      base: 0,
+      saturdayBase: 0,
+      rosterTotal: 0,
+      saturdayUsesWeekdayBase: false as const,
+      offs: [],
+    };
+    const day = lockedDayFromLiveSheet(live, "2026-09-19", "t1");
+    expect(day).toMatchObject({
+      available: 0,
+      rosterTotal: 0,
+      base: 0,
+      source: "saturday",
+    });
+    const fromCompute = computeAvailability(live, "2026-09-19");
+    expect(fromCompute.rosterTotal).toBe(0);
+  });
+
+  it("weekday live path still uses Full Roster denominator", () => {
+    const live = {
+      base: 139,
+      saturdayBase: 139,
+      rosterTotal: 158,
+      saturdayUsesWeekdayBase: true as const,
+      offs: [
+        { name: "A", start: "2026-09-18", end: null, reason: "Call Off" },
+      ],
+    };
+    const day = lockedDayFromLiveSheet(live, "2026-09-18", "t1");
+    expect(day).toMatchObject({
+      rosterTotal: 158,
+      available: 138,
+      source: "weekday",
+    });
   });
 });
