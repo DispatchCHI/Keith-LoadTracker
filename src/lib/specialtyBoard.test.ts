@@ -5,6 +5,7 @@ import { isCustomSpecialtyId } from "./customSpecialty";
 import {
   SPECIALTY_DESTINATIONS,
   SPECIALTY_STATIONS,
+  filterSpecialtyStationsByLanes,
   addSpecialtySlot,
   applySpecialtyTombstones,
   consumeSpecialtyOpens,
@@ -1689,3 +1690,13 @@ describe("specialty consume sticks through refresh/merge", () => {
   });
 });
 
+
+describe("filterSpecialtyStationsByLanes", () => {
+  it("keeps specialty cards that match WF/leachate customers", () => {
+    const filtered = filterSpecialtyStationsByLanes(SPECIALTY_STATIONS, [
+      "GraysLake",
+      "Liberty",
+    ]);
+    expect(filtered.map((s) => s.id).sort()).toEqual(["grayslake", "liberty-tank"]);
+  });
+});

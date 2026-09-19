@@ -8,6 +8,8 @@ import {
   removeCustomerByName,
   seededCustomerLaneStore,
   customersWithRealLanes,
+  customersWithSpecialtyLanes,
+  isSpecialtyBoardCommodity,
   upsertCustomerLane,
 } from "./customerLanes";
 
@@ -138,5 +140,35 @@ describe("customersWithRealLanes", () => {
       tier1: 155.21,
     }).store;
     expect(customersWithRealLanes(store)).toEqual(["GraysLake"]);
+  });
+});
+
+describe("customersWithSpecialtyLanes", () => {
+  it("keeps WF/leachate customers and skips trash-only", () => {
+    let store: CustomerLaneStore = { lanes: {} };
+    store = upsertCustomerLane(store, {
+      customer: "Melrose",
+      destination: "DeKalb",
+      commodity: "Trash (MSW)",
+      effectiveDate: "2025-01-01",
+      tier1: 100,
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "GraysLake",
+      destination: "CID",
+      commodity: "Leachate (tanker)",
+      effectiveDate: "2025-01-01",
+      tier1: 155,
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "Wheeling",
+      destination: "Hodgkins",
+      commodity: "Walking Floor",
+      effectiveDate: "2025-01-01",
+      tier1: 90,
+    }).store;
+    expect(isSpecialtyBoardCommodity("Trash (MSW)")).toBe(false);
+    expect(isSpecialtyBoardCommodity("Leachate (tanker)")).toBe(true);
+    expect(customersWithSpecialtyLanes(store).sort()).toEqual(["GraysLake", "Wheeling"]);
   });
 });

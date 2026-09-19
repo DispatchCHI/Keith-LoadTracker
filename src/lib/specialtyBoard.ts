@@ -10,6 +10,7 @@ import {
   isCustomSpecialtyId,
   lookupCustomSpecialtyIdByName,
 } from "./customSpecialty";
+import { placesMatch } from "./customerLanes";
 
 export type SpecialtyStation = {
   id: string;
@@ -1127,4 +1128,15 @@ export function reconcileSpecialtyCloud(
     toDeleteRemote,
     toUpload,
   };
+}
+
+/** Regular specialty cards whose pickup matches a WF/leachate Customers-book entry. */
+export function filterSpecialtyStationsByLanes(
+  stations: readonly SpecialtyStation[],
+  specialtyCustomerNames: readonly string[],
+): SpecialtyStation[] {
+  if (!specialtyCustomerNames.length) return [];
+  return stations.filter((station) =>
+    specialtyCustomerNames.some((name) => placesMatch(station.name, name)),
+  );
 }

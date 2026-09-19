@@ -19,7 +19,6 @@ export const CUSTOM_SPECIALTY_DEFAULT_NAMES: Record<CustomSpecialtyId, string> =
 export const CUSTOM_SPECIALTY_LOAD_TYPES = [
   "Leachate",
   "Walking-floor",
-  "Trash",
 ] as const;
 
 export type CustomSpecialtyLoadType = (typeof CUSTOM_SPECIALTY_LOAD_TYPES)[number];
@@ -131,7 +130,8 @@ export function commodityLoadType(commodity: string): CustomSpecialtyLoadType | 
   const key = commodity.replace(/\s+/g, " ").trim().toLowerCase();
   if (!key) return null;
   if (key.includes("leach")) return "Leachate";
-  if (key.includes("trash") || key.includes("msw")) return "Trash";
+  // Trash/MSW is not a specialty-board load type anymore.
+  if (key.includes("trash") || key.includes("msw")) return null;
   if (
     key.includes("walk") ||
     key.includes("recycle") ||

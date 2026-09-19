@@ -399,6 +399,50 @@ export function removeCustomerByName(
 }
 
 
+
+/** Walking-floor or leachate lane (specialty board tallies — not trash/MSW stubs). */
+export function isSpecialtyBoardCommodity(commodity: string): boolean {
+  const key = laneCommodityKey(commodity);
+  if (key === "leachate") return true;
+  return /walking|\bwf\b/i.test(commodity);
+}
+
+/** Customers with at least one real Walking-floor or Leachate lane. */
+export function customersWithSpecialtyLanes(store: CustomerLaneStore): string[] {
+  const names = new Set<string>();
+  for (const lane of Object.values(store.lanes)) {
+    if (isLaneStub(lane)) continue;
+    if (!isSpecialtyBoardCommodity(lane.commodity)) continue;
+    names.add(lane.customer);
+  }
+  return [...names].sort((a, b) => a.localeCompare(b, "en"));
+}
+
+/** Destinations from that customer's WF / leachate lanes (newest contract first, unique). */
+export function specialtyDestinationsForCustomer(
+  store: CustomerLaneStore,
+  customer: string,
+): string[] {
+  const rows = Object.values(store.lanes)
+    .filter(
+      (lane) =>
+        !isLaneStub(lane) &&
+        placesMatch(lane.customer, customer) &&
+        isSpecialtyBoardCommodity(lane.commodity),
+    )
+    .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const lane of rows) {
+    const dest = lane.destination.trim();
+    const key = normalizePlaceName(dest);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(dest);
+  }
+  return out;
+}
+
 /** Customers that have at least one real lane (destination filled — not an add-customer stub). */
 export function customersWithRealLanes(store: CustomerLaneStore): string[] {
   const names = new Set<string>();

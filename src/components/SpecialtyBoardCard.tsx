@@ -15,26 +15,41 @@ import {
 import {
   SPECIALTY_STATIONS,
   destSummary,
+  filterSpecialtyStationsByLanes,
   slotsForStation,
   specialtyDestHint,
   specialtyDestinationsFor,
   type SpecialtyDayBoard,
   type SpecialtyStation,
 } from "../lib/specialtyBoard";
+import {
+  customersWithSpecialtyLanes,
+  specialtyDestinationsForCustomer,
+} from "../lib/customerLanes";
+import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useSpecialty } from "../store/SpecialtyContext";
 import { Chip } from "./Chip";
 import "./specialty-board.css";
 
 export function SpecialtyBoardCard({ date }: { date: string }) {
   const { boardOn, addOpen, removeOpen, cloud } = useSpecialty();
+  const { store: customerLanes } = useCustomerLanes();
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [open, setOpen] = useState(true);
 
   const board = useMemo(() => boardOn(date), [boardOn, date]);
   const totalOpen = board.length;
+  const specialtyCustomers = useMemo(
+    () => customersWithSpecialtyLanes(customerLanes),
+    [customerLanes],
+  );
   const regularStations = useMemo(
-    () => SPECIALTY_STATIONS.filter((station) => !isCustomSpecialtyId(station.id)),
-    [],
+    () =>
+      filterSpecialtyStationsByLanes(
+        SPECIALTY_STATIONS.filter((station) => !isCustomSpecialtyId(station.id)),
+        specialtyCustomers,
+      ),
+    [specialtyCustomers],
   );
   const extraStations = useMemo(
     () => SPECIALTY_STATIONS.filter((station) => isCustomSpecialtyId(station.id)),
@@ -52,7 +67,7 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
         <span className="specialty-toggle-copy">
           <span className="specialty-toggle-title">Specialty loads</span>
           <span className="specialty-toggle-meta">
-            {totalOpen} open · walking floors · {formatHeaderDate(date)}
+            {totalOpen} open · walking-floor · leachate · {formatHeaderDate(date)}
             {cloud ? " · synced" : " · this device only"}
             {open ? "" : " · tap to expand"}
           </span>
@@ -67,8 +82,14 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
       {open ? (
         <div className="specialty-body">
           <p className="specialty-hint">
-            + dest or commodity · − or tap chip to remove
+            Walking-floor / leachate only · from Customers lanes · + dest · − or tap chip to remove
           </p>
+          {regularStations.length === 0 ? (
+            <p className="field-hint">
+              No Walking-floor or Leachate lanes in Customers yet — add those there and
+              they show up here.
+            </p>
+          ) : null}
           <ul className="specialty-list">
             {regularStations.map((station) => (
               <StationRow
@@ -86,6 +107,10 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
                 }}
                 onRemove={() => void removeOpen(date, station.id)}
                 onRemoveDest={(dest) => void removeOpen(date, station.id, dest)}
+                laneDestinations={specialtyDestinationsForCustomer(
+                  customerLanes,
+                  station.name,
+                )}
               />
             ))}
           </ul>
@@ -125,6 +150,7 @@ function StationRow({
   onAdd,
   onRemove,
   onRemoveDest,
+  laneDestinations,
 }: {
   station: SpecialtyStation;
   board: SpecialtyDayBoard;
@@ -134,12 +160,17 @@ function StationRow({
   onAdd: (dest: string) => void;
   onRemove: () => void;
   onRemoveDest: (dest: string) => void;
+  laneDestinations?: string[];
 }) {
   const slots = slotsForStation(board, station.id);
   const summary = destSummary(slots);
   const count = slots.length;
   const custom = isCustomSpecialtyId(station.id);
   const label = custom ? customSpecialtyDisplayName(station.id) : station.name;
+  const destChips =
+    laneDestinations && laneDestinations.length > 0
+      ? laneDestinations
+      : specialtyDestinationsFor(station.id);
 
   return (
     <li
@@ -201,7 +232,7 @@ function StationRow({
         <div className="specialty-picker">
           <p className="field-hint tight">{specialtyDestHint(station.id)}</p>
           <div className="chip-row">
-            {specialtyDestinationsFor(station.id).map((dest) => (
+            {destChips.map((dest) => (
               <Chip key={dest} label={dest} onClick={() => onAdd(dest)} />
             ))}
           </div>
