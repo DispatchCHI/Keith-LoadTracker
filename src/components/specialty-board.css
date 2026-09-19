@@ -17,11 +17,15 @@
 }
 
 .specialty-extra-list .specialty-row,
-.specialty-extra-list .specialty-row.is-custom,
-.specialty-extra-list .specialty-row.is-picking {
+.specialty-extra-list .specialty-row.is-custom {
   min-width: 0;
   overflow: visible;
   grid-column: auto;
+}
+.specialty-extra-list .specialty-row.is-picking {
+  min-width: 0;
+  overflow: visible;
+  grid-column: 1 / -1;
 }
 
 .specialty-extra-main {
@@ -126,4 +130,24 @@
 .specialty-add-open {
   border: 1px solid var(--amber);
   border-radius: 14px;
+}
+
+
+.specialty-list {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  align-items: start;
+  gap: 8px;
+}
+.specialty-row.is-picking {
+  grid-column: 1 / -1;
+  overflow: visible;
+  z-index: 2;
+}
+.specialty-picker .chip {
+  min-height: 36px;
+  height: auto;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
