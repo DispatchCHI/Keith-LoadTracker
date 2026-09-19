@@ -81,13 +81,13 @@ export function CollapsibleRank({
                         aria-expanded={selected}
                         onClick={() => onSelect({ kind: filterKind, key: row.key })}
                       >
-                        <RankInner row={row} pct={pct} showBar={!compact} />
+                        <RankInner row={row} pct={pct} showBar={!compact} commodity={filterKind === "commodity"} />
                       </button>
                     ) : (
                       <div
                         className={`rank-row rank-row-static${compact ? " rank-row-compact" : ""}`}
                       >
-                        <RankInner row={row} pct={pct} showBar={!compact} />
+                        <RankInner row={row} pct={pct} showBar={!compact} commodity={filterKind === "commodity"} />
                       </div>
                     )}
                     {selected && expandedPanel ? (
@@ -108,10 +108,12 @@ function RankInner({
   row,
   pct,
   showBar,
+  commodity = false,
 }: {
   row: RankRow;
   pct: number;
   showBar: boolean;
+  commodity?: boolean;
 }) {
   return (
     <>
@@ -122,9 +124,13 @@ function RankInner({
         </span>
         <strong
           className="rank-count"
-          aria-label={`${row.trashCount} trash of ${row.count} loads`}
+          aria-label={
+            commodity
+              ? `${row.count} loads`
+              : `${row.trashCount} trash of ${row.count} loads`
+          }
         >
-          {formatRankTrashTotal(row)}
+          {formatRankTrashTotal(row, { commodity })}
         </strong>
       </div>
       {showBar ? (

@@ -963,3 +963,41 @@ describe("rankAccordionLoads", () => {
     expect(src).not.toContain("matching-block");
   });
 });
+
+
+describe("Walking Floor commodity counts in day tally", () => {
+  it("counts explicit Walking Floor / Walking-floor tags for every pickup", () => {
+    const loads = [
+      load({
+        id: "r1",
+        pickup: "Rockdale",
+        stationId: "rockdale",
+        destination: "Homewood",
+        commodity: "Walking Floor",
+      }),
+      load({
+        id: "r2",
+        pickup: "Rockdale",
+        stationId: "rockdale",
+        destination: "Homewood",
+        commodity: "Walking-floor",
+      }),
+      load({
+        id: "m1",
+        pickup: "Melrose",
+        destination: "Hodgkins",
+        commodity: "Walking Floor",
+      }),
+      load({
+        id: "g1",
+        pickup: "Hodgkins",
+        stationId: "hodgkins",
+        destination: "Strategic",
+        commodity: "Glass",
+      }),
+    ];
+    for (const row of loads) expect(isWalkingFloorLoad(row)).toBe(true);
+    expect(countWalkingFloorLoads(loads)).toBe(4);
+    expect(countSheetTotalLoads(loads)).toBe(4);
+  });
+});

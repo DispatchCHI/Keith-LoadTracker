@@ -43,6 +43,7 @@ export function commodityTone(commodity: string): TagTone {
 export function tallyLabel(commodity: string): string {
   const c = commodity.toLowerCase();
   if (c.includes("leachate")) return "LEACHATE";
+  if (c.includes("walking") || /(^|\W)wf(\W|$)/.test(c)) return "WALKING-FLOOR";
   if (c.includes("residual") || c.includes("residue")) return "RESIDUAL";
   if (c.includes("glass")) return "GLASS";
   if (c.includes("trash") || c.includes("msw")) return "TRASH";
@@ -59,6 +60,7 @@ export function tallyLabel(commodity: string): string {
 export function commodityRankLabel(commodity: string): string {
   const c = commodity.toLowerCase();
   if (c.includes("leachate")) return "Leachate";
+  if (c.includes("walking") || /(^|\W)wf(\W|$)/.test(c)) return "Walking Floor";
   if (c.includes("residual") || c.includes("residue")) return "Residual";
   if (c.includes("glass")) return "Glass";
   if (c.includes("trash") || c.includes("msw")) return "Trash (MSW)";

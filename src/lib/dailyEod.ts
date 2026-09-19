@@ -311,6 +311,18 @@ export function applyDailyEodToSummary(
   snapshot: DailyEodTotals | null | undefined,
 ): EndOfDaySummary {
   if (!snapshot) return summary;
+  // History-only days (sheet backfill, no in-app loads) keep the snapshot.
+  // Once any haul is logged live, never let a stale EOD row zero out tallies.
+  if (summary.loads > 0) {
+    return {
+      ...summary,
+      trash: Math.max(summary.trash, snapshot.trash),
+      leachate: Math.max(summary.leachate, snapshot.leachate),
+      walkingFloor: Math.max(summary.walkingFloor, snapshot.walkingFloor),
+      loads: Math.max(summary.loads, snapshot.loads),
+      subs: Math.max(summary.subs, snapshot.subs),
+    };
+  }
   return {
     ...summary,
     trash: snapshot.trash,
@@ -341,9 +353,14 @@ export function applyDailyEodToCards(
   snapshot: DailyEodTotals | null | undefined,
 ): DaySummaryCard[] {
   if (!snapshot) return cards;
+  const liveLoads = cards.find((card) => card.key === "loads")?.count ?? 0;
   return cards.map((card) => {
     const field = SNAPSHOT_CARD_COUNTS[card.key];
-    return field ? { ...card, count: snapshot[field] } : card;
+    if (!field) return card;
+    if (liveLoads > 0) {
+      return { ...card, count: Math.max(card.count, snapshot[field]) };
+    }
+    return { ...card, count: snapshot[field] };
   });
 }
 
@@ -351,7 +368,10 @@ export function displayLoadCount(
   liveCount: number,
   snapshot: DailyEodTotals | null | undefined,
 ): number {
-  return snapshot ? snapshot.loads : liveCount;
+  if (!snapshot) return liveCount;
+  // Live logged hauls always count on the day tally (every customer).
+  if (liveCount > 0) return Math.max(liveCount, snapshot.loads);
+  return snapshot.loads;
 }
 
 export type CloudErrorLike = {

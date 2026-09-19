@@ -282,6 +282,29 @@ describe("EOD / Today override", () => {
     expect(displayLoadCount(7, snap())).toBe(184);
   });
 
+  it("live logged loads are never zeroed by a smaller EOD snapshot", () => {
+    const snapshot = snap({ walkingFloor: 0, loads: 50, trash: 50, leachate: 0, subs: 0 });
+    const liveLoads = [
+      ...Array.from({ length: 50 }, (_, i) => load({ id: `t${i}` })),
+      ...Array.from({ length: 6 }, (_, i) =>
+        load({
+          id: `wf${i}`,
+          pickup: "Rockdale",
+          stationId: "rockdale",
+          destination: "Homewood",
+          commodity: "Walking Floor",
+        }),
+      ),
+    ];
+    const live = endOfDaySummary(liveLoads, emptyBoard());
+    expect(live.walkingFloor).toBe(6);
+    expect(live.loads).toBe(56);
+    const overridden = applyDailyEodToSummary(live, snapshot);
+    expect(overridden.walkingFloor).toBe(6);
+    expect(overridden.loads).toBe(56);
+    expect(displayLoadCount(56, snapshot)).toBe(56);
+  });
+
   it("does not invent truck load rows from a snapshot", () => {
     const live = endOfDaySummary([], emptyBoard());
     const overridden = applyDailyEodToSummary(live, snap());

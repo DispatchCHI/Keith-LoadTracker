@@ -21,7 +21,13 @@ function sortRanks(rows: RankRow[]): RankRow[] {
 }
 
 /** Collapsed grouping-row label: trash / total, e.g. `10 / 30`. */
-export function formatRankTrashTotal(row: Pick<RankRow, "count" | "trashCount">): string {
+export function formatRankTrashTotal(
+  row: Pick<RankRow, "count" | "trashCount">,
+  opts?: { commodity?: boolean },
+): string {
+  // Commodity buckets are already one kind — "0 / 6" on Walking Floor looked like
+  // those loads were not counted. Show the load total instead.
+  if (opts?.commodity) return String(row.count);
   return `${row.trashCount} / ${row.count}`;
 }
 
@@ -187,17 +193,26 @@ export function isGraysLakeRecycleLane(load: Load): boolean {
 export function isWalkingFloorLoad(load: Load): boolean {
   if (isVanDrunenPickup(load) || isGraysLakeRecycleLane(load)) return true;
   const commodityKey = tallyLabel(load.commodity);
+  // Explicit Walking-floor / WF tags (LoadForm + specialty chips).
+  if (commodityKey === "WALKING-FLOOR" || commodityKey === "WALKING FLOOR") return true;
   if (
     commodityKey === "YARD" ||
     commodityKey === "RECYCLE" ||
     commodityKey === "RESIDUAL" ||
     commodityKey === "CARDBOARD" ||
-    commodityKey === "WOOD"
+    commodityKey === "WOOD" ||
+    commodityKey === "GLASS"
   ) {
     return true;
   }
   const fields = [load.commodity, load.destination, load.pickup];
-  return fields.some((field) => field.toLowerCase().includes("groot"));
+  if (fields.some((field) => field.toLowerCase().includes("groot"))) return true;
+  // Anything that is not Trash or Leachate rolls into the walking-floor day tally
+  // (same rule as Customers lane book / specialty board).
+  if (commodityKey === "TRASH" || commodityKey === "LEACHATE") return false;
+  const c = load.commodity.toLowerCase();
+  if (c.includes("walking") || /(^|\W)wf(\W|$)/.test(c)) return true;
+  return Boolean(load.commodity.trim());
 }
 
 export function countWalkingFloorLoads(loads: Load[]): number {
