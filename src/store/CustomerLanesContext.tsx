@@ -224,7 +224,8 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
         deletedCustomersRef.current.delete(key);
       }
       persistLocal(result.store);
-      if (cloud) await cloudUpsert([result.lane]);
+      // Local SoR first — never hold the Save UI on a hung Supabase upsert.
+      if (cloud) void cloudUpsert([result.lane]);
       return result.lane;
     },
     [cloud, cloudUpsert, persistLocal],
@@ -235,7 +236,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       const result = removeCustomerLane(storeRef.current, id);
       if (!result.removed) return;
       persistLocal(result.store);
-      if (cloud) await cloudDelete([id]);
+      if (cloud) void cloudDelete([id]);
     },
     [cloud, cloudDelete, persistLocal],
   );
@@ -247,7 +248,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       if (key) deletedCustomersRef.current.add(key);
       clearCustomerBrandOverride(name);
       persistLocal(result.store);
-      if (cloud && result.removedIds.length) await cloudDelete(result.removedIds);
+      if (cloud && result.removedIds.length) void cloudDelete(result.removedIds);
     },
     [cloud, cloudDelete, persistLocal],
   );

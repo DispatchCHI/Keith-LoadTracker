@@ -77,7 +77,7 @@ export function CustomersScreen() {
     if (!laneForm) return;
     const dest = laneForm.destination.trim();
     if (!dest) return;
-    await saveLane({
+    const saved = await saveLane({
       id: laneForm.id,
       customer: laneForm.customer,
       destination: dest,
@@ -89,7 +89,7 @@ export function CustomersScreen() {
       tier4: moneyField(laneForm.t4),
       tier5: moneyField(laneForm.t5),
     });
-    setLaneForm(null);
+    if (saved) setLaneForm(null);
   };
 
   return (

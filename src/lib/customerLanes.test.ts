@@ -91,3 +91,31 @@ describe("mergeSeededLanes tombstones", () => {
     expect(Object.values(merged.lanes).some((lane) => lane.customer === "Batavia")).toBe(true);
   });
 });
+
+describe("upsertCustomerLane natural key", () => {
+  it("updates existing lane when add matches natural key", () => {
+    let store: CustomerLaneStore = { lanes: {} };
+    const first = upsertCustomerLane(store, {
+      customer: "GraysLake",
+      destination: "CID",
+      commodity: "Leachate (tanker)",
+      effectiveDate: "2025-01-01",
+      tier1: null,
+    });
+    store = first.store;
+    const second = upsertCustomerLane(store, {
+      customer: "GraysLake",
+      destination: "CID",
+      commodity: "Leachate (tanker)",
+      effectiveDate: "2025-01-01",
+      tier1: 155.21,
+      tier2: 157.87,
+      tier3: 160.57,
+      tier4: 163.22,
+      tier5: 171.26,
+    });
+    expect(second.lane?.id).toBe(first.lane?.id);
+    expect(Object.keys(second.store.lanes)).toHaveLength(1);
+    expect(second.lane?.tier1).toBe(155.21);
+  });
+});

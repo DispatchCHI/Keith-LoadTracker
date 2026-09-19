@@ -338,12 +338,26 @@ export function upsertCustomerLane(
   if (!customer) return { store, lane: null };
   if (!isValidISODate(input.effectiveDate)) return { store, lane: null };
   const stamp = nowIso(at);
-  const prev = input.id ? store.lanes[input.id] : undefined;
+  const destination = cleanPlaceName(input.destination ?? "");
+  const commodity =
+    cleanPlaceName(input.commodity) || "Trash (MSW)";
+  let prev = input.id ? store.lanes[input.id] : undefined;
+  // Adding with the same customer+dest+commodity+start as an existing row updates
+  // that row instead of stacking a duplicate empty book (common "+ Lane" vs Edit).
+  if (!prev) {
+    prev = Object.values(store.lanes).find(
+      (lane) =>
+        placesMatch(lane.customer, customer) &&
+        placesMatch(lane.destination, destination) &&
+        commoditiesMatch(lane.commodity, commodity) &&
+        lane.effectiveDate === input.effectiveDate,
+    );
+  }
   const lane: CustomerLane = {
-    id: input.id ?? newId(),
+    id: input.id ?? prev?.id ?? newId(),
     customer,
-    destination: cleanPlaceName(input.destination ?? prev?.destination ?? ""),
-    commodity: cleanPlaceName(input.commodity ?? prev?.commodity) || "Trash (MSW)",
+    destination: destination || prev?.destination || "",
+    commodity: commodity || prev?.commodity || "Trash (MSW)",
     effectiveDate: input.effectiveDate,
     tier1: input.tier1 !== undefined ? parseMoney(input.tier1) : (prev?.tier1 ?? null),
     tier2: input.tier2 !== undefined ? parseMoney(input.tier2) : (prev?.tier2 ?? null),
