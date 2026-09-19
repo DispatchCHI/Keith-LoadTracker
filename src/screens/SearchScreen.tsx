@@ -57,7 +57,7 @@ export function SearchScreen({
           <BrandMark />
           <div>
             <p className="eyebrow">Search</p>
-            <h1 className="page-title">Trucks</h1>
+            <h1 className="page-title">Search</h1>
           </div>
         </div>
       </header>
