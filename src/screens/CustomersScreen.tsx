@@ -12,7 +12,12 @@ import {
   type CustomerLane,
 } from "../lib/customerLanes";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
-import { brandForCustomer } from "../lib/customerBrands";
+import {
+  BRAND_COMPANY_OPTIONS,
+  brandForCustomer,
+  setCustomerBrandOverride,
+  type BrandCompanyId,
+} from "../lib/customerBrands";
 
 function moneyField(raw: string): number | null {
   const trimmed = raw.trim();
@@ -46,6 +51,7 @@ export function CustomersScreen() {
   const [filter, setFilter] = useState<string>("all");
   const [addingCustomer, setAddingCustomer] = useState(false);
   const [newCustomer, setNewCustomer] = useState("");
+  const [newCustomerBrand, setNewCustomerBrand] = useState<BrandCompanyId>("none");
   const [openCustomer, setOpenCustomer] = useState<string | null>(null);
   const [laneForm, setLaneForm] = useState<LaneFormState | null>(null);
 
@@ -114,7 +120,15 @@ export function CustomersScreen() {
       </div>
 
       <div className="vac-add-actions">
-        <button type="button" className="text-btn amber" onClick={() => setAddingCustomer(true)}>
+        <button
+          type="button"
+          className="text-btn amber"
+          onClick={() => {
+            setNewCustomer("");
+            setNewCustomerBrand("none");
+            setAddingCustomer(true);
+          }}
+        >
           + Add customer
         </button>
       </div>
@@ -126,6 +140,7 @@ export function CustomersScreen() {
             event.preventDefault();
             const name = newCustomer.trim();
             if (!name) return;
+            setCustomerBrandOverride(name, newCustomerBrand);
             void saveLane({
               customer: name,
               destination: "",
@@ -133,6 +148,7 @@ export function CustomersScreen() {
               effectiveDate: CURRENT_CONTRACT_START,
             });
             setNewCustomer("");
+            setNewCustomerBrand("none");
             setAddingCustomer(false);
             setOpenCustomer(name);
           }}
@@ -144,11 +160,36 @@ export function CustomersScreen() {
             placeholder="Customer name"
             autoComplete="off"
           />
+          <label className="drv-pay-field">
+            <span>Company logo</span>
+            <select
+              className="text-input"
+              value={newCustomerBrand}
+              onChange={(event) =>
+                setNewCustomerBrand(event.target.value as BrandCompanyId)
+              }
+              aria-label="Company logo"
+            >
+              {BRAND_COMPANY_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="vac-add-actions">
             <button type="submit" className="text-btn amber">
               Add
             </button>
-            <button type="button" className="text-btn" onClick={() => setAddingCustomer(false)}>
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => {
+                setAddingCustomer(false);
+                setNewCustomer("");
+                setNewCustomerBrand("none");
+              }}
+            >
               Cancel
             </button>
           </div>
