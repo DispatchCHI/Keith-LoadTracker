@@ -377,6 +377,9 @@ describe("available out of Full Roster hired", () => {
     expect(formatAvailableOutOf({ available: 136, base: 139, rosterTotal: 162 }, "drivers")).toBe(
       "136 out of 162 drivers",
     );
+    expect(formatAvailableOutOf({ available: 38, base: 40, rosterTotal: 42 }, "drivers")).toBe(
+      "38 out of 42 drivers",
+    );
   });
 
   it("falls back to base only when rosterTotal was never snapshotted", () => {

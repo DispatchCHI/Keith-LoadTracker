@@ -32,6 +32,7 @@ type DispatchTalliesContextValue = {
   setBataviaPreload: (date: string, count: number) => Promise<void>;
   decrementBataviaPreload: (date: string) => Promise<void>;
   setEvanstonAsking: (date: string, count: number) => Promise<void>;
+  setHookerAsking: (date: string, count: number) => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -121,7 +122,7 @@ export function DispatchTalliesProvider({ children }: { children: ReactNode }) {
   }, [cloud, refresh]);
 
   const save = useCallback(
-    async (date: string, patch: { bataviaPreload?: number; evanstonAsking?: number }) => {
+    async (date: string, patch: { bataviaPreload?: number; evanstonAsking?: number; hookerAsking?: number }) => {
       const stamped = stampDispatchTallies(date, patch, storeRef.current[date]);
       if (!stamped) return;
       persistLocal(upsertDispatchTallies(storeRef.current, stamped));
@@ -149,6 +150,11 @@ export function DispatchTalliesProvider({ children }: { children: ReactNode }) {
     [save],
   );
 
+  const setHookerAsking = useCallback(
+    (date: string, count: number) => save(date, { hookerAsking: Math.max(0, Math.floor(count)) }),
+    [save],
+  );
+
   const talliesForDate = useCallback((date: string) => talliesOn(store, date), [store]);
 
   const value = useMemo<DispatchTalliesContextValue>(
@@ -159,9 +165,10 @@ export function DispatchTalliesProvider({ children }: { children: ReactNode }) {
       setBataviaPreload,
       decrementBataviaPreload,
       setEvanstonAsking,
+      setHookerAsking,
       refresh,
     }),
-    [cloud, decrementBataviaPreload, refresh, setBataviaPreload, setEvanstonAsking, store, talliesForDate],
+    [cloud, decrementBataviaPreload, refresh, setBataviaPreload, setEvanstonAsking, setHookerAsking, store, talliesForDate],
   );
 
   return (

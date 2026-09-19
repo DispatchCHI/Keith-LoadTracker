@@ -1162,10 +1162,12 @@ export type DriverRosterCloudReconcileResult = {
  * rows unless Keith pressed × in the UI or Reset to full roster.
  *
  * - No subset-pull hides, no seen-missing tombstones, no wipe-then-reinsert.
- * - Empty / thin remote keeps every local row. Cloud-only remote rows upsert in.
+ * - Empty / thin remote keeps every local Full row. Cloud-only remote rows upsert in.
+ * - Sat rows previously seen on cloud that vanish remotely are treated as deletes
+ *   (trimmed Sat lists stick across sync — same idea as Vacation replace-from-cloud).
  * - Explicit × / Reset tombstones stick even if remote still has the row, and
- *   those ids are retried on `toDeleteRemoteEntries`. Sync never invents deletes
- *   for ids Keith did not remove.
+ *   those ids are retried on `toDeleteRemoteEntries`. Sync never invents Full
+ *   deletes for ids Keith did not remove.
  * - Sheet import and Vacation auto-VAC may add or update marks; they never
  *   remove rows.
  */
@@ -1182,7 +1184,6 @@ export function reconcileDriverRosterCloud(
   );
   const remoteIds = new Set(Object.keys(input.remote.entries));
   const deleted = new Set(incomingDeleted);
-  const toDeleteRemoteEntries = [...deleted].filter((id) => remoteIds.has(id));
 
   const next: DriverRosterStore = { entries: {} };
   const toUploadEntries: DriverRosterEntry[] = [];
@@ -1200,6 +1201,14 @@ export function reconcileDriverRosterCloud(
       continue;
     }
     if (local && !remote) {
+      // Sat Roster: if cloud no longer has a row we previously saw, the remote
+      // delete wins (× / multi-delete on another device). Do not re-upload —
+      // that was bouncing trimmed Sat names back after sync/refresh. Full
+      // Roster still keeps local-only rows (never auto-wipe hired drivers).
+      if (local.kind === "sat" && seen.has(id)) {
+        deleted.add(id);
+        continue;
+      }
       next.entries[id] = local;
       if (!seen.has(id)) toUploadEntries.push(local);
       continue;
@@ -1216,6 +1225,7 @@ export function reconcileDriverRosterCloud(
 
   const nextSeen = new Set(seen);
   for (const id of remoteIds) nextSeen.add(id);
+  const toDeleteRemoteEntries = [...deleted].filter((id) => remoteIds.has(id));
 
   return {
     next,

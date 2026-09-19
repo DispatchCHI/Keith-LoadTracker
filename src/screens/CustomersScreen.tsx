@@ -12,6 +12,7 @@ import {
   type CustomerLane,
 } from "../lib/customerLanes";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
+import { brandForCustomer } from "../lib/customerBrands";
 
 function moneyField(raw: string): number | null {
   const trimmed = raw.trim();
@@ -174,6 +175,17 @@ export function CustomersScreen() {
                       : "No dests yet"}
                   </span>
                 </button>
+                {(() => {
+                  const brand = brandForCustomer(name);
+                  return brand ? (
+                    <img
+                      className="cust-brand"
+                      src={brand.src}
+                      alt={brand.alt}
+                      title={brand.alt}
+                    />
+                  ) : null;
+                })()}
                 <button
                   type="button"
                   className="text-btn"

@@ -678,6 +678,63 @@ describe("driver roster cloud delete posture", () => {
     expect(result.toUploadEntries).toEqual([]);
   });
 
+  it("drops local Sat rows removed on cloud so trimmed names do not bounce back", () => {
+    const added = addRosterEntry(emptyDriverRosterStore(), {
+      kind: "sat",
+      yard: "burnham",
+      truckNumber: "56",
+      name: "Dave Vanderbilt",
+    });
+    const id = added.entry!.id;
+    // Other device deleted remotely; this device still has the local row and had seen it.
+    const result = reconcileDriverRosterCloud({
+      local: added.store,
+      remote: emptyDriverRosterStore(),
+      deletedEntryIds: [],
+      seenRemoteEntryIds: [id],
+    });
+    expect(result.next.entries[id]).toBeUndefined();
+    expect(result.deletedEntryIds).toContain(id);
+    expect(result.toUploadEntries).toEqual([]);
+  });
+
+  it("still re-uploads never-seen local Sat rows (UI add before first sync)", () => {
+    const added = addRosterEntry(emptyDriverRosterStore(), {
+      kind: "sat",
+      yard: "pontiac",
+      truckNumber: "12",
+      name: "New Saturday Hire",
+    });
+    const id = added.entry!.id;
+    const result = reconcileDriverRosterCloud({
+      local: added.store,
+      remote: emptyDriverRosterStore(),
+      deletedEntryIds: [],
+      seenRemoteEntryIds: [],
+    });
+    expect(result.next.entries[id]).toBeDefined();
+    expect(result.toUploadEntries.map((row) => row.id)).toEqual([id]);
+  });
+
+  it("does not drop Full Roster local rows missing from a thin remote pull", () => {
+    const added = addRosterEntry(emptyDriverRosterStore(), {
+      kind: "full",
+      yard: "zion",
+      truckNumber: "22041",
+      name: "Marcelo Aldana",
+    });
+    const id = added.entry!.id;
+    const result = reconcileDriverRosterCloud({
+      local: added.store,
+      remote: emptyDriverRosterStore(),
+      deletedEntryIds: [],
+      seenRemoteEntryIds: [id],
+    });
+    expect(result.next.entries[id]).toBeDefined();
+    expect(result.toUploadEntries).toEqual([]);
+    expect(result.deletedEntryIds).not.toContain(id);
+  });
+
   it("does not drop hired names when a later sheet import is thinner", () => {
     const first = mergeImportedRows(emptyDriverRosterStore(), [
       {

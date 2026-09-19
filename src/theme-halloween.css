@@ -218,14 +218,14 @@ html[data-theme="halloween"] .calloff-kind-p-day.selected {
 }
 
 html[data-theme="halloween"] .calloff-kind-okd-off {
-  background: #5c4300 !important;
-  border: 1px solid #f5d76e !important;
-  color: #fef9c3 !important;
+  background: #854d0e !important;
+  border: 1px solid #facc15 !important;
+  color: #fef08a !important;
 }
 
 html[data-theme="halloween"] .calloff-kind-okd-off.selected {
-  background: #a16207 !important;
-  color: #ffffff !important;
+  background: #facc15 !important;
+  color: #422006 !important;
 }
 
 html[data-theme="halloween"] .calloff-kind-ncns {
@@ -240,13 +240,24 @@ html[data-theme="halloween"] .calloff-kind-ncns.selected {
 }
 
 html[data-theme="halloween"] .calloff-kind-late-early {
-  background: #7c2d12 !important;
-  border: 1px solid #f08a3a !important;
+  background: #9a3412 !important;
+  border: 1px solid #fb923c !important;
   color: #ffedd5 !important;
 }
 
 html[data-theme="halloween"] .calloff-kind-late-early.selected {
-  background: #c2410c !important;
+  background: #f97316 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="halloween"] .calloff-kind-fmla {
+  background: #4c1d95 !important;
+  border: 1px solid #a78bfa !important;
+  color: #ede9fe !important;
+}
+
+html[data-theme="halloween"] .calloff-kind-fmla.selected {
+  background: #7c3aed !important;
   color: #ffffff !important;
 }
 

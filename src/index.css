@@ -1834,9 +1834,9 @@ button.log-load-top {
 .calloff-kind-okd-off,
 .calloff-add-form .calloff-kind-okd-off.selected,
 .calloff-kind-okd-off.selected {
-  background: #a16207 !important;
-  border: 1px solid #854d0e !important;
-  color: #ffffff !important;
+  background: #facc15 !important;
+  border: 1px solid #eab308 !important;
+  color: #422006 !important;
 }
 
 .calloff-add-form .calloff-kind-ncns,
@@ -1852,8 +1852,17 @@ button.log-load-top {
 .calloff-kind-late-early,
 .calloff-add-form .calloff-kind-late-early.selected,
 .calloff-kind-late-early.selected {
-  background: #c2410c !important;
-  border: 1px solid #9a3412 !important;
+  background: #f97316 !important;
+  border: 1px solid #ea580c !important;
+  color: #ffffff !important;
+}
+
+.calloff-add-form .calloff-kind-fmla,
+.calloff-kind-fmla,
+.calloff-add-form .calloff-kind-fmla.selected,
+.calloff-kind-fmla.selected {
+  background: #7c3aed !important;
+  border: 1px solid #6d28d9 !important;
   color: #ffffff !important;
 }
 
@@ -1892,9 +1901,9 @@ button.log-load-top {
 }
 
 .calloff-chip-okd-off {
-  border-color: #d4a855;
-  background: #fef9e7;
-  color: #8b6914;
+  border-color: #eab308;
+  background: #fef08a;
+  color: #713f12;
 }
 
 .calloff-chip-ncns {
@@ -1904,9 +1913,15 @@ button.log-load-top {
 }
 
 .calloff-chip-late-early {
-  border-color: #e07a28;
-  background: #4a2410;
-  color: #ffd8b5;
+  border-color: #fb923c;
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.calloff-chip-fmla {
+  border-color: #a78bfa;
+  background: #ede9fe;
+  color: #5b21b6;
 }
 
 .vacation-chip {
@@ -4332,6 +4347,17 @@ body.app-ready .splash {
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
+}
+
+.cust-brand {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 2px;
+  border: 1px solid var(--line);
 }
 
 .cust-toggle {

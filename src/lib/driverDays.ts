@@ -38,11 +38,16 @@ export type LiveSheet = {
   base: number;
   saturdayBase: number;
   /**
-   * When true, Saturday uses the weekday Full Roster leftover-manual rules.
-   * Live Today always passes true (no Sat-* sheet banner).
+   * When true, Saturday uses the weekday Full Roster leftover-manual rules
+   * (legacy full-mandatory / holiday Saturdays). Live Today on a normal
+   * Chicago Saturday must pass false so computeAvailability uses the
+   * Saturday worklist path and Sat Roster headcount.
    */
   saturdayUsesWeekdayBase?: boolean;
-  /** Full Roster hired (all yards). Display “out of”; not used for available math. */
+  /**
+   * Display “out of”: Sat Roster hired on Saturday, Full Roster hired on
+   * weekdays. Not used for available subtraction math.
+   */
   rosterTotal?: number;
   offs: CallOffRow[];
   /** Live OOT names — only written onto today's snapshot, never past days. */

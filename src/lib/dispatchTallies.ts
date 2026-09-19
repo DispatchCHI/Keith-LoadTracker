@@ -4,6 +4,7 @@
  *   counted down by 1 each time one gets picked up.
  * - evanstonAsking: loads Evanston said the night before they need
  *   picked up the next day.
+ * - hookerAsking: manual running tally for Hooker Street.
  * Local persist + Supabase, last-write-wins by updatedAt (mirrors dailyEod.ts).
  */
 
@@ -18,6 +19,7 @@ export type DispatchTallies = {
   date: string;
   bataviaPreload: number;
   evanstonAsking: number;
+  hookerAsking: number;
   updatedAt: string;
 };
 
@@ -33,6 +35,7 @@ export type DispatchTalliesRow = {
   date: string;
   batavia_preload: number;
   evanston_asking: number;
+  hooker_asking: number;
   updated_at: string;
 };
 
@@ -66,7 +69,11 @@ function chicagoDateKey(raw: unknown): string | null {
 
 export function normalizeDispatchTallies(
   raw:
-    | (Partial<DispatchTallies> & { batavia_preload?: unknown; evanston_asking?: unknown })
+    | (Partial<DispatchTallies> & {
+        batavia_preload?: unknown;
+        evanston_asking?: unknown;
+        hooker_asking?: unknown;
+      })
     | null
     | undefined,
 ): DispatchTallies | null {
@@ -74,9 +81,10 @@ export function normalizeDispatchTallies(
   const date = chicagoDateKey(raw.date);
   const bataviaPreload = parseCount(raw.bataviaPreload ?? raw.batavia_preload) ?? 0;
   const evanstonAsking = parseCount(raw.evanstonAsking ?? raw.evanston_asking) ?? 0;
+  const hookerAsking = parseCount(raw.hookerAsking ?? raw.hooker_asking) ?? 0;
   const updatedAt = readIsoAt(raw.updatedAt) ?? new Date().toISOString();
   if (!date) return null;
-  return { date, bataviaPreload, evanstonAsking, updatedAt };
+  return { date, bataviaPreload, evanstonAsking, hookerAsking, updatedAt };
 }
 
 export function rowToDispatchTallies(row: DispatchTalliesRow): DispatchTallies | null {
@@ -84,6 +92,7 @@ export function rowToDispatchTallies(row: DispatchTalliesRow): DispatchTallies |
     date: row.date,
     bataviaPreload: row.batavia_preload,
     evanstonAsking: row.evanston_asking,
+    hookerAsking: row.hooker_asking,
     updatedAt: row.updated_at,
   });
 }
@@ -96,6 +105,7 @@ export function dispatchTalliesToRow(
     date: row.date,
     batavia_preload: row.bataviaPreload,
     evanston_asking: row.evanstonAsking,
+    hooker_asking: row.hookerAsking,
     updated_at: row.updatedAt,
     updated_by: userId,
   };
@@ -117,6 +127,7 @@ export function talliesOn(store: DispatchTalliesStore, date: string): DispatchTa
       date,
       bataviaPreload: 0,
       evanstonAsking: 0,
+      hookerAsking: 0,
       updatedAt: new Date(0).toISOString(),
     }
   );
@@ -133,7 +144,7 @@ export function upsertDispatchTallies(
 
 export function stampDispatchTallies(
   date: string,
-  patch: { bataviaPreload?: number; evanstonAsking?: number },
+  patch: { bataviaPreload?: number; evanstonAsking?: number; hookerAsking?: number },
   prev: DispatchTallies | undefined,
   now = new Date().toISOString(),
 ): DispatchTallies | null {
@@ -141,6 +152,7 @@ export function stampDispatchTallies(
     date,
     bataviaPreload: patch.bataviaPreload ?? prev?.bataviaPreload ?? 0,
     evanstonAsking: patch.evanstonAsking ?? prev?.evanstonAsking ?? 0,
+    hookerAsking: patch.hookerAsking ?? prev?.hookerAsking ?? 0,
     updatedAt: now,
   });
 }
@@ -205,7 +217,7 @@ export async function fetchDispatchTalliesFromCloud(): Promise<{
   const { data, error } = await fetchAllPaged<DispatchTalliesRow>(async (from, to) => {
     const page = await supabase
       .from(DISPATCH_TALLIES_TABLE)
-      .select("date, batavia_preload, evanston_asking, updated_at")
+      .select("date, batavia_preload, evanston_asking, hooker_asking, updated_at")
       .order("date", { ascending: true })
       .range(from, to);
     return { data: page.data as DispatchTalliesRow[] | null, error: page.error };

@@ -61,12 +61,13 @@ export function TodayScreen({
 
   const loadWord = dayLoads.length === 1 ? "load" : "loads";
   const msWDispatchedToday = useMemo(() => {
-    const counts = { batavia: 0, evanston: 0 };
+    const counts = { batavia: 0, evanston: 0, hooker: 0 };
     for (const load of dayLoads) {
       if (load.commodity !== "Trash (MSW)") continue;
       const pickup = load.pickup.trim().toLowerCase();
       if (pickup === "batavia") counts.batavia += 1;
       else if (pickup === "evanston") counts.evanston += 1;
+      else if (pickup === "hooker street" || pickup === "hooker") counts.hooker += 1;
     }
     return counts;
   }, [dayLoads]);
@@ -107,6 +108,7 @@ export function TodayScreen({
           date={date}
           bataviaDispatchedToday={msWDispatchedToday.batavia}
           evanstonDispatchedToday={msWDispatchedToday.evanston}
+          hookerDispatchedToday={msWDispatchedToday.hooker}
         />
       </div>
 

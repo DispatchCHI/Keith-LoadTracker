@@ -5,7 +5,9 @@ export type PayTier = (typeof PAY_TIERS)[number];
 
 /**
  * First year (before 1st anniversary) = Tier 1.
- * Each anniversary moves up one tier. 4th anniversary (start of year 5) = Tier 5 max.
+ * On each hire-date anniversary the tier steps up for that day's loads onward
+ * (see yearsOfService: anniversary date itself counts as the new year).
+ * 4th anniversary (start of year 5) = Tier 5 max.
  */
 export function payTierFromHireDate(
   hireDate: string | null | undefined,

@@ -7,11 +7,12 @@
 
 import { getSupabase } from "./supabase";
 
+/** Keep in sync with Auth users on the live Supabase project. */
 export const CREW_ROSTER: { email: string; name: string }[] = [
   { email: "klawson@mrbults.com", name: "K Lawson" },
   { email: "treyling@mrbults.com", name: "T Reyling" },
   { email: "mburklow@mrbults.com", name: "M Burklow" },
-  { email: "jlanenga2@mrbults.com", name: "J Lanenga" },
+  { email: "myork@mrbults.com", name: "M York" },
 ];
 
 export function crewDisplayName(email: string): string {

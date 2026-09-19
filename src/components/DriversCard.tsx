@@ -143,15 +143,24 @@ export function DriversCard({
       ? (loadCount / dayAvail.available).toFixed(2)
       : null;
 
+  const satRosterEmpty =
+    saturday && dayAvail != null && (dayAvail.rosterTotal ?? 0) === 0;
+
   const summaryLine = sunday
     ? "No Sunday tally"
-    : dayAvail
+    : satRosterEmpty
       ? collapsed
-        ? formatAvailableOutOf(dayAvail, "drivers")
-        : formatAvailableOutOf(dayAvail, whenLabel)
-      : viewingToday
-        ? "Roster not loaded"
-        : `No snapshot for ${formatHeaderDate(viewed)}`;
+        ? "Sat Roster empty"
+        : "0 out of 0 drivers"
+      : dayAvail
+        ? collapsed
+          ? formatAvailableOutOf(dayAvail, "drivers")
+          : formatAvailableOutOf(dayAvail, whenLabel)
+        : viewingToday
+          ? saturday
+            ? "Sat Roster not loaded"
+            : "Roster not loaded"
+          : `No snapshot for ${formatHeaderDate(viewed)}`;
 
   return (
     <article
@@ -191,9 +200,16 @@ export function DriversCard({
               <p className="grand-sub">
                 Sundays are not tallied. {formatHeaderDate(viewed)}
               </p>
+            ) : satRosterEmpty ? (
+              <p className="grand-sub">
+                Sat Roster has no names for this Saturday — open the Driver tab, trim or
+                sync Sat Roster (do not use Full Roster ~158 as the available denominator).
+              </p>
             ) : !dayAvail && viewingToday ? (
               <p className="grand-sub">
-                Import Full Roster on the Driver tab (one-time seed).
+                {saturday
+                  ? "Import or sync Sat Roster on the Driver tab (trimmed Saturday list)."
+                  : "Import Full Roster on the Driver tab (one-time seed)."}
               </p>
             ) : !dayAvail ? (
               <p className="grand-sub">
@@ -366,14 +382,20 @@ export function DriversCard({
         <>
           <div className="drivers-actions">
             <span className="field-hint tight">
-              {status === "live"
-                ? `Full Roster · ${pulledLabel(fetchedAt)}`
-                : status === "cached"
-                  ? `Full Roster · ${pulledLabel(fetchedAt)}`
-                  : status === "error"
-                    ? "Could not sync"
-                    : status === "loading"
-                      ? "Loading…"
+              {status === "live" || status === "cached"
+                ? saturday
+                  ? satRosterEmpty
+                    ? `Sat Roster empty · seed/sync sat names · ${pulledLabel(fetchedAt)}`
+                    : `Sat Roster · ${dayAvail?.rosterTotal ?? "—"} sat names · ${pulledLabel(fetchedAt)}`
+                  : `Full Roster · ${pulledLabel(fetchedAt)}`
+                : status === "error"
+                  ? "Could not sync"
+                  : status === "loading"
+                    ? "Loading…"
+                    : saturday
+                      ? satRosterEmpty
+                        ? "Sat Roster empty"
+                        : "Sat Roster"
                       : "Full Roster"}
             </span>
           </div>

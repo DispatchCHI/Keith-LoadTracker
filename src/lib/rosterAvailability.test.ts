@@ -4,6 +4,7 @@ import { addRosterEntry, emptyDriverRosterStore } from "./driverRoster";
 import { computeAvailability } from "./driverDays";
 import {
   chicagoFullRosterTally,
+  chicagoSatRosterTally,
   dropOffsAlreadyUnavailable,
   liveSheetFromRoster,
   rosterOotNames,
@@ -80,31 +81,71 @@ describe("chicago Full Roster available base", () => {
     expect(rosterOotNames(roster)).toEqual(["Glen Barker", "Randy Mesarchik"]);
   });
 
-  it("uses the same Full Roster base on Saturday as on a weekday", () => {
-    const roster = rosterWith([
-      { name: "Working One" },
-      { name: "Working Two" },
-      { name: "Out", status: "vac" },
-    ]);
-    const live = liveSheetFromRoster({
+  it("on Saturday uses Sat Roster remaining names, not Full Roster", () => {
+    let roster = emptyDriverRosterStore();
+    for (const row of [
+      { kind: "full" as const, name: "Working One" },
+      { kind: "full" as const, name: "Working Two" },
+      { kind: "full" as const, name: "Out", status: "vac" },
+      { kind: "full" as const, name: "Trimmed Off" },
+    ]) {
+      roster = addRosterEntry(roster, {
+        kind: row.kind,
+        yard: "burnham",
+        name: row.name,
+        status: row.status ?? null,
+      }).store;
+    }
+    // Sat trimmed: only two of the four Full names remain.
+    for (const name of ["Working One", "Out"]) {
+      roster = addRosterEntry(roster, {
+        kind: "sat",
+        yard: "burnham",
+        name,
+      }).store;
+    }
+    const satDay = "2026-09-12"; // Saturday
+    const weekday = "2026-09-11"; // Friday
+    const satTally = chicagoSatRosterTally(roster, emptyVacationStore(), satDay);
+    expect(satTally).toEqual({ hired: 2, unavailable: 1, available: 1 });
+
+    const satLive = liveSheetFromRoster({
       roster,
       vacation: emptyVacationStore(),
-      date: "2026-09-12",
+      date: satDay,
       offs: [],
       saturdayUsesWeekdayBase: false,
     });
-    expect(live.base).toBe(2);
-    expect(live.saturdayBase).toBe(2);
-    expect(live.rosterTotal).toBe(3);
-    expect(computeAvailability(live, "2026-09-12")).toMatchObject({
-      base: 2,
-      available: 2,
-      rosterTotal: 3,
+    expect(satLive.base).toBe(1);
+    expect(satLive.rosterTotal).toBe(2);
+    expect(satLive.saturdayUsesWeekdayBase).toBe(false);
+    expect(computeAvailability(satLive, satDay)).toMatchObject({
+      base: 1,
+      available: 1,
+      rosterTotal: 2,
     });
-    expect(computeAvailability({ ...live, saturdayUsesWeekdayBase: true }, "2026-09-12")).toMatchObject({
-      base: 2,
-      available: 2,
+
+    // Callers must not force saturday-weekday on a normal Saturday — flag is clamped false.
+    const forced = liveSheetFromRoster({
+      roster,
+      vacation: emptyVacationStore(),
+      date: satDay,
+      offs: [],
+      saturdayUsesWeekdayBase: true,
     });
+    expect(forced.saturdayUsesWeekdayBase).toBe(false);
+    expect(forced.rosterTotal).toBe(2);
+    expect(forced.base).toBe(1);
+
+    const weekLive = liveSheetFromRoster({
+      roster,
+      vacation: emptyVacationStore(),
+      date: weekday,
+      offs: [],
+      saturdayUsesWeekdayBase: true,
+    });
+    expect(weekLive.base).toBe(3);
+    expect(weekLive.rosterTotal).toBe(4);
   });
 
   it("DriversContext never pulls Work-Dispatch or the call-off sheet", () => {
@@ -131,13 +172,47 @@ describe("chicago Full Roster available base", () => {
   it("Analytics copy does not imply a Sat-yard sheet sum", () => {
     const src = readFileSync(new URL("../screens/AnalyticsScreen.tsx", import.meta.url), "utf8");
     expect(src).not.toContain("sat-yard sum");
-    expect(src).toMatch(/today uses Full\s+Roster/);
+    expect(src).toMatch(/Sat Roster/);
+    expect(src).toMatch(/Full Roster/);
   });
 
   it("Available-drivers card uses rosterTotal, not the reduced working base", () => {
     const src = readFileSync(new URL("../components/DriversCard.tsx", import.meta.url), "utf8");
     expect(src).toContain("formatAvailableOutOf");
     expect(src).not.toMatch(/out of \$\{dayAvail\.base\}/);
+    expect(src).toContain("Sat Roster");
+    expect(src).toContain("sat names");
+    expect(src).toContain("drivers");
+    expect(src).toContain("Sat Roster empty");
+  });
+
+  it("DriversContext does not hardcode saturdayUsesWeekdayBase true on Saturdays", () => {
+    const src = readFileSync(new URL("../store/DriversContext.tsx", import.meta.url), "utf8");
+    expect(src).toContain("isChicagoSaturday");
+    expect(src).toMatch(/saturdayUsesWeekdayBase:\s*!isChicagoSaturday/);
+    expect(src).not.toMatch(/liveSheetFromRoster\(\{[\s\S]*?saturdayUsesWeekdayBase:\s*true/);
+  });
+
+  it("empty Sat Roster stays at 0 — never falls back to Full hired", () => {
+    const roster = rosterWith([
+      { name: "Full Only One" },
+      { name: "Full Only Two" },
+    ]);
+    // No sat entries at all.
+    const satDay = "2026-09-12";
+    const live = liveSheetFromRoster({
+      roster,
+      vacation: emptyVacationStore(),
+      date: satDay,
+      offs: [],
+      saturdayUsesWeekdayBase: true, // even if forced
+    });
+    expect(live.rosterTotal).toBe(0);
+    expect(live.base).toBe(0);
+    expect(live.saturdayUsesWeekdayBase).toBe(false);
+    const full = chicagoFullRosterTally(roster, emptyVacationStore(), satDay);
+    expect(full.hired).toBe(2);
+    expect(live.rosterTotal).not.toBe(full.hired);
   });
 
   it("dev proxy has no Google Sheets roster paths", () => {

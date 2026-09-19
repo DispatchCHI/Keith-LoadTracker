@@ -10,6 +10,7 @@ export const CUSTOMER_LANES_TABLE = "customer_lanes";
 export const LANE_COMMODITIES = [
   "Trash (MSW)",
   "Walking Floor",
+  "Recycle",
   "Leachate (tanker)",
 ] as const;
 export type LaneCommodity = (typeof LANE_COMMODITIES)[number];
@@ -110,6 +111,9 @@ export function normalizePlaceName(raw: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\bde kalb\b/g, "dekalb")
     .replace(/\bdek alb\b/g, "dekalb")
+    .replace(/\bwinnebego\b/g, "winnebago")
+    .replace(/\bnewton county\b/g, "newton")
+    .replace(/\bchristiansen farms\b/g, "christiansen")
     .replace(/\btrash loads?\b/g, " ")
     .replace(/\bmsw\b/g, " ")
     .replace(/\bstreet\b/g, " ")
@@ -129,7 +133,14 @@ export function placesMatch(a: string, b: string): boolean {
 export function laneCommodityKey(raw: string): string {
   const label = tallyLabel(raw);
   if (label === "LEACHATE") return "leachate";
-  if (label === "WOOD" || /walking|wf/.test(raw.toLowerCase())) return "walking-floor";
+  // Homewood / MRF recycle hauls are logged as Recycle but priced on Walking Floor lanes.
+  if (
+    label === "WOOD" ||
+    label === "RECYCLE" ||
+    /walking|wf|recycle/.test(raw.toLowerCase())
+  ) {
+    return "walking-floor";
+  }
   if (label === "TRASH") return "trash";
   return normalizePlaceName(raw);
 }

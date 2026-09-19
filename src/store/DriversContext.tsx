@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { chicagoToday, isChicagoSunday } from "../lib/chicagoDate";
+import { chicagoToday, isChicagoSaturday, isChicagoSunday } from "../lib/chicagoDate";
 import {
   applyLiveSheet,
   applyManualsToStoredDay,
@@ -210,7 +210,7 @@ export function DriversProvider({ children }: { children: ReactNode }) {
         date: today,
         offs: offsRef.current,
         manuals: manuals[today],
-        saturdayUsesWeekdayBase: true,
+        saturdayUsesWeekdayBase: !isChicagoSaturday(today),
       });
       setBase(live.base);
       setSaturday(live.saturdayBase);
@@ -233,7 +233,7 @@ export function DriversProvider({ children }: { children: ReactNode }) {
         date: today,
         offs: offsRef.current,
         manuals: manuals[today],
-        saturdayUsesWeekdayBase: true,
+        saturdayUsesWeekdayBase: !isChicagoSaturday(today),
       });
       setBase(live.base);
       setSaturday(live.saturdayBase);
@@ -265,7 +265,7 @@ export function DriversProvider({ children }: { children: ReactNode }) {
       date: today,
       offs,
       manuals: manuals[today],
-      saturdayUsesWeekdayBase: true,
+      saturdayUsesWeekdayBase: !isChicagoSaturday(today),
     });
     setBase(live.base);
     setSaturday(live.saturdayBase);
@@ -331,7 +331,7 @@ export function DriversProvider({ children }: { children: ReactNode }) {
             date,
             offs,
             manuals: manualOffs[date],
-            saturdayUsesWeekdayBase: true,
+            saturdayUsesWeekdayBase: !isChicagoSaturday(date),
           }),
           date,
           today,
@@ -373,7 +373,7 @@ export function DriversProvider({ children }: { children: ReactNode }) {
         date: date === today ? today : date,
         offs,
         manuals: nextManuals[date],
-        saturdayUsesWeekdayBase: true,
+        saturdayUsesWeekdayBase: !isChicagoSaturday(date === today ? today : date),
       });
       setBase(live.base);
       setSaturday(live.saturdayBase);

@@ -94,8 +94,7 @@ export function AnalyticsScreen() {
             <h2>Day to day</h2>
             <p className="totals-hint">
               Last {TREND_DAYS} Chicago calendar days. Bar height is that day’s
-              load count. Available drivers are locked per day (today uses Full
-              Roster). Sundays have no driver tally.
+              load count. Available drivers are locked per day (weekdays use Full Roster; Saturdays use Sat Roster). Sundays have no driver tally.
             </p>
             <div
               className="d2d-chart"

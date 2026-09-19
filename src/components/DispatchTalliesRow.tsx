@@ -88,13 +88,20 @@ export function DispatchTalliesRow({
   date,
   bataviaDispatchedToday,
   evanstonDispatchedToday,
+  hookerDispatchedToday,
 }: {
   date: string;
   bataviaDispatchedToday: number;
   evanstonDispatchedToday: number;
+  hookerDispatchedToday: number;
 }) {
-  const { talliesOn, setBataviaPreload, decrementBataviaPreload, setEvanstonAsking } =
-    useDispatchTallies();
+  const {
+    talliesOn,
+    setBataviaPreload,
+    decrementBataviaPreload,
+    setEvanstonAsking,
+    setHookerAsking,
+  } = useDispatchTallies();
   const tallies = talliesOn(date);
 
   return (
@@ -114,6 +121,14 @@ export function DispatchTalliesRow({
         onSet={(n) => void setEvanstonAsking(date, n)}
         onStepDown={() => void setEvanstonAsking(date, Math.max(0, tallies.evanstonAsking - 1))}
         onStepUp={() => void setEvanstonAsking(date, tallies.evanstonAsking + 1)}
+      />
+      <TallyChip
+        label="Hooker Street"
+        value={tallies.hookerAsking}
+        sub={`${hookerDispatchedToday} dispatched today`}
+        onSet={(n) => void setHookerAsking(date, n)}
+        onStepDown={() => void setHookerAsking(date, Math.max(0, tallies.hookerAsking - 1))}
+        onStepUp={() => void setHookerAsking(date, tallies.hookerAsking + 1)}
       />
     </div>
   );
