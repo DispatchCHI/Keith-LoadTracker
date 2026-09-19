@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isTauriRuntime } from "./layout";
+import { withCloudFetchSlot } from "./syncControl";
 
 export function supabaseConfig(): { url: string; anonKey: string } | null {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -66,21 +67,23 @@ async function supabaseFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  if (!isTauriRuntime()) return fetch(input, init);
+  return withCloudFetchSlot(async () => {
+    if (!isTauriRuntime()) return fetch(input, init);
 
-  const parts = await requestParts(input, init);
-  const { invoke } = await import("@tauri-apps/api/core");
-  const result = await invoke<CloudFetchResult>("cloud_fetch", {
-    args: {
-      url: parts.url,
-      method: parts.method,
-      headers: Object.entries(parts.headers),
-      body: parts.body,
-    },
-  });
-  return new Response(new Uint8Array(result.body), {
-    status: result.status,
-    headers: result.headers,
+    const parts = await requestParts(input, init);
+    const { invoke } = await import("@tauri-apps/api/core");
+    const result = await invoke<CloudFetchResult>("cloud_fetch", {
+      args: {
+        url: parts.url,
+        method: parts.method,
+        headers: Object.entries(parts.headers),
+        body: parts.body,
+      },
+    });
+    return new Response(new Uint8Array(result.body), {
+      status: result.status,
+      headers: result.headers,
+    });
   });
 }
 

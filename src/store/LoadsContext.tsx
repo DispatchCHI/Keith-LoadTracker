@@ -45,6 +45,16 @@ import { buildSeedLoads } from "../lib/seed";
 import { sortLoads } from "../lib/sortLoads";
 import { getSupabase, isCloudConfigured } from "../lib/supabase";
 import {
+  FLUSH_OP_GAP_MS,
+  MAX_FLUSH_ATTEMPTS_TRANSIENT,
+  clearNetworkSyncBackoff,
+  hugeQueueMessage,
+  isNetworkSyncBackoffActive,
+  isNetworkSyncError,
+  noteNetworkSyncFailure,
+  sleepMs,
+} from "../lib/syncControl";
+import {
   allLoads,
   clearSeeded,
   gcLoadDeletedIds,
@@ -131,6 +141,7 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
   const flushing = useRef(false);
   const flushPromise = useRef<Promise<boolean> | null>(null);
+  const refreshFlightRef = useRef<Promise<void> | null>(null);
   const flushQueueRef = useRef<() => Promise<void>>(async () => {});
   const storeRef = useRef(store);
   const lastGoodRef = useRef<Persisted>(store);
@@ -229,6 +240,14 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
       applyQueueStatus(readQueue().length, false);
       return;
     }
+    if (isNetworkSyncBackoffActive()) {
+      const queued = readQueue().length;
+      const message =
+        hugeQueueMessage(queued) ??
+        "Cloud unreachable — backing off before retrying sync";
+      applyQueueStatus(queued, true, message);
+      return;
+    }
 
     const run = async () => {
       flushing.current = true;
@@ -266,25 +285,44 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
               }
               break;
             } catch (error) {
+              // Network / connection-pool failures must stop the flush.
+              // Retrying "Failed to fetch" across a huge queue multiplies
+              // requests and triggers Chrome ERR_INSUFFICIENT_RESOURCES.
+              if (isNetworkSyncError(error) || !navigator.onLine) {
+                noteNetworkSyncFailure(error);
+                throw error;
+              }
               attempts += 1;
-              if (attempts >= 3 || !navigator.onLine) throw error;
-              await new Promise((resolve) => setTimeout(resolve, 400 * attempts));
+              if (attempts >= MAX_FLUSH_ATTEMPTS_TRANSIENT) throw error;
+              await sleepMs(400 * attempts);
             }
           }
           const rest = removeQueueOp(op.opId);
           setQueuedCount(rest.length);
+          if (rest.length) await sleepMs(FLUSH_OP_GAP_MS);
         }
       } catch (error) {
         failed = true;
+        if (isNetworkSyncError(error) || !navigator.onLine) {
+          noteNetworkSyncFailure(error);
+        }
+        const queued = readQueue().length;
         const message =
+          hugeQueueMessage(queued) ??
           pagedErrorMessage(error) ??
           (error instanceof Error ? error.message : "Sync failed");
         console.warn("[load-sync] flushQueue failed", error);
         setLastSyncError(message);
-        applyQueueStatus(readQueue().length, true, message);
+        applyQueueStatus(queued, true, message);
       } finally {
         flushing.current = false;
-        if (!failed) applyQueueStatus(readQueue().length, false);
+        if (!failed) {
+          clearNetworkSyncBackoff();
+          const left = readQueue().length;
+          const huge = hugeQueueMessage(left);
+          if (huge) setLastSyncError(huge);
+          applyQueueStatus(left, false, huge);
+        }
       }
       return failed;
     };
@@ -325,8 +363,12 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
   );
 
   const refreshFromCloud = useCallback(async () => {
+    if (refreshFlightRef.current) return refreshFlightRef.current;
+    if (isNetworkSyncBackoffActive()) return;
     const supabase = getSupabase();
     if (!supabase || !session) return;
+
+    const runRefresh = async () => {
     const refreshStartedAt = new Date().toISOString();
     refreshStartedAtRef.current = refreshStartedAt;
     const lastSuccessfulSyncAt = lastSuccessfulSyncAtRef.current;
@@ -340,12 +382,17 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
         return { data: page.data as LoadRow[] | null, error: page.error };
       });
       if (error || !Array.isArray(data)) {
+        if (isNetworkSyncError(error) || !navigator.onLine) {
+          noteNetworkSyncFailure(error);
+        }
+        const queued = readQueue().length;
         const message =
+          hugeQueueMessage(queued) ??
           pagedErrorMessage(error) ??
           (!Array.isArray(data) ? "Load refresh returned bad data" : "Sync failed");
         console.warn("[load-sync] refreshFromCloud failed", error);
         setLastSyncError(message);
-        applyQueueStatus(readQueue().length, true, message);
+        applyQueueStatus(queued, true, message);
         return;
       }
       const remote = (data as LoadRow[]).map(rowToLoad);
@@ -396,10 +443,31 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
         lastSuccessfulSyncAtRef.current = refreshStartedAt;
       }
       if (toUpsert.length) enqueueMissing(toUpsert);
-      await flushQueue();
+      // Flush after refresh, but skip when network backoff is armed so we
+      // do not immediately re-storm Failed-to-fetch.
+      if (!isNetworkSyncBackoffActive()) await flushQueue();
+    } catch (error) {
+      if (isNetworkSyncError(error) || !navigator.onLine) {
+        noteNetworkSyncFailure(error);
+        const queued = readQueue().length;
+        const message =
+          hugeQueueMessage(queued) ??
+          pagedErrorMessage(error) ??
+          (error instanceof Error ? error.message : "Sync failed");
+        setLastSyncError(message);
+        applyQueueStatus(queued, true, message);
+      } else {
+        throw error;
+      }
     } finally {
       refreshStartedAtRef.current = null;
     }
+    };
+
+    refreshFlightRef.current = runRefresh().finally(() => {
+      refreshFlightRef.current = null;
+    });
+    return refreshFlightRef.current;
   }, [applyQueueStatus, enqueueMissing, flushQueue, persistCloudCache, session]);
 
   useEffect(() => {

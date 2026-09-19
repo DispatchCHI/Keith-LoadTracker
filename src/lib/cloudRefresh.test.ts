@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { attachCloudRefresh } from "./cloudRefresh";
+import { clearNetworkSyncBackoff } from "./syncControl";
 
 type Handler = () => void;
 
@@ -42,7 +43,10 @@ describe("attachCloudRefresh", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    clearNetworkSyncBackoff();
   });
+
+  // Ensure a prior suite's backoff cannot suppress pulls.
 
   it("pulls on focus, online, tab visible, and the poll interval", () => {
     vi.useFakeTimers();
@@ -53,13 +57,13 @@ describe("attachCloudRefresh", () => {
     emit("focus");
     emit("online");
     emit("visibilitychange");
+    // Debounce coalesces the burst into a single pull.
     vi.advanceTimersByTime(1_000);
-
-    expect(refresh.mock.calls.length).toBeGreaterThanOrEqual(4);
+    expect(refresh).toHaveBeenCalledTimes(1);
     stop();
     const after = refresh.mock.calls.length;
     emit("focus");
-    vi.advanceTimersByTime(1_000);
+    vi.advanceTimersByTime(2_000);
     expect(refresh.mock.calls.length).toBe(after);
   });
 

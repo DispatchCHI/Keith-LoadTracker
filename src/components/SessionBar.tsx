@@ -1,5 +1,6 @@
 import { useAuth } from "../store/AuthContext";
 import { useLoads } from "../store/LoadsContext";
+import { hugeQueueMessage } from "../lib/syncControl";
 import { CrewPresenceList } from "./CrewPresenceList";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -25,7 +26,7 @@ export function SessionBar() {
     );
   }
 
-      const statusLabel =
+  const statusLabel =
     syncStatus === "local"
       ? "This device only · set Supabase env to share"
       : syncStatus === "offline"
@@ -44,7 +45,9 @@ export function SessionBar() {
               ? `${queuedCount} queued`
               : "Live";
 
-const pushLabel =
+  const hugeNotice = hugeQueueMessage(queuedCount);
+  const statusWithHuge = hugeNotice ? `${statusLabel} · ${hugeNotice}` : statusLabel;
+  const pushLabel =
     syncStatus === "error" || queuedCount > 0 ? "Sync now" : "Push all to cloud";
 
   return (
@@ -52,7 +55,7 @@ const pushLabel =
       <div className="session-info">
         <span className={syncStatus === "error" ? "session-status is-error" : undefined}>
           {displayName}
-          {user?.email ? ` · ${user.email}` : ""} · {statusLabel}
+          {user?.email ? ` · ${user.email}` : ""} · {statusWithHuge}
         </span>
         <CrewPresenceList />
       </div>
