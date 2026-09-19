@@ -127,7 +127,9 @@ export function TotalsScreen({
           {!embedded ? <BrandMark /> : null}
           <div>
             <p className="eyebrow">Day totals</p>
-            <h1 className="page-title">{formatHeaderDate(date)}</h1>
+            {!embedded ? (
+              <h1 className="page-title">{formatHeaderDate(date)}</h1>
+            ) : null}
           </div>
         </div>
         {!embedded ? (

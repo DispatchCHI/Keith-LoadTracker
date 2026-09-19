@@ -87,7 +87,7 @@ export function DayPicker({
             Jump to today
           </button>
         ) : (
-          <span className="field-hint tight">America/Chicago</span>
+          <span />
         )}
         {showCalendar ? (
           <label className="date-pick inline">
