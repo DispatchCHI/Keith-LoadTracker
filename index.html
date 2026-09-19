@@ -46,8 +46,10 @@
         var boot = document.getElementById("boot-fallback");
         var err = document.getElementById("boot-error");
         if (boot && err && !err.textContent) {
-          err.textContent =
-            "Desktop is stuck starting. Run git pull, then npm run tauri build, and install the new setup.exe.";
+          var isTauri = !!(window.__TAURI_INTERNALS__ || window.__TAURI__);
+          err.textContent = isTauri
+            ? "Desktop is stuck starting. Run git pull, then npm run tauri build, and install the new setup.exe."
+            : "Site is stuck starting. Hard-refresh. If it keeps failing, Cloudflare Pages needs Build command npm run build and output directory dist.";
         }
       }, 8000);
     </script>
