@@ -1078,14 +1078,18 @@ export function rosterStoreIsEmpty(store: DriverRosterStore): boolean {
   return Object.keys(store.entries).length === 0;
 }
 
-/** Match .drv-sat-grid breakpoints: 3 cols default, 2 at <=1199, 1 at <=639. */
+/** Match .drv-sat-grid breakpoints: 5 cols default, 4/3/2/1 as width shrinks. */
+export const SAT_ROSTER_XL_MAX = 1399;
 export const SAT_ROSTER_WIDE_MAX = 1199;
-export const SAT_ROSTER_MID_MAX = 639;
+export const SAT_ROSTER_MID_MAX = 899;
+export const SAT_ROSTER_NARROW_MAX = 639;
 
 export function satRosterColumnCount(viewportWidth: number): number {
-  if (viewportWidth <= SAT_ROSTER_MID_MAX) return 1;
-  if (viewportWidth <= SAT_ROSTER_WIDE_MAX) return 2;
-  return 3;
+  if (viewportWidth <= SAT_ROSTER_NARROW_MAX) return 1;
+  if (viewportWidth <= SAT_ROSTER_MID_MAX) return 2;
+  if (viewportWidth <= SAT_ROSTER_WIDE_MAX) return 3;
+  if (viewportWidth <= SAT_ROSTER_XL_MAX) return 4;
+  return 5;
 }
 
 /** Rows needed so CSS grid-auto-flow:column fills top-to-bottom, then next column. */

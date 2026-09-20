@@ -581,8 +581,10 @@ describe("sat roster seeds and resets from full", () => {
   });
 
   it("Sat Roster columns are top-to-bottom then next column", () => {
-    expect(satRosterColumnCount(1400)).toBe(3);
-    expect(satRosterColumnCount(1199)).toBe(2);
+    expect(satRosterColumnCount(1400)).toBe(5);
+    expect(satRosterColumnCount(1399)).toBe(4);
+    expect(satRosterColumnCount(1199)).toBe(3);
+    expect(satRosterColumnCount(899)).toBe(2);
     expect(satRosterColumnCount(800)).toBe(2);
     expect(satRosterColumnCount(639)).toBe(1);
     expect(satRosterRowCount(7, 3)).toBe(3);

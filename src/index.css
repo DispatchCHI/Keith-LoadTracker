@@ -3873,9 +3873,9 @@ body.app-ready .splash {
 .drv-sat-grid {
   display: grid;
   grid-auto-flow: column;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   grid-template-rows: repeat(var(--drv-sat-rows, 1), auto);
-  gap: 8px;
+  gap: 4px;
 }
 
 .drv-sat-select-bar {
@@ -3896,11 +3896,11 @@ body.app-ready .splash {
 .drv-sat-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 6px 8px 6px 6px;
+  gap: 4px;
+  min-height: 30px;
+  padding: 2px 6px 2px 4px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--surface);
   cursor: pointer;
 }
@@ -3915,10 +3915,17 @@ body.app-ready .splash {
   flex: 0 0 auto;
 }
 
+.drv-sat-cell .drv-move-btn {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+}
+
 .drv-sat-cell-body {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
   flex: 1;
 }
@@ -3927,7 +3934,7 @@ body.app-ready .splash {
   flex: 0 0 auto;
   color: var(--text);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 750;
 }
 
@@ -3935,7 +3942,7 @@ body.app-ready .splash {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3943,6 +3950,30 @@ body.app-ready .splash {
 
 .drv-sat-add {
   align-self: flex-start;
+}
+
+@media (max-width: 1399px) {
+  .drv-sat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1199px) {
+  .drv-sat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 899px) {
+  .drv-sat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .drv-sat-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .drv-full-grid {
@@ -4228,11 +4259,6 @@ body.app-ready .splash {
   vertical-align: middle;
 }
 
-@media (max-width: 1199px) {
-  .drv-sat-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 
 @media (max-width: 959px) {
   .drv-header-meta {
@@ -4288,30 +4314,7 @@ body.app-ready .splash {
   margin-bottom: 10px;
 }
 
-@media (max-width: 639px) {
-  .drv-sat-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 
-
-
-
-
-
-
-
-@media (max-width: 1199px) {
-  .drv-sat-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 639px) {
-  .drv-sat-grid {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-  }
-}
 
 
 .drv-pay-list {
