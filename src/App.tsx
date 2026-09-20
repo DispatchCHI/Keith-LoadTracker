@@ -127,6 +127,8 @@ function Shell() {
 
       <SessionBar />
 
+      {!desktop ? <TabBar tab={tab} onChange={onTabChange} /> : null}
+
       <div className={desktop ? "desk-main" : "phone-stack"}>
         {desktop ? (
           <TabBar vertical tab={tab} onChange={onTabChange} />
@@ -188,7 +190,6 @@ function Shell() {
         </div>
       </div>
 
-      {!desktop ? <TabBar tab={tab} onChange={onTabChange} /> : null}
     </>
   );
 

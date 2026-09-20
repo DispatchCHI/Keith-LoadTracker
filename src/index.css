@@ -584,9 +584,18 @@ button.notes-top:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 12px calc(10px + var(--safe-bottom));
+  padding: 8px 12px 8px;
   background: #fafaf9;
-  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+/* Mobile/phone tabs sit under SessionBar at the top (desktop uses .tab-bar-side). */
+.tab-bar:not(.tab-bar-side) {
+  border-top: 0;
+  position: sticky;
+  top: 0;
+  z-index: 30;
 }
 
 .tab-row {
@@ -2449,9 +2458,11 @@ body.app-ready .splash {
   align-self: stretch;
   padding: 16px 10px calc(16px + var(--safe-bottom));
   border-top: 0;
+  border-bottom: 0;
   border-right: 1px solid var(--line);
   background: #fafaf9;
   gap: 6px;
+  position: static;
 }
 
 .tab-bar-side .tab-row {
