@@ -140,13 +140,7 @@ export function CallOffsScreen() {
           <button type="submit" className="text-btn amber">
             Add row
           </button>
-          <button
-            type="button"
-            className="text-btn"
-            onClick={() => void loadSheet()}
-          >
-            Load original sheet
-          </button>
+      
         </div>
       </form>
 
