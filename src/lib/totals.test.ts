@@ -693,23 +693,54 @@ describe("endOfDaySummary", () => {
       id: "melrose",
       label: "Melrose",
       pickedUp: 2,
+      msw: 2,
       left: "6",
     });
     expect(byId["c-heights"]).toEqual({
       id: "c-heights",
       label: "C. Heights",
       pickedUp: 1,
+      msw: 1,
       left: "2",
     });
     expect(byId.calumet).toEqual({
       id: "calumet",
       label: "Calumet",
       pickedUp: 1,
+      msw: 1,
       left: null,
     });
     expect(byId.apollo?.pickedUp).toBe(0);
     expect(byId.apollo?.left).toBeNull();
     expect(summary.stations.map((row) => row.id)).toContain("roscoe");
+  });
+
+  it("splits station Totals vs MSW when a yard has mixed commodities", () => {
+    const loads = [
+      load({
+        id: "1",
+        stationId: "melrose",
+        pickup: "Melrose",
+        commodity: "Trash (MSW)",
+      }),
+      load({
+        id: "2",
+        stationId: "melrose",
+        pickup: "Melrose",
+        commodity: "Leachate (tanker)",
+      }),
+      load({
+        id: "3",
+        stationId: "melrose",
+        pickup: "Melrose",
+        commodity: "Yard Waste",
+      }),
+    ];
+    const row = endOfDaySummary(loads, emptyBoard()).stations.find(
+      (entry) => entry.id === "melrose",
+    );
+    expect(row?.pickedUp).toBe(3);
+    expect(row?.msw).toBe(1);
   });
 
   it("carries a blank Close as null instead of falling back to hour cells", () => {

@@ -330,7 +330,10 @@ export function loadMatchesCallYard(
 export type StationEodRow = {
   id: string;
   label: string;
+  /** All loads picked up from this transfer station today. */
   pickedUp: number;
+  /** Trash / MSW loads only (same rules as the TRASH EOD bubble). */
+  msw: number;
   /** Close column for that Chicago day; null when the dispatcher left it blank. */
   left: string | null;
 };
@@ -374,12 +377,15 @@ export function endOfDaySummary(
     leachate: countByTallyLabel(loads, "LEACHATE"),
     walkingFloor: countWalkingFloorLoads(loads),
     stations: STATION_CALL_YARDS.map((yard) => {
-      const pickedUp = loads.filter((load) => loadMatchesCallYard(load, yard)).length;
+      const yardLoads = loads.filter((load) => loadMatchesCallYard(load, yard));
+      const pickedUp = yardLoads.length;
+      const msw = yardLoads.filter(isTrashLoad).length;
       const close = board[yard.id]?.close;
       return {
         id: yard.id,
         label: yard.label,
         pickedUp,
+        msw,
         left: close === null || close === undefined || close === "" ? null : String(close),
       };
     }),

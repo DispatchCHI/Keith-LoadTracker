@@ -179,7 +179,8 @@ export function TotalsScreen({
             <thead>
               <tr>
                 <th>Station</th>
-                <th>Picked up</th>
+                <th>Totals</th>
+                <th>MSW</th>
                 <th>Closed</th>
               </tr>
             </thead>
@@ -188,6 +189,7 @@ export function TotalsScreen({
                 <tr key={row.id}>
                   <th scope="row">{row.label}</th>
                   <td>{row.pickedUp}</td>
+                  <td>{row.msw}</td>
                   <td>{row.left === null ? "—" : row.left}</td>
                 </tr>
               ))}
