@@ -119,7 +119,6 @@ function Shell() {
               <h1 className="desk-brand">Load Tracker</h1>
             </div>
           </div>
-          <p className="desk-sub">Shared crew log · America/Chicago</p>
         </header>
       ) : null}
 

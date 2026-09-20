@@ -23,7 +23,7 @@ function kindLabel(reason: string): string {
 export function CallOffsScreen() {
   const today = chicagoToday();
   const yesterday = addDays(today, -1);
-  const { rows, cloud, error, addRow, removeRow, loadSheet } = useCallOffLog();
+  const { rows, cloud, error, addRow, removeRow } = useCallOffLog();
   const [filter, setFilter] = useState<FilterId>("all");
   const [name, setName] = useState("");
   const [start, setStart] = useState(today);
@@ -140,7 +140,6 @@ export function CallOffsScreen() {
           <button type="submit" className="text-btn amber">
             Add row
           </button>
-      
         </div>
       </form>
 
@@ -190,7 +189,7 @@ export function CallOffsScreen() {
               <tr>
                 <td colSpan={5}>
                   <p className="oot-empty">
-                    No rows yet. Hit Load original sheet to pull in the current log.
+                    No rows yet. Add a driver above to start the log.
                   </p>
                 </td>
               </tr>
