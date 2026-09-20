@@ -41,6 +41,7 @@ type TodayScreenProps = {
   onDateChange: (iso: string) => void;
   justEditedId: string | null;
   onLog: (date: string) => void;
+  onNotes: (date: string) => void;
   onEdit: (id: string) => void;
   showDayPicker?: boolean;
 };
@@ -50,6 +51,7 @@ export function TodayScreen({
   onDateChange,
   justEditedId,
   onLog,
+  onNotes,
   onEdit,
   showDayPicker = false,
 }: TodayScreenProps) {
@@ -136,9 +138,14 @@ export function TodayScreen({
       <DriversCard compact collapsible date={date} loadCount={displayLoadCount(dayLoads.length, snapshot)} />
 
       <div className="log-load-row">
-        <button type="button" className="log-load-top" onClick={() => onLog(date)}>
-          + Log load
-        </button>
+        <div className="log-load-actions">
+          <button type="button" className="log-load-top" onClick={() => onLog(date)}>
+            + Log load
+          </button>
+          <button type="button" className="log-load-top notes-top" onClick={() => onNotes(date)}>
+            Notes
+          </button>
+        </div>
         <DispatchTalliesRow
           date={date}
           bataviaDispatchedToday={msWDispatchedToday.batavia}

@@ -434,6 +434,52 @@ button.log-load-top {
   gap: 10px;
 }
 
+.log-load-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+button.notes-top {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+button.notes-top:hover,
+button.notes-top:focus-visible {
+  background: #1d4ed8;
+}
+
+.day-notes-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.day-notes-textarea {
+  width: 100%;
+  min-height: 240px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  padding: 12px 14px;
+  font: inherit;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.day-notes-textarea:focus {
+  outline: 2px solid #2563eb;
+  border-color: #2563eb;
+}
+
+.overlay-not-today .day-notes-textarea {
+  background: #fff7f7;
+}
+
 .tally-chip-row {
   display: flex;
   flex-wrap: wrap;

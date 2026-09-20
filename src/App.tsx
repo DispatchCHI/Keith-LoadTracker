@@ -10,6 +10,7 @@ import { CallOffsScreen } from "./screens/CallOffsScreen";
 import { CustomersScreen } from "./screens/CustomersScreen";
 import { DriverScreen } from "./screens/DriverScreen";
 import { EditLoadScreen } from "./screens/EditLoadScreen";
+import { DayNotesScreen } from "./screens/DayNotesScreen";
 import { LogLoadScreen } from "./screens/LogLoadScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
@@ -21,6 +22,7 @@ import { AuthProvider, useAuth } from "./store/AuthContext";
 import { CallOffLogProvider } from "./store/CallOffLogContext";
 import { CustomerLanesProvider } from "./store/CustomerLanesContext";
 import { DailyEodProvider } from "./store/DailyEodContext";
+import { DayNotesProvider } from "./store/DayNotesContext";
 import { DispatchTalliesProvider } from "./store/DispatchTalliesContext";
 import { DriverGoneProvider } from "./store/DriverGoneContext";
 import { DriverRosterProvider } from "./store/DriverRosterContext";
@@ -33,6 +35,7 @@ import type { TabId } from "./types";
 type Overlay =
   | { kind: "log"; truck?: string; date?: string }
   | { kind: "edit"; loadId: string }
+  | { kind: "day-notes"; date: string }
   | null;
 
 function wrapOverlay(desktop: boolean, child: ReactNode) {
@@ -137,6 +140,7 @@ function Shell() {
                 onDateChange={setFeedDate}
                 justEditedId={justEditedId}
                 onLog={(date) => setOverlay({ kind: "log", date })}
+                onNotes={(date) => setOverlay({ kind: "day-notes", date })}
                 onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
                 showDayPicker={false}
               />
@@ -156,6 +160,7 @@ function Shell() {
               onDateChange={setFeedDate}
               justEditedId={justEditedId}
               onLog={(date) => setOverlay({ kind: "log", date })}
+              onNotes={(date) => setOverlay({ kind: "day-notes", date })}
               onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
               showDayPicker
             />
@@ -204,6 +209,16 @@ function Shell() {
             )
           : null}
 
+        {view?.kind === "day-notes"
+          ? wrapOverlay(
+              desktop,
+              <DayNotesScreen
+                date={view.date}
+                onCancel={() => setOverlay(null)}
+              />,
+            )
+          : null}
+
         {view?.kind === "edit" && editingLoad
           ? wrapOverlay(
               desktop,
@@ -236,9 +251,11 @@ export default function App() {
                     <CustomerLanesProvider>
                     <DailyEodProvider>
                     <DispatchTalliesProvider>
+                    <DayNotesProvider>
                       <Gate>
                         <Shell />
                       </Gate>
+                    </DayNotesProvider>
                     </DispatchTalliesProvider>
                     </DailyEodProvider>
                     </CustomerLanesProvider>
