@@ -117,6 +117,26 @@ button {
   padding-bottom: 24px;
 }
 
+/* Wrong-day guard: New Load turns red when target date ≠ Chicago today. */
+.overlay-screen.overlay-not-today {
+  background: #fee2e2;
+}
+.modal-card:has(.overlay-not-today) {
+  background: #fee2e2;
+  border-color: #f87171;
+  box-shadow: 0 8px 28px rgba(185, 28, 28, 0.22);
+}
+.overlay-not-today .eyebrow {
+  color: #991b1b;
+}
+.overlay-not-today .overlay-title {
+  color: #7f1d1d;
+}
+.overlay-not-today-banner {
+  color: #b91c1c !important;
+  font-weight: 700;
+}
+
 .page-header,
 .overlay-header {
   display: flex;

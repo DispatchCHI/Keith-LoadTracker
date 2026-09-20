@@ -9,7 +9,7 @@ import { BrandMark } from "../components/BrandMark";
 import { QuantityStepper } from "../components/QuantityStepper";
 import { TruckEntry } from "../components/TruckEntry";
 import { pickupLabel } from "../lib/cascade";
-import { chicagoToday, formatCreatedStamp } from "../lib/chicagoDate";
+import { chicagoToday, formatCreatedStamp, formatHeaderDate } from "../lib/chicagoDate";
 import { findNearDuplicate } from "../lib/duplicates";
 import { batchCreatedAt, clampLoadQty } from "../lib/quantity";
 import { resolveSpecialtyBoardMatch } from "../lib/specialtyBoard";
@@ -38,6 +38,10 @@ export function LogLoadScreen({
   onSaved,
 }: LogLoadScreenProps) {
   const targetDate = date || chicagoToday();
+  const notToday = targetDate !== chicagoToday();
+  const screenClass = notToday
+    ? "screen overlay-screen overlay-not-today"
+    : "screen overlay-screen";
   const { saveLoad, loads } = useLoads();
   const { store: rosterStore } = useDriverRoster();
   const { opensFor, consumeOpens } = useSpecialty();
@@ -171,7 +175,7 @@ export function LogLoadScreen({
 
   if (step === "truck") {
     return (
-      <div className="screen overlay-screen">
+      <div className={screenClass}>
         <header className="overlay-header">
           <button type="button" className="icon-btn" onClick={onCancel} aria-label="Back">
             <ArrowLeft size={22} />
@@ -180,6 +184,11 @@ export function LogLoadScreen({
           <div>
             <p className="eyebrow">New load</p>
             <h1 className="overlay-title">Truck</h1>
+            {notToday ? (
+              <p className="overlay-sub overlay-not-today-banner">
+                Not today — {formatHeaderDate(targetDate)}
+              </p>
+            ) : null}
           </div>
         </header>
         <TruckEntry
@@ -196,7 +205,7 @@ export function LogLoadScreen({
   }
 
   return (
-    <div className="screen overlay-screen">
+    <div className={screenClass}>
       <header className="overlay-header">
         <button type="button" className="icon-btn" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={22} />
@@ -208,8 +217,8 @@ export function LogLoadScreen({
             {loggingDriverName ? ` · ${loggingDriverName}` : ""}
           </p>
           <h1 className="overlay-title">Log load</h1>
-          <p className="overlay-sub">
-            {targetDate === chicagoToday() ? "Today" : targetDate}
+          <p className={notToday ? "overlay-sub overlay-not-today-banner" : "overlay-sub"}>
+            {notToday ? `Not today — ${formatHeaderDate(targetDate)}` : "Today"}
           </p>
         </div>
       </header>
