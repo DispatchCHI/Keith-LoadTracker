@@ -13,10 +13,5 @@ export function BrandMark({ size = "md" }: BrandMarkProps) {
 }
 
 export function BrandFooter() {
-  return (
-    <div className="brand-footer">
-      <p>Keith&apos;s Load Tracker</p>
-      <p>Created by Keith Lawson</p>
-    </div>
-  );
+  return null;
 }

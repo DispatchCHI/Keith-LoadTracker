@@ -1,5 +1,5 @@
 import type { TabId } from "../types";
-import { BrandFooter, BrandMark } from "./BrandMark";
+import { BrandMark } from "./BrandMark";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "today", label: "Today" },
@@ -42,7 +42,6 @@ export function TabBar({
           </button>
         ))}
       </div>
-      <BrandFooter />
     </nav>
   );
 }
