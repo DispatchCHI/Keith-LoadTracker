@@ -100,8 +100,7 @@ export function CustomersScreen() {
         <p className="eyebrow">Lanes · 5-year contract book</p>
         <h1>Customers</h1>
         <p className="field-hint">
-          Per-load pay by customer, destination, and driver tier. A new contract is a new
-          start date — old loads keep the old book.
+          Per-load pay by customer, destination, and driver tier.
         </p>
       </header>
 
