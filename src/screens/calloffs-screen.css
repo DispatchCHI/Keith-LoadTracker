@@ -40,6 +40,19 @@
   justify-self: start;
 }
 
+@media (max-width: 720px) {
+  .calloffs-add-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calloffs-add > input.calloffs-reason-input {
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+  }
+}
+}
+
 .calloffs-reason-row {
   display: flex;
   flex-wrap: wrap;
