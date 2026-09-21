@@ -18,7 +18,8 @@ export type CallOffKind =
   | "p-day"
   | "okd-off"
   | "ncns"
-  | "late-early";
+  | "late-early"
+  | "fmla";
 
 export const CALL_OFF_KIND_OPTIONS = [
   { kind: "call-off", label: "Call Off" },
@@ -26,6 +27,7 @@ export const CALL_OFF_KIND_OPTIONS = [
   { kind: "okd-off", label: "Ok'd Off" },
   { kind: "ncns", label: "NCNS" },
   { kind: "late-early", label: "Late/Early" },
+  { kind: "fmla", label: "FMLA" },
 ] as const;
 
 /** Pill tone for each kind. CSS `.calloff-chip-*` / `.calloff-kind-*` follow these. */
@@ -35,6 +37,7 @@ export const CALL_OFF_KIND_TONES = {
   "okd-off": "gold",
   "ncns": "red",
   "late-early": "orange",
+  "fmla": "pink",
 } as const satisfies Record<CallOffKind, string>;
 
 export type ManualCallOff = {
@@ -100,6 +103,8 @@ export function reasonForKind(kind: CallOffKind): string {
       return "NCNS";
     case "late-early":
       return "Late/Early";
+    case "fmla":
+      return "FMLA";
     default:
       return "Call Off";
   }
@@ -113,6 +118,7 @@ export function callOffKindFromReason(reason: string): CallOffKind {
   }
   if (/\bp[\s-]?days?\b/.test(n)) return "p-day";
   if (/\bok'?d (day )?off\b/.test(n)) return "okd-off";
+  if (/\bfmla\b/.test(n)) return "fmla";
   if (isLateEarlyReason(n)) return "late-early";
   return "call-off";
 }

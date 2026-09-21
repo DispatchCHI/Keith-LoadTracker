@@ -181,6 +181,7 @@ describe("CALL_OFF_KIND_OPTIONS + tones", () => {
       "okd-off",
       "ncns",
       "late-early",
+      "fmla",
     ]);
     expect(
       CALL_OFF_KIND_OPTIONS.find((row) => row.kind === "late-early")?.label,
@@ -219,7 +220,7 @@ describe("callOffKindFromReason", () => {
     expect(callOffKindFromReason("No Call No Show")).toBe("ncns");
     expect(callOffKindFromReason("Late/Early")).toBe("late-early");
     expect(callOffKindFromReason("late-early")).toBe("late-early");
-    expect(callOffKindFromReason("FMLA Day")).toBe("call-off");
+    expect(callOffKindFromReason("FMLA Day")).toBe("fmla");
     expect(callOffKindFromReason("Jury Duty")).toBe("call-off");
     expect(reasonForKind("late-early")).toBe("Late/Early");
   });
