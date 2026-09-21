@@ -100,7 +100,13 @@ export function CallOffsScreen() {
         }}
       >
         <div className="calloffs-add-grid">
-          <DriverNameInput value={name} onChange={setName} placeholder="Driver name" aria-label="Driver name" />
+          <DriverNameInput
+            value={name}
+            onChange={setName}
+            placeholder="Driver name"
+            aria-label="Driver name"
+          />
+
           <input
             className="text-input"
             type="date"
@@ -108,22 +114,23 @@ export function CallOffsScreen() {
             onChange={(event) => setStart(event.target.value)}
             aria-label="Call off date"
           />
+
           <input
-  className="text-input calloffs-reason-input"
-  value={reason}
-  onChange={(event) => setReason(event.target.value)}
-  placeholder="Reason"
-  aria-label="Reason"
-/>
+            className="text-input"
+            type="date"
+            value={end}
+            onChange={(event) => setEnd(event.target.value)}
+            aria-label="Through date"
+          />
         </div>
 
         <input
-  className="text-input calloffs-reason-input"
-  value={reason}
-  onChange={(event) => setReason(event.target.value)}
-  placeholder="Reason"
-  aria-label="Reason"
-/>
+          className="text-input calloffs-reason-input"
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="Reason"
+          aria-label="Reason"
+        />
 
         <div className="calloffs-reason-row" role="group" aria-label="Reason presets">
           {CALL_OFF_REASON_PRESETS.map((item) => (
@@ -137,7 +144,9 @@ export function CallOffsScreen() {
             </button>
           ))}
         </div>
+
         {formError ? <p className="form-error">{formError}</p> : null}
+
         <div className="vac-add-actions">
           <button type="submit" className="text-btn amber">
             Add row
@@ -215,6 +224,7 @@ function SheetRow({
   const last = row.end ?? row.start;
   const current = row.start <= today && last >= today;
   const past = last < today;
+
   return (
     <tr className={current ? "is-today" : past ? "is-past" : undefined}>
       <td>{row.name}</td>
