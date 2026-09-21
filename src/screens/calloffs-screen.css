@@ -27,8 +27,13 @@
 
 .calloffs-add-grid {
   display: grid;
-  grid-template-columns: 1.4fr 0.8fr 0.8fr;
+  grid-template-columns: minmax(0, 1.5fr) minmax(120px, 0.8fr) minmax(120px, 0.8fr);
   gap: 8px;
+}
+
+.calloffs-reason-input {
+  width: min(100%, 320px);
+  justify-self: start;
 }
 
 .calloffs-reason-row {
@@ -104,5 +109,10 @@
 @media (max-width: 720px) {
   .calloffs-add-grid {
     grid-template-columns: 1fr;
+  }
+
+  .calloffs-reason-input {
+    width: 100%;
+    justify-self: stretch;
   }
 }
