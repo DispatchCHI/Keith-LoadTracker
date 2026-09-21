@@ -53,3 +53,94 @@ export function CollapsibleRank({
           aria-hidden
         />
       </button>
+
+      {open ? (
+        <>
+          {hint ? <p className="totals-hint">{hint}</p> : null}
+          {rows.length === 0 ? (
+            <p className="field-hint">{emptyText}</p>
+          ) : (
+            <ul className="rank-list">
+              {rows.map((row) => {
+                const selected =
+                  active?.kind === filterKind && active.key === row.key;
+                const pct = max === 0 ? 0 : Math.max(8, (row.count / max) * 100);
+                return (
+                  <li
+                    key={row.key}
+                    className={selected ? "rank-item rank-item-open" : "rank-item"}
+                  >
+                    {onSelect ? (
+                      <button
+                        type="button"
+                        className={
+                          selected
+                            ? `rank-row rank-row-active${compact ? " rank-row-compact" : ""}`
+                            : `rank-row${compact ? " rank-row-compact" : ""}`
+                        }
+                        aria-expanded={selected}
+                        onClick={() => onSelect({ kind: filterKind, key: row.key })}
+                      >
+                        <RankInner row={row} pct={pct} showBar={!compact} commodity={filterKind === "commodity"} />
+                      </button>
+                    ) : (
+                      <div
+                        className={`rank-row rank-row-static${compact ? " rank-row-compact" : ""}`}
+                      >
+                        <RankInner row={row} pct={pct} showBar={!compact} commodity={filterKind === "commodity"} />
+                      </div>
+                    )}
+                    {selected && expandedPanel ? (
+                      <div className="rank-accordion">{expandedPanel}</div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
+      ) : null}
+    </section>
+  );
+}
+
+function RankInner({
+  row,
+  pct,
+  showBar,
+  commodity = false,
+}: {
+  row: RankRow;
+  pct: number;
+  showBar: boolean;
+  commodity?: boolean;
+}) {
+  return (
+    <>
+      <div className="rank-row-top">
+        <span className="rank-label">
+          {row.label}
+          {row.custom ? <span className="custom-pill">Custom</span> : null}
+        </span>
+        <span className="rank-count-group">
+          <strong
+            className="rank-count"
+            aria-label={
+              commodity
+                ? `${row.count} loads`
+                : `${row.trashCount} trash of ${row.count} loads`
+            }
+          >
+            {formatRankTrashTotal(row, { commodity })}
+          </strong>
+          {!commodity ? <span className="rank-count-caption">MSW / Total</span> : null}
+        </span>
+      </div>
+      {showBar ? (
+        <div className="rank-track" aria-hidden>
+          <div className="rank-fill" style={{ width: `${pct}%` }} />
+        </div>
+      ) : null}
+    </>
+  );
+}
