@@ -1925,8 +1925,8 @@ button.notes-top:focus-visible {
 .calloff-kind-call-off,
 .calloff-add-form .calloff-kind-call-off.selected,
 .calloff-kind-call-off.selected {
-  background: #1d4f91 !important;
-  border: 1px solid #163e73 !important;
+  background: #f97316 !important;
+  border: 1px solid #ea580c !important;
   color: #ffffff !important;
 }
 
@@ -1943,9 +1943,9 @@ button.notes-top:focus-visible {
 .calloff-kind-okd-off,
 .calloff-add-form .calloff-kind-okd-off.selected,
 .calloff-kind-okd-off.selected {
-  background: #facc15 !important;
-  border: 1px solid #eab308 !important;
-  color: #422006 !important;
+  background: #6b7280 !important;
+  border: 1px solid #4b5563 !important;
+  color: #ffffff !important;
 }
 
 .calloff-add-form .calloff-kind-ncns,
@@ -1961,9 +1961,9 @@ button.notes-top:focus-visible {
 .calloff-kind-late-early,
 .calloff-add-form .calloff-kind-late-early.selected,
 .calloff-kind-late-early.selected {
-  background: #f97316 !important;
-  border: 1px solid #ea580c !important;
-  color: #ffffff !important;
+  background: #facc15 !important;
+  border: 1px solid #eab308 !important;
+  color: #422006 !important;
 }
 
 .calloff-add-form .calloff-kind-fmla,
@@ -1998,9 +1998,9 @@ button.notes-top:focus-visible {
 }
 
 .calloff-chip-call-off {
-  border-color: #a78bfa;
-  background: #ede9fe;
-  color: #5b21b6;
+  border-color: #fb923c;
+  background: #ffedd5;
+  color: #9a3412;
 }
 
 .calloff-chip-p-day {
@@ -2010,9 +2010,9 @@ button.notes-top:focus-visible {
 }
 
 .calloff-chip-okd-off {
-  border-color: #eab308;
-  background: #fef08a;
-  color: #713f12;
+  border-color: #9ca3af;
+  background: #e5e7eb;
+  color: #374151;
 }
 
 .calloff-chip-ncns {
@@ -2022,9 +2022,9 @@ button.notes-top:focus-visible {
 }
 
 .calloff-chip-late-early {
-  border-color: #fb923c;
-  background: #ffedd5;
-  color: #9a3412;
+  border-color: #eab308;
+  background: #fef08a;
+  color: #713f12;
 }
 
 .calloff-chip-fmla {
@@ -2034,9 +2034,9 @@ button.notes-top:focus-visible {
 }
 
 .vacation-chip {
-  border-color: #3d9a63;
-  background: #c8f0d8;
-  color: #14532d;
+  border-color: #7eb6ff;
+  background: #d6e8fb;
+  color: #123152;
 }
 
 .calloff-remove {
@@ -4622,3 +4622,5 @@ body.app-ready .splash {
 .station-calls-add-btn:hover {
   opacity: 0.9;
 }
+
+
