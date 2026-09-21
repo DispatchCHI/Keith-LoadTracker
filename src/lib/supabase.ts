@@ -19,8 +19,34 @@ let client: SupabaseClient | null = null;
 type CloudFetchResult = {
   status: number;
   headers: Array<[string, string]>;
-  body: number[];
+  /** Base64-encoded body — see the matching note in src-tauri/src/cloud_fetch.rs. */
+  body: string;
 };
+
+/**
+ * btoa/atob choke (or blow the call stack via String.fromCharCode(...bytes))
+ * on large payloads, so encode/decode in fixed-size chunks. A full loads-table
+ * sync can be several MB; this keeps that fast instead of hanging the UI.
+ */
+const BASE64_CHUNK_SIZE = 0x8000;
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += BASE64_CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, i + BASE64_CHUNK_SIZE);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
 function headerRecord(headers?: HeadersInit): Record<string, string> {
   const out: Record<string, string> = {};
@@ -33,7 +59,7 @@ function headerRecord(headers?: HeadersInit): Record<string, string> {
 async function requestParts(
   input: RequestInfo | URL,
   init?: RequestInit,
-): Promise<{ url: string; method: string; headers: Record<string, string>; body: number[] | null }> {
+): Promise<{ url: string; method: string; headers: Record<string, string>; body: string | null }> {
   const url =
     typeof input === "string"
       ? input
@@ -46,7 +72,7 @@ async function requestParts(
   const headers = headerRecord(
     init?.headers ?? (input instanceof Request ? input.headers : undefined),
   );
-  let body: number[] | null = null;
+  let body: string | null = null;
   const raw = init?.body;
   if (raw !== undefined && raw !== null) {
     const buf = raw instanceof ArrayBuffer
@@ -56,9 +82,9 @@ async function requestParts(
         : raw instanceof Uint8Array
           ? raw
           : new Uint8Array(await new Response(raw as BodyInit).arrayBuffer());
-    body = Array.from(buf);
+    body = bytesToBase64(buf);
   } else if (input instanceof Request && method !== "GET" && method !== "HEAD") {
-    body = Array.from(new Uint8Array(await input.arrayBuffer()));
+    body = bytesToBase64(new Uint8Array(await input.arrayBuffer()));
   }
   return { url, method, headers, body };
 }
@@ -80,7 +106,7 @@ async function supabaseFetch(
         body: parts.body,
       },
     });
-    return new Response(new Uint8Array(result.body), {
+    return new Response(base64ToBytes(result.body), {
       status: result.status,
       headers: result.headers,
     });
