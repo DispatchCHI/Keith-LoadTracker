@@ -116,7 +116,7 @@ export function CallOffsScreen() {
             aria-label="Through date"
           />
         </div>
-        <input
+           <input
           className="text-input calloffs-reason-input"
           value={reason}
           onChange={(event) => setReason(event.target.value)}
