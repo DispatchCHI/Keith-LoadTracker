@@ -42,6 +42,16 @@
   gap: 6px;
 }
 
+@media (max-width: 720px) {
+  .calloffs-add-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calloffs-reason-input {
+    width: 100%;
+    justify-self: stretch;
+  }
+
 .calloffs-table-wrap {
   overflow: auto;
   border: 1px solid var(--line);
