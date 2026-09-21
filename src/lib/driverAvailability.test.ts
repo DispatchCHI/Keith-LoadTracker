@@ -193,11 +193,11 @@ describe("CALL_OFF_KIND_OPTIONS + tones", () => {
     }
   });
 
-  it("maps Late/Early to orange, distinct from existing pill tones", () => {
-    expect(CALL_OFF_KIND_TONES["late-early"]).toBe("orange");
-    expect(CALL_OFF_KIND_TONES["call-off"]).toBe("purple");
+  it("maps Late/Early to yellow, distinct from existing pill tones", () => {
+    expect(CALL_OFF_KIND_TONES["late-early"]).toBe("yellow");
+    expect(CALL_OFF_KIND_TONES["call-off"]).toBe("orange");
     expect(CALL_OFF_KIND_TONES["p-day"]).toBe("green");
-    expect(CALL_OFF_KIND_TONES["okd-off"]).toBe("gold");
+    expect(CALL_OFF_KIND_TONES["okd-off"]).toBe("gray");
     expect(CALL_OFF_KIND_TONES["ncns"]).toBe("red");
     const tones = Object.values(CALL_OFF_KIND_TONES);
     expect(new Set(tones).size).toBe(CALL_OFF_KIND_OPTIONS.length);
