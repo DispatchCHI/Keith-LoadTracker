@@ -1586,7 +1586,7 @@ button.notes-top:focus-visible {
   flex-wrap: wrap;
 }
 
-.rank-count {
+..rank-count {
   font-family: "Barlow Condensed", "IBM Plex Sans", sans-serif;
   font-size: 22px;
   font-weight: 800;
@@ -1594,6 +1594,23 @@ button.notes-top:focus-visible {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
+}
+
+.rank-count-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.rank-count-caption {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .rank-track {
