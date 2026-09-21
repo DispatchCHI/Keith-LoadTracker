@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { formatRankTrashTotal, type RankRow, type TotalsFilter } from "../lib/totals";
 
 type CollapsibleRankProps = {
@@ -15,6 +15,8 @@ type CollapsibleRankProps = {
   compact?: boolean;
   /** Loads for the selected row, rendered as an accordion under that row. */
   expandedPanel?: ReactNode;
+  /** Number of side-by-side columns for the row list. Defaults to 1 (stacked). */
+  columns?: number;
 };
 
 export function CollapsibleRank({
@@ -28,6 +30,7 @@ export function CollapsibleRank({
   emptyText = "Nothing logged in this group.",
   compact = false,
   expandedPanel,
+  columns = 1,
 }: CollapsibleRankProps) {
   const [open, setOpen] = useState(defaultOpen);
   const max = rows[0]?.count ?? 0;
@@ -60,7 +63,10 @@ export function CollapsibleRank({
           {rows.length === 0 ? (
             <p className="field-hint">{emptyText}</p>
           ) : (
-            <ul className="rank-list">
+            <ul
+              className={columns > 1 ? "rank-list rank-list-grid" : "rank-list"}
+              style={columns > 1 ? ({ "--rank-cols": columns } as CSSProperties) : undefined}
+            >
               {rows.map((row) => {
                 const selected =
                   active?.kind === filterKind && active.key === row.key;
