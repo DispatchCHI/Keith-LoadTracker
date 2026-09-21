@@ -27,7 +27,10 @@
 
 .calloffs-add-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(120px, 0.8fr) minmax(120px, 0.8fr);
+  grid-template-columns:
+    minmax(0, 1.5fr)
+    minmax(120px, 0.8fr)
+    minmax(120px, 0.8fr);
   gap: 8px;
 }
 
@@ -41,16 +44,6 @@
   flex-wrap: wrap;
   gap: 6px;
 }
-
-@media (max-width: 720px) {
-  .calloffs-add-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .calloffs-reason-input {
-    width: 100%;
-    justify-self: stretch;
-  }
 
 .calloffs-table-wrap {
   overflow: auto;
@@ -85,7 +78,11 @@
 }
 
 .calloffs-table tr.is-today {
-  background: color-mix(in srgb, var(--brand, #d8282c) 10%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--brand, #d8282c) 10%,
+    transparent
+  );
 }
 
 .calloffs-table tr.is-past {
