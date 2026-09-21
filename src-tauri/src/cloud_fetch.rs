@@ -2,6 +2,7 @@
 //! WebView fetch and plugin-http both fail CORS/TLS on Windows; this uses
 //! the same reqwest + rustls-native-roots stack as SigAlert.
 
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -16,7 +17,10 @@ pub struct CloudFetchArgs {
     pub url: String,
     pub method: String,
     pub headers: Vec<(String, String)>,
-    pub body: Option<Vec<u8>>,
+    /// Base64-encoded request body. A plain Vec<u8> here would serialize to a
+    /// JSON array of numbers over the IPC bridge — fine for tiny driver/vacation
+    /// payloads, but disastrously slow for a full "sync all loads" body.
+    pub body: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -24,7 +28,8 @@ pub struct CloudFetchArgs {
 pub struct CloudFetchResult {
     pub status: u16,
     pub headers: Vec<(String, String)>,
-    pub body: Vec<u8>,
+    /// Base64-encoded response body — see note on CloudFetchArgs::body.
+    pub body: String,
 }
 
 fn host_allowed(url: &reqwest::Url) -> bool {
@@ -72,7 +77,12 @@ pub async fn cloud_fetch(args: CloudFetchArgs) -> Result<CloudFetchResult, Strin
     let mut req = client.request(method, url).headers(headers);
     if let Some(body) = args.body {
         if !body.is_empty() {
-            req = req.body(body);
+            let decoded = STANDARD
+                .decode(body)
+                .map_err(|e| format!("Bad request body encoding: {e}"))?;
+            if !decoded.is_empty() {
+                req = req.body(decoded);
+            }
         }
     }
 
@@ -83,10 +93,10 @@ pub async fn cloud_fetch(args: CloudFetchArgs) -> Result<CloudFetchResult, Strin
         .iter()
         .filter_map(|(k, v)| Some((k.to_string(), v.to_str().ok()?.to_string())))
         .collect();
-    let body = res.bytes().await.map_err(|e| err_chain(&e))?.to_vec();
+    let bytes = res.bytes().await.map_err(|e| err_chain(&e))?;
     Ok(CloudFetchResult {
         status,
         headers: out_headers,
-        body,
+        body: STANDARD.encode(&bytes),
     })
 }
