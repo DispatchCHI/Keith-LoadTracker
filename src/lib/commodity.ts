@@ -10,7 +10,7 @@ const TONES: Record<string, TagTone> = {
   yard: { bg: "#fef08a", fg: "#713f12", border: "#eab308" },
   wood: { bg: "#3d2a14", fg: "#e0b07a", border: "#8a5a32" },
   cardboard: { bg: "#a16207", fg: "#fff7ed", border: "#78350f" },
-  leachate: { bg: "#fecaca", fg: "#991b1b", border: "#ef4444" },
+  leachate: { bg: "#ddd6fe", fg: "#5b21b6", border: "#8b5cf6" },
   residual: { bg: "#fbcfe8", fg: "#831843", border: "#ec4899" },
   glass: { bg: "#e5e7eb", fg: "#374151", border: "#9ca3af" },
   cd: { bg: "#d6b48c", fg: "#4a2c16", border: "#a8794f" },
