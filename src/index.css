@@ -1925,8 +1925,8 @@ button.notes-top:focus-visible {
 .calloff-kind-call-off,
 .calloff-add-form .calloff-kind-call-off.selected,
 .calloff-kind-call-off.selected {
-  background: #1d4f91 !important;
-  border: 1px solid #163e73 !important;
+  background: #7c3aed !important;
+  border: 1px solid #6d28d9 !important;
   color: #ffffff !important;
 }
 
@@ -1998,9 +1998,9 @@ button.notes-top:focus-visible {
 }
 
 .calloff-chip-call-off {
-  border-color: #5b8fc7;
-  background: #d6e8fb;
-  color: #123152;
+  border-color: #a78bfa;
+  background: #ede9fe;
+  color: #5b21b6;
 }
 
 .calloff-chip-p-day {
