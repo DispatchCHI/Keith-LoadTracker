@@ -26,6 +26,7 @@ const CALL_OFF_KIND_BUTTON_STYLE: Record<
   "okd-off": { background: "#a16207", border: "1px solid #854d0e", color: "#ffffff" },
   ncns: { background: "#b91c1c", border: "1px solid #7f1d1d", color: "#ffffff" },
   "late-early": { background: "#c2410c", border: "1px solid #9a3412", color: "#ffffff" },
+  fmla: { background: "#db2777", border: "1px solid #be185d", color: "#ffffff" },
 };
 
 function pulledLabel(iso: string | null): string {
