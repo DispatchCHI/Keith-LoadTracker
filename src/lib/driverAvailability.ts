@@ -32,7 +32,7 @@ export const CALL_OFF_KIND_OPTIONS = [
 
 /** Pill tone for each kind. CSS `.calloff-chip-*` / `.calloff-kind-*` follow these. */
 export const CALL_OFF_KIND_TONES = {
-  "call-off": "blue",
+  "call-off": "purple",
   "p-day": "green",
   "okd-off": "gold",
   "ncns": "red",

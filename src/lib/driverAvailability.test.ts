@@ -195,7 +195,7 @@ describe("CALL_OFF_KIND_OPTIONS + tones", () => {
 
   it("maps Late/Early to orange, distinct from existing pill tones", () => {
     expect(CALL_OFF_KIND_TONES["late-early"]).toBe("orange");
-    expect(CALL_OFF_KIND_TONES["call-off"]).toBe("blue");
+    expect(CALL_OFF_KIND_TONES["call-off"]).toBe("purple");
     expect(CALL_OFF_KIND_TONES["p-day"]).toBe("green");
     expect(CALL_OFF_KIND_TONES["okd-off"]).toBe("gold");
     expect(CALL_OFF_KIND_TONES["ncns"]).toBe("red");
