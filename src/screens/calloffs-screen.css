@@ -18,6 +18,8 @@
 
 .calloffs-add {
   display: grid;
+  width: min(100%, 960px);
+  align-self: flex-start;
   gap: 8px;
   padding: 12px;
   border: 1px solid var(--line);
@@ -111,6 +113,10 @@
 }
 
 @media (max-width: 720px) {
+  .calloffs-add {
+    width: 100%;
+  }
+
   .calloffs-add-grid {
     grid-template-columns: 1fr;
   }
