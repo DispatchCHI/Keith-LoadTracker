@@ -21,7 +21,7 @@ const CALL_OFF_KIND_BUTTON_STYLE: Record<
   CallOffKind,
   { background: string; border: string; color: string }
 > = {
-  "call-off": { background: "#1d4f91", border: "1px solid #163e73", color: "#ffffff" },
+  "call-off": { background: "#7c3aed", border: "1px solid #6d28d9", color: "#ffffff" },
   "p-day": { background: "#166534", border: "1px solid #14532d", color: "#ffffff" },
   "okd-off": { background: "#a16207", border: "1px solid #854d0e", color: "#ffffff" },
   ncns: { background: "#b91c1c", border: "1px solid #7f1d1d", color: "#ffffff" },
