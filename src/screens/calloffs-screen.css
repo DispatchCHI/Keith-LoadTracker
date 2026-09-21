@@ -34,8 +34,10 @@
   gap: 8px;
 }
 
-.calloffs-reason-input {
-  width: min(100%, 320px);
+/* The global .text-input rule sets width: 100%; this more-specific selector overrides it. */
+.calloffs-add > input.calloffs-reason-input {
+  width: 320px;
+  max-width: 100%;
   justify-self: start;
 }
 
@@ -78,11 +80,7 @@
 }
 
 .calloffs-table tr.is-today {
-  background: color-mix(
-    in srgb,
-    var(--brand, #d8282c) 10%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--brand, #d8282c) 10%, transparent);
 }
 
 .calloffs-table tr.is-past {
@@ -118,8 +116,9 @@
     grid-template-columns: 1fr;
   }
 
-  .calloffs-reason-input {
+  .calloffs-add > input.calloffs-reason-input {
     width: 100%;
+    max-width: none;
     justify-self: stretch;
   }
 }
