@@ -238,6 +238,7 @@ export function TotalsScreen({
             onSelect={toggle}
             defaultOpen={false}
             compact
+            columns={2}
             emptyText="Nothing logged this day."
             expandedPanel={
               filter?.kind === "destination" ? (
