@@ -221,6 +221,7 @@ export function TotalsScreen({
             onSelect={toggle}
             defaultOpen
             compact
+            columns={2}
             emptyText="Nothing logged this day."
             expandedPanel={
               filter?.kind === "pickup" ? (
