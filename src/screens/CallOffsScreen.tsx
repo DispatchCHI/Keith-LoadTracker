@@ -117,7 +117,7 @@ export function CallOffsScreen() {
           />
         </div>
         <input
-          className="text-input"
+          className="text-input calloffs-reason-input"
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder="Reason"
