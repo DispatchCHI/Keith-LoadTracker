@@ -34,7 +34,6 @@
   gap: 8px;
 }
 
-/* The global .text-input rule sets width: 100%; this more-specific selector overrides it. */
 .calloffs-add > input.calloffs-reason-input {
   width: 320px;
   max-width: 100%;
