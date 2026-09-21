@@ -5,13 +5,15 @@ export type TagTone = {
 };
 
 const TONES: Record<string, TagTone> = {
-  trash: { bg: "#1d3a5c", fg: "#8ec5ff", border: "#3d6fa0" },
-  recycle: { bg: "#1c3d28", fg: "#8fe0a4", border: "#3d7a52" },
-  yard: { bg: "#2a3d1c", fg: "#c4e07a", border: "#5a7a32" },
+  trash: { bg: "#bfdbfe", fg: "#1e3a8a", border: "#60a5fa" },
+  recycle: { bg: "#bbf7d0", fg: "#14532d", border: "#4ade80" },
+  yard: { bg: "#fef08a", fg: "#713f12", border: "#eab308" },
   wood: { bg: "#3d2a14", fg: "#e0b07a", border: "#8a5a32" },
-  cardboard: { bg: "#3d3420", fg: "#e0c48a", border: "#8a7040" },
-  leachate: { bg: "#163d42", fg: "#7edce8", border: "#2e7a82" },
-  cd: { bg: "#33363c", fg: "#c8ccd4", border: "#5a5e66" },
+  cardboard: { bg: "#a16207", fg: "#fff7ed", border: "#78350f" },
+  leachate: { bg: "#fecaca", fg: "#991b1b", border: "#ef4444" },
+  residual: { bg: "#fbcfe8", fg: "#831843", border: "#ec4899" },
+  glass: { bg: "#e5e7eb", fg: "#374151", border: "#9ca3af" },
+  cd: { bg: "#d6b48c", fg: "#4a2c16", border: "#a8794f" },
   tires: { bg: "#2a2438", fg: "#c4b4e0", border: "#5a4e78" },
   default: { bg: "#2a2e36", fg: "#d4d0c8", border: "#4a4e56" },
 };
@@ -19,8 +21,8 @@ const TONES: Record<string, TagTone> = {
 export function commodityTone(commodity: string): TagTone {
   const c = commodity.toLowerCase();
   if (c.includes("leachate")) return TONES.leachate;
-  if (c.includes("residual") || c.includes("residue")) return TONES.cd;
-  if (c.includes("glass")) return TONES.recycle;
+  if (c.includes("residual") || c.includes("residue")) return TONES.residual;
+  if (c.includes("glass")) return TONES.glass;
   if (c.includes("trash") || c.includes("msw")) return TONES.trash;
   if (c.includes("recycle")) return TONES.recycle;
   if (c.includes("yard")) return TONES.yard;
