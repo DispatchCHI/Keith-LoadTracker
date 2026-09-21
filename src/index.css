@@ -1925,8 +1925,8 @@ button.notes-top:focus-visible {
 .calloff-kind-call-off,
 .calloff-add-form .calloff-kind-call-off.selected,
 .calloff-kind-call-off.selected {
-  background: #7c3aed !important;
-  border: 1px solid #6d28d9 !important;
+  background: #1d4f91 !important;
+  border: 1px solid #163e73 !important;
   color: #ffffff !important;
 }
 
@@ -4622,5 +4622,3 @@ body.app-ready .splash {
 .station-calls-add-btn:hover {
   opacity: 0.9;
 }
-
-
