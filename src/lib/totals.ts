@@ -9,7 +9,7 @@ export type RankRow = {
   key: string;
   label: string;
   count: number;
-  /** Today / EOD TRASH bubble count for this group (MSW + C&D + Tires, not walking-floor). */
+  /** Today / EOD TRASH bubble count for this group (MSW only). */
   trashCount: number;
   custom?: boolean;
 };
@@ -25,8 +25,7 @@ export function formatRankTrashTotal(
   row: Pick<RankRow, "count" | "trashCount">,
   opts?: { commodity?: boolean },
 ): string {
-  // Commodity buckets are already one kind — "0 / 6" on Walking Floor looked like
-  // those loads were not counted. Show the load total instead.
+  // Commodity rows are one kind each — show the load total, not trash/total.
   if (opts?.commodity) return String(row.count);
   return `${row.trashCount} / ${row.count}`;
 }
@@ -75,18 +74,14 @@ export function rankDestinations(loads: Load[]): RankRow[] {
   return sortRanks([...map.values()]);
 }
 
+/** Today commodity accordion: one row per real commodity (C&D, Recycle, Residual…). */
 export function rankCommodities(loads: Load[]): RankRow[] {
   const map = new Map<string, RankRow>();
   for (const load of loads) {
     const key = tallyLabel(load.commodity);
-    bumpRank(
-      map,
-      key,
-      // C&D shares the TRASH tally bucket; always label that row Trash (MSW)
-      // so a C&D-first day does not title the merged bucket "C&D".
-      key === "TRASH" ? "Trash (MSW)" : commodityRankLabel(load.commodity),
-      load,
-    );
+    const label =
+      key === "TRASH" ? "Trash (MSW)" : commodityRankLabel(load.commodity);
+    bumpRank(map, key, label, load);
   }
   return sortRanks([...map.values()]);
 }
@@ -168,11 +163,6 @@ function isLeachateField(value: string): boolean {
 
 /**
  * GraysLake Recycle → Hodgkins walking-floor lane — not tank/LEACHATE.
- *
- * `tallyLabel(commodity)` only sees the substring "recycle". This lane is still
- * an orphan when commodity is dest-labeled ("Hodgkins"), hyphenated
- * ("Re-cycle"), or a custom scrap code, because PR #38 added the catalog path
- * without teaching the Today / EOD classifier about the pickup+dest pair.
  */
 export function isGraysLakeRecycleLane(load: Load): boolean {
   if (!isGraysLakePickup(load)) return false;
@@ -186,32 +176,22 @@ export function isGraysLakeRecycleLane(load: Load): boolean {
   );
 }
 
+function isMswOrLeachate(load: Load): boolean {
+  const key = tallyLabel(load.commodity);
+  return key === "TRASH" || key === "LEACHATE";
+}
+
 /**
- * Yard waste, recycle, residual/residue, cardboard, Groot, Van Drunen, or the
- * GraysLake Recycle → Hodgkins lane.
+ * Header / EOD walking-floor bubble: every load that is not Trash (MSW)
+ * and not Leachate. Includes C&D, tires, recycle, yard, wood, residual,
+ * glass, cardboard, Groot, Van Drunen, and GraysLake Recycle → Hodgkins.
+ * New logs should not use a "Walking-floor" commodity name.
  */
 export function isWalkingFloorLoad(load: Load): boolean {
   if (isVanDrunenPickup(load) || isGraysLakeRecycleLane(load)) return true;
-  const commodityKey = tallyLabel(load.commodity);
-  // Explicit Walking-floor / WF tags (LoadForm + specialty chips).
-  if (commodityKey === "WALKING-FLOOR" || commodityKey === "WALKING FLOOR") return true;
-  if (
-    commodityKey === "YARD" ||
-    commodityKey === "RECYCLE" ||
-    commodityKey === "RESIDUAL" ||
-    commodityKey === "CARDBOARD" ||
-    commodityKey === "WOOD" ||
-    commodityKey === "GLASS"
-  ) {
-    return true;
-  }
+  if (isMswOrLeachate(load)) return false;
   const fields = [load.commodity, load.destination, load.pickup];
   if (fields.some((field) => field.toLowerCase().includes("groot"))) return true;
-  // Anything that is not Trash or Leachate rolls into the walking-floor day tally
-  // (same rule as Customers lane book / specialty board).
-  if (commodityKey === "TRASH" || commodityKey === "LEACHATE") return false;
-  const c = load.commodity.toLowerCase();
-  if (c.includes("walking") || /(^|\W)wf(\W|$)/.test(c)) return true;
   return Boolean(load.commodity.trim());
 }
 
@@ -219,10 +199,7 @@ export function countWalkingFloorLoads(loads: Load[]): number {
   return loads.filter(isWalkingFloorLoad).length;
 }
 
-/**
- * Today / EOD TRASH bubble: MSW, C&D, and Tires that are not a walking-floor
- * lane (Van Drunen, GraysLake Recycle → Hodgkins, Groot, wood, etc.).
- */
+/** Today / EOD TRASH bubble: Trash (MSW) only. C&D and tires are walking-floor. */
 export function isTrashLoad(load: Load): boolean {
   return tallyLabel(load.commodity) === "TRASH" && !isWalkingFloorLoad(load);
 }
@@ -386,7 +363,10 @@ export function endOfDaySummary(
         label: yard.label,
         pickedUp,
         msw,
-        left: close === null || close === undefined || close === "" ? null : String(close),
+        left:
+          close === null || close === undefined || close === ""
+            ? null
+            : String(close),
       };
     }),
   };
