@@ -18,7 +18,9 @@ export const CUSTOM_SPECIALTY_DEFAULT_NAMES: Record<CustomSpecialtyId, string> =
 
 export const CUSTOM_SPECIALTY_LOAD_TYPES = [
   "Leachate",
-  "Walking-floor",
+  "C&D",
+  "Recycle",
+  "Yard Waste",
 ] as const;
 
 export type CustomSpecialtyLoadType = (typeof CUSTOM_SPECIALTY_LOAD_TYPES)[number];
@@ -52,7 +54,6 @@ export function readCustomSpecialtyNames(): Record<CustomSpecialtyId, string> {
   return next;
 }
 
-/** Stored field text. Empty means the dispatcher cleared the example name. */
 export function readCustomSpecialtyNameField(id: CustomSpecialtyId): string {
   return readCustomSpecialtyNames()[id] ?? CUSTOM_SPECIALTY_DEFAULT_NAMES[id];
 }
@@ -63,8 +64,6 @@ export function writeCustomSpecialtyName(id: CustomSpecialtyId, name: string): v
   localStorage.setItem(NAMES_KEY, JSON.stringify(names));
 }
 
-
-/** True when the specialty box has a real name (not the Odd-ball N placeholder). */
 export function isCustomSpecialtyRenamed(
   id: CustomSpecialtyId,
   name = readCustomSpecialtyNames()[id],
@@ -141,19 +140,10 @@ export function commodityLoadType(commodity: string): CustomSpecialtyLoadType | 
   const key = commodity.replace(/\s+/g, " ").trim().toLowerCase();
   if (!key) return null;
   if (key.includes("leach")) return "Leachate";
-  // Trash/MSW is not a specialty-board load type anymore.
   if (key.includes("trash") || key.includes("msw")) return null;
-  if (
-    key.includes("walk") ||
-    key.includes("recycle") ||
-    key.includes("yard") ||
-    key.includes("cardboard") ||
-    key.includes("wood") ||
-    key.includes("c&d") ||
-    key.includes("c and d")
-  ) {
-    return "Walking-floor";
-  }
+  if (key.includes("c&d") || key.includes("c and d")) return "C&D";
+  if (key.includes("recycle")) return "Recycle";
+  if (key.includes("yard")) return "Yard Waste";
   return null;
 }
 

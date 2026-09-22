@@ -22,6 +22,12 @@ function isCdCommodity(c: string): boolean {
   return c.includes("c&d") || c.includes("c and d") || /(^|\W)cd(\W|$)/.test(c);
 }
 
+/** True when the stored string is only the old Walking-floor tag. Not a real commodity. */
+export function isWalkingFloorTag(commodity: string): boolean {
+  const c = commodity.toLowerCase();
+  return c.includes("walking") || /(^|\W)wf(\W|$)/.test(c);
+}
+
 export function commodityTone(commodity: string): TagTone {
   const c = commodity.toLowerCase();
   if (c.includes("leachate")) return TONES.leachate;
@@ -41,14 +47,11 @@ export function commodityTone(commodity: string): TagTone {
  * Bucket for Today commodity rows and filters.
  * Trash (MSW) and Leachate stay their own buckets.
  * C&D, tires, recycle, yard, wood, residual, glass, cardboard stay named.
- * Old rows tagged Walking-floor / WF still map to WALKING-FLOOR.
- * Header walking-floor totals are computed in totals.ts (everything
- * that is not Trash/MSW or Leachate) — not by collapsing names here.
+ * Walking-floor is never a label. Header totals live in totals.ts.
  */
 export function tallyLabel(commodity: string): string {
   const c = commodity.toLowerCase();
   if (c.includes("leachate")) return "LEACHATE";
-  if (c.includes("walking") || /(^|\W)wf(\W|$)/.test(c)) return "WALKING-FLOOR";
   if (c.includes("residual") || c.includes("residue")) return "RESIDUAL";
   if (c.includes("glass")) return "GLASS";
   if (isCdCommodity(c)) return "C&D";
@@ -58,6 +61,7 @@ export function tallyLabel(commodity: string): string {
   if (c.includes("wood")) return "WOOD";
   if (c.includes("cardboard")) return "CARDBOARD";
   if (c.includes("tire")) return "TIRES";
+  if (isWalkingFloorTag(commodity)) return "";
   return commodity.toUpperCase();
 }
 
@@ -65,7 +69,6 @@ export function tallyLabel(commodity: string): string {
 export function commodityRankLabel(commodity: string): string {
   const c = commodity.toLowerCase();
   if (c.includes("leachate")) return "Leachate";
-  if (c.includes("walking") || /(^|\W)wf(\W|$)/.test(c)) return "Walking Floor";
   if (c.includes("residual") || c.includes("residue")) return "Residual";
   if (c.includes("glass")) return "Glass";
   if (isCdCommodity(c)) return "C&D";
@@ -75,6 +78,7 @@ export function commodityRankLabel(commodity: string): string {
   if (c.includes("wood")) return "Wood";
   if (c.includes("cardboard")) return "Cardboard";
   if (c.includes("tire")) return "Tires";
+  if (isWalkingFloorTag(commodity)) return "";
   return commodity;
 }
 
