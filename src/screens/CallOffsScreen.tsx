@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { BrandMark } from "../components/BrandMark";
 import { DriverNameInput } from "../components/DriverNameInput";
-import { addDays, chicagoToday } from "../lib/chicagoDate";
+import { addDays, chicagoToday, previousWorkingDay } from "../lib/chicagoDate";
 import {
   CALL_OFF_REASON_PRESETS,
   formatSheetStyleDate,
@@ -36,7 +36,7 @@ function presetClass(reason: string): string {
 
 export function CallOffsScreen() {
   const today = chicagoToday();
-  const yesterday = addDays(today, -1);
+  const yesterday = previousWorkingDay(today);
   const { rows, cloud, error, addRow, removeRow } = useCallOffLog();
   const [filter, setFilter] = useState<FilterId>("all");
   const [name, setName] = useState("");
