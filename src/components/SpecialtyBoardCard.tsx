@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Minus, Plus } from "lucide-react";
 import { formatHeaderDate } from "../lib/chicagoDate";
 import {
   CUSTOM_SPECIALTY_DEFAULT_NAMES,
   CUSTOM_SPECIALTY_LOAD_TYPES,
+  SPECIALTY_CUSTOM_NAMES_EVENT,
+  SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT,
   customSpecialtyDisplayName,
   formatCustomSpecialtyChip,
   isCustomSpecialtyId,
@@ -271,6 +273,16 @@ function StepperButtons({
 function CustomSpecialtyNameInput({ id }: { id: CustomSpecialtyId }) {
   const example = CUSTOM_SPECIALTY_DEFAULT_NAMES[id];
   const [value, setValue] = useState(() => readCustomSpecialtyNameField(id));
+  const focusedRef = useState(false);
+
+  useEffect(() => {
+    const onRemote = () => {
+      if (focusedRef[0]) return;
+      setValue(readCustomSpecialtyNameField(id));
+    };
+    window.addEventListener(SPECIALTY_CUSTOM_NAMES_EVENT, onRemote);
+    return () => window.removeEventListener(SPECIALTY_CUSTOM_NAMES_EVENT, onRemote);
+  }, [id]);
 
   return (
     <input
@@ -279,6 +291,7 @@ function CustomSpecialtyNameInput({ id }: { id: CustomSpecialtyId }) {
       placeholder={example}
       aria-label={`Pickup name for ${id}`}
       onFocus={(event) => {
+        focusedRef[0] = true;
         if (value === example) event.currentTarget.select();
       }}
       onChange={(event) => {
@@ -287,10 +300,11 @@ function CustomSpecialtyNameInput({ id }: { id: CustomSpecialtyId }) {
         writeCustomSpecialtyName(id, next);
       }}
       onBlur={() => {
+        focusedRef[0] = false;
         const next = value.replace(/\s+/g, " ").trim();
-        if (next === value) return;
         setValue(next);
         writeCustomSpecialtyName(id, next);
+        window.dispatchEvent(new Event(SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT));
       }}
     />
   );
