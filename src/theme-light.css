@@ -116,9 +116,9 @@ select {
 
 .calloff-kind-okd-off,
 .calloff-kind-okd-off.selected {
-  background: #facc15 !important;
-  border: 1px solid #eab308 !important;
-  color: #422006 !important;
+  background: #6b7280 !important;
+  border: 1px solid #4b5563 !important;
+  color: #ffffff !important;
 }
 
 .calloff-kind-ncns,
@@ -130,15 +130,15 @@ select {
 
 .calloff-kind-late-early,
 .calloff-kind-late-early.selected {
-  background: #f97316 !important;
-  border: 1px solid #ea580c !important;
-  color: #ffffff !important;
+  background: #facc15 !important;
+  border: 1px solid #eab308 !important;
+  color: #422006 !important;
 }
 
 .calloff-kind-fmla,
 .calloff-kind-fmla.selected {
-  background: #7c3aed !important;
-  border: 1px solid #6d28d9 !important;
+  background: #db2777 !important;
+  border: 1px solid #be185d !important;
   color: #ffffff !important;
 }
 
@@ -147,15 +147,22 @@ select {
   color: #ffffff !important;
 }
 
-.calloff-chip-p-day,
-.vacation-chip {
+.calloff-chip-p-day {
   background: #166534 !important;
   color: #ffffff !important;
 }
 
+/* Vacation on Today is light blue, not P-Day green. */
+.oot-chip.vacation-chip,
+.vacation-chip {
+  background: #d6e8fb !important;
+  border-color: #7eb6ff !important;
+  color: #123152 !important;
+}
+
 .calloff-chip-okd-off {
-  background: #facc15 !important;
-  color: #422006 !important;
+  background: #6b7280 !important;
+  color: #ffffff !important;
 }
 
 .calloff-chip-ncns {
@@ -164,12 +171,14 @@ select {
 }
 
 .calloff-chip-late-early {
-  background: #f97316 !important;
-  color: #ffffff !important;
+  background: #facc15 !important;
+  color: #422006 !important;
 }
 
+/* FMLA on Today is pink, not purple. */
 .calloff-chip-fmla {
-  background: #7c3aed !important;
+  background: #db2777 !important;
+  border-color: #be185d !important;
   color: #ffffff !important;
 }
 
@@ -408,7 +417,6 @@ select {
   border-color: #d0d3d9;
 }
 
-/* Selected dispatch chips must beat the generic .chip light-theme fill. */
 .chip.chip-selected,
 .chip[aria-pressed="true"] {
   background: #eddc9a !important;
