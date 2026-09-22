@@ -10,7 +10,7 @@ import {
 } from "react";
 import { callOffLogSeedRows } from "../data/callOffLogSeed";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
-import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { attachCloudRefresh, scheduleCloudRefresh } from "../lib/cloudRefresh";
 import {
   addCallOffLogEntry,
   cleanCallOffLogRows,
@@ -213,8 +213,11 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
   }, [cloud, cloudDelete, cloudUpsert, persistLocal, pullRemote]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (!cloud) return;
+    scheduleCloudRefresh(() => {
+      void refresh();
+    });
+  }, [cloud, refresh]);
 
   useEffect(() => {
     if (!cloud) return;
@@ -226,7 +229,9 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "call_off_log" },
         () => {
-          void refresh();
+          scheduleCloudRefresh(() => {
+            void refresh();
+          });
         },
       )
       .subscribe();
@@ -237,7 +242,9 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    return attachCloudRefresh(refresh);
+    return attachCloudRefresh(() => {
+      void refresh();
+    });
   }, [cloud, refresh]);
 
   const loadSheet = useCallback(async () => {
