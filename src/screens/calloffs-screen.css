@@ -46,15 +46,19 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
 }
 
-/* These presets intentionally mirror the Available drivers page colors. */
+/* Pill chips, same colors as Available drivers. */
 .calloffs-reason-row .calloff-kind-btn {
-  min-height: 48px;
-  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  height: 32px;
   width: auto;
-  padding: 12px 14px;
-  border-radius: 14px;
+  padding: 0 14px;
+  border-radius: 999px;
   font-weight: 800;
   white-space: nowrap;
   opacity: 1;
@@ -162,7 +166,7 @@
   display: inline-flex;
   margin-top: 4px;
   padding: 2px 8px;
-  border-radius: 14px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
 }
