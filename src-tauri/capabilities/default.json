@@ -3,17 +3,5 @@
   "identifier": "default",
   "description": "Capability for the main Load Tracker window",
   "windows": ["main"],
-  "permissions": [
-    "core:default",
-    {
-      "identifier": "http:default",
-      "allow": [
-        { "url": "https://www.sigalert.com/**" },
-        { "url": "https://cdn-dynamic.sigalert.com/**" },
-        { "url": "https://cdn.sigalert.com/**" },
-        { "url": "https://*.supabase.co/**" },
-        { "url": "https://*.supabase.in/**" }
-      ]
-    }
-  ]
+  "permissions": ["core:default"]
 }
