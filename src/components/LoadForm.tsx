@@ -33,11 +33,30 @@ import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useLoads } from "../store/LoadsContext";
 import { Chip } from "./Chip";
 
+/** Labels shown on the log-load commodity chips. Walking-floor is a tally, not a commodity. */
 const CUSTOM_SPECIALTY_COMMODITIES: Record<string, string> = {
   Leachate: "Leachate (tanker)",
-  "Walking-floor": "Walking-floor",
   Trash: "Trash (MSW)",
+  "C&D": "C&D",
+  Recycle: "Recycle",
+  Residual: "Residual",
+  "Yard Waste": "Yard Waste",
+  Wood: "Wood",
 };
+
+function specialtyCommodityChips(loadTypes: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const chips: string[] = [];
+  for (const item of loadTypes) {
+    if (item === "Walking-floor" || item === "Walking Floor") continue;
+    const label = CUSTOM_SPECIALTY_COMMODITIES[item] ?? item;
+    if (seen.has(label)) continue;
+    seen.add(label);
+    chips.push(label);
+  }
+  if (!chips.includes("C&D")) chips.push("C&D");
+  return chips;
+}
 
 export type FormState = {
   truck: string;
@@ -101,11 +120,9 @@ export function LoadForm({
           choice.kind === "station" && choice.station.id === value.stationId,
       );
   });
-
   const visiblePickups = showAllStations
     ? rankedPickups
     : rankedPickups.slice(0, visibleCount);
-
   const customNames = readCustomSpecialtyNames();
   const namedOddballs = CUSTOM_SPECIALTY_IDS.filter((id) =>
     isCustomSpecialtyRenamed(id, customNames[id]),
@@ -119,15 +136,15 @@ export function LoadForm({
     if (laneCustomers.some((name) => placesMatch(name, pickupName))) return pickupName;
     return null;
   }, [laneCustomers, pickupName]);
-
   const commodities = useMemo(() => {
     if (laneBookPickup) {
-      return commoditiesForCustomer(customerLanes, laneBookPickup, today);
+      return commoditiesForCustomer(customerLanes, laneBookPickup, today).filter(
+        (item) => !/walking[\s-]*floor/i.test(item),
+      );
     }
     if (isCustom) return [];
     return [];
   }, [customerLanes, isCustom, laneBookPickup, today]);
-
   const destinations = useMemo(() => {
     if (laneBookPickup && value.commodity.trim()) {
       return destinationsForCustomer(
@@ -139,12 +156,10 @@ export function LoadForm({
     }
     return [];
   }, [customerLanes, laneBookPickup, today, value.commodity]);
-
   const cascadeNote = useMemo(() => {
     if (!laneBookPickup) return null;
     return `${laneBookPickup} commodity and destination come from Customers lanes.`;
   }, [laneBookPickup]);
-
   const selectStation = (stationId: string) => {
     const pickup =
       stationId === CUSTOM_ID
@@ -171,12 +186,15 @@ export function LoadForm({
         value.destination,
         today,
       );
+      const commodity = /walking[\s-]*floor/i.test(cascaded.commodity)
+        ? ""
+        : cascaded.commodity;
       onChange({
         ...value,
         stationId,
         pickup: name,
-        commodity: cascaded.commodity,
-        destination: cascaded.destination,
+        commodity,
+        destination: commodity ? cascaded.destination : "",
       });
       return;
     }
@@ -188,7 +206,6 @@ export function LoadForm({
       destination: "",
     });
   };
-
   const selectLaneCustomer = (name: string) => {
     const cascaded = cascadeCustomerLaneRoute(
       customerLanes,
@@ -197,22 +214,23 @@ export function LoadForm({
       value.destination,
       today,
     );
+    const commodity = /walking[\s-]*floor/i.test(cascaded.commodity)
+      ? ""
+      : cascaded.commodity;
     onChange({
       ...value,
       stationId: CUSTOM_ID,
       pickup: name,
-      commodity: cascaded.commodity,
-      destination: cascaded.destination,
+      commodity,
+      destination: commodity ? cascaded.destination : "",
     });
   };
-
   const invalidCommodity =
     Boolean(original?.commodity) &&
     original!.commodity !== value.commodity &&
     Boolean(laneBookPickup) &&
     original!.commodity !== "" &&
     !commodities.some((item) => commoditiesMatch(item, original!.commodity));
-
   const invalidDestination =
     Boolean(original?.destination) &&
     original!.destination !== value.destination &&
@@ -223,7 +241,6 @@ export function LoadForm({
         placesMatch(item, original!.destination) ||
         sameDestination(item, original!.destination),
     );
-
   return (
     <div className="form-stack">
       <section className="field">
@@ -240,7 +257,6 @@ export function LoadForm({
           </button>
         </div>
       </section>
-
       <section className="field">
         <div className="field-label">Pickup</div>
         <div className="chip-row">
@@ -318,17 +334,16 @@ export function LoadForm({
           </p>
         )}
       </section>
-
       <section className="field">
         <div className="field-label">Commodity</div>
         {isCustom && !laneBookPickup ? (
           <>
             <div className="chip-row">
               {(customPickupId
-                ? CUSTOM_SPECIALTY_LOAD_TYPES.map(
-                    (item) => CUSTOM_SPECIALTY_COMMODITIES[item] ?? item,
+                ? specialtyCommodityChips(CUSTOM_SPECIALTY_LOAD_TYPES)
+                : CUSTOM.exampleCommodities.filter(
+                    (item) => !/walking[\s-]*floor/i.test(item),
                   )
-                : CUSTOM.exampleCommodities
               ).map((item) => (
                 <Chip
                   key={item}
@@ -340,7 +355,7 @@ export function LoadForm({
             </div>
             <input
               className="text-input"
-              placeholder="Commodity (Leachate, Recycle, Trash…)"
+              placeholder="Commodity (Trash, C&D, Recycle, Leachate…)"
               value={value.commodity}
               onChange={(e) => onChange({ ...value, commodity: e.target.value })}
               autoComplete="off"
@@ -382,7 +397,6 @@ export function LoadForm({
           </div>
         )}
       </section>
-
       <section className="field">
         <div className="field-label">Destination</div>
         {isCustom && !laneBookPickup ? (
@@ -450,7 +464,8 @@ export function formComplete(value: FormState): boolean {
       pickupLabel(value.stationId, value.pickup) &&
       value.commodity.trim() &&
       value.destination.trim() &&
-      value.destination !== "Other...",
+      value.destination !== "Other..." &&
+      !/walking[\s-]*floor/i.test(value.commodity),
   );
 }
 
