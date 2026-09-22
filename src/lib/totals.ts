@@ -25,7 +25,6 @@ export function formatRankTrashTotal(
   row: Pick<RankRow, "count" | "trashCount">,
   opts?: { commodity?: boolean },
 ): string {
-  // Commodity rows are one kind each — show the load total, not trash/total.
   if (opts?.commodity) return String(row.count);
   return `${row.trashCount} / ${row.count}`;
 }
@@ -104,7 +103,6 @@ export function filterLoads(loads: Load[], filter: TotalsFilter | null): Load[] 
   return loads.filter((load) => tallyLabel(load.commodity) === filter.key);
 }
 
-/** Station / landfill / commodity accordion: matching loads, newest logged first. */
 export function rankAccordionLoads(
   loads: Load[],
   filter: TotalsFilter | null,
@@ -122,25 +120,16 @@ export function countBrokerLoads(loads: Load[]): number {
   return loads.filter((load) => isBrokerTruck(load.truck)).length;
 }
 
-/** Letters-only key so Van Drunen / Vandrunen / van-drunen all match. */
 function lettersKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z]/g, "");
 }
 
-/**
- * Van Drunen sits on the specialty / walking-floor board, not the MSW hour grid.
- * Match pickup (and station id) aliases; do not invent a catalog bubble.
- */
 export function isVanDrunenPickup(load: Load): boolean {
   return [load.pickup, load.stationId].some((field) =>
     lettersKey(field).includes("vandrunen"),
   );
 }
 
-/**
- * GraysLake / Grayslake / Grays Lake / station id `grayslake`.
- * Catalog recycle dest is Hodgkins; tank chips stay leachate-only.
- */
 export function isGraysLakePickup(load: Load): boolean {
   return [load.pickup, load.stationId].some((field) =>
     lettersKey(field).includes("grayslake"),
@@ -161,9 +150,6 @@ function isLeachateField(value: string): boolean {
   return tallyLabel(value) === "LEACHATE";
 }
 
-/**
- * GraysLake Recycle → Hodgkins walking-floor lane — not tank/LEACHATE.
- */
 export function isGraysLakeRecycleLane(load: Load): boolean {
   if (!isGraysLakePickup(load)) return false;
   if (isLeachateField(load.commodity) || isLeachateField(load.destination)) {
@@ -181,12 +167,7 @@ function isMswOrLeachate(load: Load): boolean {
   return key === "TRASH" || key === "LEACHATE";
 }
 
-/**
- * Header / EOD walking-floor bubble: every load that is not Trash (MSW)
- * and not Leachate. Includes C&D, tires, recycle, yard, wood, residual,
- * glass, cardboard, Groot, Van Drunen, and GraysLake Recycle → Hodgkins.
- * New logs should not use a "Walking-floor" commodity name.
- */
+/** Header walking-floor bubble: every load that is not Trash (MSW) and not Leachate. */
 export function isWalkingFloorLoad(load: Load): boolean {
   if (isVanDrunenPickup(load) || isGraysLakeRecycleLane(load)) return true;
   if (isMswOrLeachate(load)) return false;
@@ -199,7 +180,6 @@ export function countWalkingFloorLoads(loads: Load[]): number {
   return loads.filter(isWalkingFloorLoad).length;
 }
 
-/** Today / EOD TRASH bubble: Trash (MSW) only. C&D and tires are walking-floor. */
 export function isTrashLoad(load: Load): boolean {
   return tallyLabel(load.commodity) === "TRASH" && !isWalkingFloorLoad(load);
 }
@@ -208,7 +188,6 @@ export function countTrashLoads(loads: Load[]): number {
   return loads.filter(isTrashLoad).length;
 }
 
-/** Dispatch Board Total Loads = Total MSW + Total Tank + Total Walking-Floor. */
 export function countSheetTotalLoads(loads: Load[]): number {
   return (
     countTrashLoads(loads) +
@@ -228,14 +207,9 @@ export function countByTallyLabel(loads: Load[], label: string): number {
   return loads.filter((load) => tallyLabel(load.commodity) === label).length;
 }
 
-/** Today header: TRASH, LEACHATE, LOADS, SUBS, WALKING-FLOOR. Always these five. */
 export function daySummaryCards(loads: Load[]): DaySummaryCard[] {
   return [
-    {
-      key: "trash",
-      label: "TRASH",
-      count: countTrashLoads(loads),
-    },
+    { key: "trash", label: "TRASH", count: countTrashLoads(loads) },
     {
       key: "leachate",
       label: "LEACHATE",
@@ -256,7 +230,6 @@ export function daySummaryCards(loads: Load[]): DaySummaryCard[] {
   ];
 }
 
-/** Load Count By Hour yard ids that differ from the load-form station id. */
 const CALL_YARD_STATION_ID: Record<string, string> = {
   "c-heights": "chicago-heights",
   hooker: "hooker-street",
@@ -290,7 +263,6 @@ export function callYardMatchKeys(yard: { id: string; label: string }): Set<stri
   return keys;
 }
 
-/** True when this load was picked up from the given Load Count By Hour yard. */
 export function loadMatchesCallYard(
   load: Load,
   yard: { id: string; label: string },
@@ -307,11 +279,8 @@ export function loadMatchesCallYard(
 export type StationEodRow = {
   id: string;
   label: string;
-  /** All loads picked up from this transfer station today. */
   pickedUp: number;
-  /** Trash / MSW loads only (same rules as the TRASH EOD bubble). */
   msw: number;
-  /** Close column for that Chicago day; null when the dispatcher left it blank. */
   left: string | null;
 };
 
@@ -331,7 +300,6 @@ export type EndOfDayCard = {
   emphasis?: boolean;
 };
 
-/** TRASH, LEACHATE, WALKING-FLOOR, LOADS, SUBS — same counts as Today. */
 export function endOfDayCards(summary: EndOfDaySummary): EndOfDayCard[] {
   return [
     { key: "trash", label: "TRASH", count: summary.trash },
@@ -342,7 +310,6 @@ export function endOfDayCards(summary: EndOfDaySummary): EndOfDayCard[] {
   ];
 }
 
-/** Overall loads, trash, leachate, walking-floor, SUBS, per-station pickups, and Closed. */
 export function endOfDaySummary(
   loads: Load[],
   board: StationDayBoard,
