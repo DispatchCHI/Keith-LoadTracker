@@ -9,7 +9,11 @@ import {
   logEntrySubtracts,
   type CallOffLogEntry,
 } from "../lib/callOffLog";
-import { CALL_OFF_KIND_OPTIONS } from "../lib/driverAvailability";
+import {
+  CALL_OFF_KIND_OPTIONS,
+  callOffKindFromReason,
+  type CallOffKind,
+} from "../lib/driverAvailability";
 import { useCallOffLog } from "../store/CallOffLogContext";
 import "./calloffs-screen.css";
 
@@ -18,6 +22,13 @@ type FilterId = "upcoming" | "today" | "yesterday" | "all";
 function kindLabel(reason: string): string {
   const kind = kindForLogEntry({ reason });
   return CALL_OFF_KIND_OPTIONS.find((row) => row.kind === kind)?.label ?? "Note";
+}
+
+/** Map the Call-Off page presets to the same chip colors used by Available drivers. */
+function presetKind(reason: string): CallOffKind {
+  // Vacation is displayed with the same green status color as P-Day on Today.
+  if (/^vacation\s+day$/i.test(reason.trim())) return "p-day";
+  return callOffKindFromReason(reason);
 }
 
 export function CallOffsScreen() {
@@ -133,16 +144,21 @@ export function CallOffsScreen() {
         />
 
         <div className="calloffs-reason-row" role="group" aria-label="Reason presets">
-          {CALL_OFF_REASON_PRESETS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={reason === item ? "day-chip day-chip-active" : "day-chip"}
-              onClick={() => setReason(item)}
-            >
-              {item}
-            </button>
-          ))}
+          {CALL_OFF_REASON_PRESETS.map((item) => {
+            const kind = presetKind(item);
+            const selected = reason === item;
+            return (
+              <button
+                key={item}
+                type="button"
+                className={`calloff-kind-btn calloff-kind-${kind}${selected ? " selected" : ""}`}
+                aria-pressed={selected}
+                onClick={() => setReason(item)}
+              >
+                {item}
+              </button>
+            );
+          })}
         </div>
 
         {formError ? <p className="form-error">{formError}</p> : null}
@@ -199,9 +215,7 @@ export function CallOffsScreen() {
             {!visible.length ? (
               <tr>
                 <td colSpan={5}>
-                  <p className="oot-empty">
-                    No rows yet. Add a driver above to start the log.
-                  </p>
+                  <p className="oot-empty">No rows yet. Add a driver above to start the log.</p>
                 </td>
               </tr>
             ) : null}
