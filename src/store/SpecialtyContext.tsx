@@ -10,6 +10,11 @@ import {
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT } from "../lib/customSpecialty";
+import {
+  pullAndMergeCustomNames,
+  pushCustomNamesIfLocalNewer,
+} from "../lib/specialtyCustomNamesCloud";
 import { getSupabase } from "../lib/supabase";
 import {
   addSpecialtySlot,
@@ -114,7 +119,6 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
     const ids = [...deletedIdsRef.current];
     const keeps = destKeepsRef.current;
     const seen = [...seenRemoteIdsRef.current];
-    // Strip UUID tombstones and dest-keeps at persist so a stale refresh cannot restore.
     const stripped = applySpecialtyTombstones(next, ids, keeps);
     writeSpecialtyStore(next, ids, keeps, seen);
     storeRef.current = stripped;
@@ -122,10 +126,16 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
     notifySpecialtyBoardChanged();
   }, []);
 
+  const syncCustomNames = useCallback(async () => {
+    const supabase = getSupabase();
+    if (!supabase || !session) return;
+    await pullAndMergeCustomNames(supabase);
+    await pushCustomNamesIfLocalNewer(supabase, user?.id ?? null);
+  }, [session, user?.id]);
+
   const rememberDeleted = useCallback((ids: string[]) => {
     if (!ids.length) return;
     for (const id of ids) deletedIdsRef.current.add(id);
-    // Flush tombstones immediately so an in-flight cloud pull cannot miss them.
     writeSpecialtyStore(
       storeRef.current,
       [...deletedIdsRef.current],
@@ -217,8 +227,10 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
     }
     const epoch = epochRef.current;
     const remote = await pullRemote();
-    // Pull failure: leave local store untouched.
-    if (!remote) return;
+    if (!remote) {
+      await syncCustomNames();
+      return;
+    }
     if (epoch !== epochRef.current) return;
 
     const result = reconcileSpecialtyCloud({
@@ -258,7 +270,8 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
     destKeepsRef.current = result.destKeeps;
     seenRemoteIdsRef.current = new Set(result.seenRemoteIds);
     persistLocal(result.next);
-  }, [cloud, cloudDeleteIds, persistLocal, pullRemote, session, user?.id]);
+    await syncCustomNames();
+  }, [cloud, cloudDeleteIds, persistLocal, pullRemote, session, syncCustomNames, user?.id]);
 
   const refresh = useCallback(() => {
     const run = refreshTailRef.current.then(refreshInner, refreshInner);
@@ -278,13 +291,20 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
     return attachCloudRefresh(refresh);
   }, [cloud, refresh]);
 
+  useEffect(() => {
+    if (!cloud) return;
+    const onFlush = () => {
+      void syncCustomNames();
+    };
+    window.addEventListener(SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT, onFlush);
+    return () => window.removeEventListener(SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT, onFlush);
+  }, [cloud, syncCustomNames]);
+
   const addOpen = useCallback(
     async (date: string, stationId: string, destination: string) => {
       bumpEpoch();
       const next = addSpecialtySlot(storeRef.current, date, stationId, destination);
       const added = boardForDate(next, date).at(-1);
-      // Only widen an existing dest-keep so a new + CID is not stripped;
-      // do not create a keep on add (that would delete other devices' opens).
       if (
         added &&
         destKeepsRef.current.some(
