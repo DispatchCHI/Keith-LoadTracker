@@ -24,11 +24,14 @@ function kindLabel(reason: string): string {
   return CALL_OFF_KIND_OPTIONS.find((row) => row.kind === kind)?.label ?? "Note";
 }
 
-/** Map the Call-Off page presets to the same chip colors used by Available drivers. */
 function presetKind(reason: string): CallOffKind {
-  // Vacation is displayed with the same green status color as P-Day on Today.
-  if (/^vacation\s+day$/i.test(reason.trim())) return "p-day";
   return callOffKindFromReason(reason);
+}
+
+function presetClass(reason: string): string {
+  return /^vacation\s+day$/i.test(reason.trim())
+    ? "calloff-preset-vacation"
+    : `calloff-kind-${presetKind(reason)}`;
 }
 
 export function CallOffsScreen() {
@@ -66,12 +69,7 @@ export function CallOffsScreen() {
       setFormError("Pick a call-off date.");
       return;
     }
-    const entry = await addRow({
-      name,
-      start,
-      end: end || null,
-      reason,
-    });
+    const entry = await addRow({ name, start, end: end || null, reason });
     if (!entry) {
       setFormError("Could not save that row.");
       return;
@@ -111,28 +109,9 @@ export function CallOffsScreen() {
         }}
       >
         <div className="calloffs-add-grid">
-          <DriverNameInput
-            value={name}
-            onChange={setName}
-            placeholder="Driver name"
-            aria-label="Driver name"
-          />
-
-          <input
-            className="text-input"
-            type="date"
-            value={start}
-            onChange={(event) => setStart(event.target.value)}
-            aria-label="Call off date"
-          />
-
-          <input
-            className="text-input"
-            type="date"
-            value={end}
-            onChange={(event) => setEnd(event.target.value)}
-            aria-label="Through date"
-          />
+          <DriverNameInput value={name} onChange={setName} placeholder="Driver name" aria-label="Driver name" />
+          <input className="text-input" type="date" value={start} onChange={(event) => setStart(event.target.value)} aria-label="Call off date" />
+          <input className="text-input" type="date" value={end} onChange={(event) => setEnd(event.target.value)} aria-label="Through date" />
         </div>
 
         <input
@@ -145,13 +124,12 @@ export function CallOffsScreen() {
 
         <div className="calloffs-reason-row" role="group" aria-label="Reason presets">
           {CALL_OFF_REASON_PRESETS.map((item) => {
-            const kind = presetKind(item);
             const selected = reason === item;
             return (
               <button
                 key={item}
                 type="button"
-                className={`calloff-kind-btn calloff-kind-${kind}${selected ? " selected" : ""}`}
+                className={`${presetClass(item)}${selected ? " selected" : ""}`}
                 aria-pressed={selected}
                 onClick={() => setReason(item)}
               >
@@ -162,11 +140,8 @@ export function CallOffsScreen() {
         </div>
 
         {formError ? <p className="form-error">{formError}</p> : null}
-
         <div className="vac-add-actions">
-          <button type="submit" className="text-btn amber">
-            Add row
-          </button>
+          <button type="submit" className="text-btn amber">Add row</button>
         </div>
       </form>
 
@@ -179,46 +154,21 @@ export function CallOffsScreen() {
             ["yesterday", `Yesterday (${formatSheetStyleDate(yesterday)})`],
           ] as const
         ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            className={filter === id ? "day-chip day-chip-active" : "day-chip"}
-            onClick={() => setFilter(id)}
-          >
+          <button key={id} type="button" className={filter === id ? "day-chip day-chip-active" : "day-chip"} onClick={() => setFilter(id)}>
             {label}
           </button>
         ))}
       </div>
 
       {error ? <p className="field-hint">{error}</p> : null}
-
       <div className="calloffs-table-wrap">
         <table className="calloffs-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Call Off</th>
-              <th>Through Date</th>
-              <th>Reason</th>
-              <th />
-            </tr>
-          </thead>
+          <thead><tr><th>Name</th><th>Call Off</th><th>Through Date</th><th>Reason</th><th /></tr></thead>
           <tbody>
             {visible.map((row) => (
-              <SheetRow
-                key={row.id}
-                row={row}
-                today={today}
-                onRemove={() => void removeRow(row.id)}
-              />
+              <SheetRow key={row.id} row={row} today={today} onRemove={() => void removeRow(row.id)} />
             ))}
-            {!visible.length ? (
-              <tr>
-                <td colSpan={5}>
-                  <p className="oot-empty">No rows yet. Add a driver above to start the log.</p>
-                </td>
-              </tr>
-            ) : null}
+            {!visible.length ? <tr><td colSpan={5}><p className="oot-empty">No rows yet. Add a driver above to start the log.</p></td></tr> : null}
           </tbody>
         </table>
       </div>
@@ -226,15 +176,7 @@ export function CallOffsScreen() {
   );
 }
 
-function SheetRow({
-  row,
-  today,
-  onRemove,
-}: {
-  row: CallOffLogEntry;
-  today: string;
-  onRemove: () => void;
-}) {
+function SheetRow({ row, today, onRemove }: { row: CallOffLogEntry; today: string; onRemove: () => void }) {
   const last = row.end ?? row.start;
   const current = row.start <= today && last >= today;
   const past = last < today;
@@ -251,9 +193,7 @@ function SheetRow({
         </span>
       </td>
       <td className="calloffs-actions">
-        <button type="button" className="text-btn" onClick={onRemove} aria-label={`Remove ${row.name}`}>
-          ×
-        </button>
+        <button type="button" className="text-btn" onClick={onRemove} aria-label={`Remove ${row.name}`}>×</button>
       </td>
     </tr>
   );
