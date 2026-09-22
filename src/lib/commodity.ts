@@ -18,29 +18,32 @@ const TONES: Record<string, TagTone> = {
   default: { bg: "#2a2e36", fg: "#d4d0c8", border: "#4a4e56" },
 };
 
+function isCdCommodity(c: string): boolean {
+  return c.includes("c&d") || c.includes("c and d") || /(^|\W)cd(\W|$)/.test(c);
+}
+
 export function commodityTone(commodity: string): TagTone {
   const c = commodity.toLowerCase();
   if (c.includes("leachate")) return TONES.leachate;
   if (c.includes("residual") || c.includes("residue")) return TONES.residual;
   if (c.includes("glass")) return TONES.glass;
+  if (isCdCommodity(c)) return TONES.cd;
   if (c.includes("trash") || c.includes("msw")) return TONES.trash;
   if (c.includes("recycle")) return TONES.recycle;
   if (c.includes("yard")) return TONES.yard;
   if (c.includes("wood")) return TONES.wood;
   if (c.includes("cardboard")) return TONES.cardboard;
-  if (c.includes("c&d") || c.includes("c and d") || c === "cd") return TONES.cd;
   if (c.includes("tire")) return TONES.tires;
   return TONES.default;
 }
 
 /**
- * Bucket for Today / EOD summary cards, commodity filters, and rank grouping.
- * C&D and Tires roll into TRASH (MSW), matching the Dispatch Board sheet: those
- * hauls are entered on the Trash hour grid and already sit inside Total MSW.
- * They are not a leftover outside TRASH / LEACHATE / WALKING-FLOOR.
- * Load tags still show the typed commodity; commodityRankLabel keeps "C&D" and
- * "Tires" as display names. Rank rows group by this tally bucket, so they
- * appear under Trash (MSW) rather than as their own ranks.
+ * Bucket for Today commodity rows and filters.
+ * Trash (MSW) and Leachate stay their own buckets.
+ * C&D, tires, recycle, yard, wood, residual, glass, cardboard stay named.
+ * Old rows tagged Walking-floor / WF still map to WALKING-FLOOR.
+ * Header walking-floor totals are computed in totals.ts (everything
+ * that is not Trash/MSW or Leachate) — not by collapsing names here.
  */
 export function tallyLabel(commodity: string): string {
   const c = commodity.toLowerCase();
@@ -48,13 +51,13 @@ export function tallyLabel(commodity: string): string {
   if (c.includes("walking") || /(^|\W)wf(\W|$)/.test(c)) return "WALKING-FLOOR";
   if (c.includes("residual") || c.includes("residue")) return "RESIDUAL";
   if (c.includes("glass")) return "GLASS";
+  if (isCdCommodity(c)) return "C&D";
   if (c.includes("trash") || c.includes("msw")) return "TRASH";
   if (c.includes("yard")) return "YARD";
   if (c.includes("recycle")) return "RECYCLE";
   if (c.includes("wood")) return "WOOD";
   if (c.includes("cardboard")) return "CARDBOARD";
-  if (c.includes("c&d")) return "TRASH";
-  if (c.includes("tire")) return "TRASH";
+  if (c.includes("tire")) return "TIRES";
   return commodity.toUpperCase();
 }
 
@@ -65,12 +68,12 @@ export function commodityRankLabel(commodity: string): string {
   if (c.includes("walking") || /(^|\W)wf(\W|$)/.test(c)) return "Walking Floor";
   if (c.includes("residual") || c.includes("residue")) return "Residual";
   if (c.includes("glass")) return "Glass";
+  if (isCdCommodity(c)) return "C&D";
   if (c.includes("trash") || c.includes("msw")) return "Trash (MSW)";
   if (c.includes("yard")) return "Yard Waste";
   if (c.includes("recycle")) return "Recycle";
   if (c.includes("wood")) return "Wood";
   if (c.includes("cardboard")) return "Cardboard";
-  if (c.includes("c&d")) return "C&D";
   if (c.includes("tire")) return "Tires";
   return commodity;
 }
