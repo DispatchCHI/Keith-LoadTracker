@@ -1,6 +1,6 @@
 //! Native HTTP for Supabase from the desktop shell.
 //! WebView fetch and plugin-http both fail CORS/TLS on Windows; this uses
-//! the same reqwest + rustls-native-roots stack as SigAlert.
+//! a direct reqwest + rustls-native-roots client instead.
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
