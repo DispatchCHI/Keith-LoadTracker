@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { weekStartingMonday, weekStartingSunday } from "./chicagoDate";
+import { previousWorkingDay, weekStartingMonday, weekStartingSunday } from "./chicagoDate";
 
 describe("weekStartingSunday", () => {
   it("returns Sunday through Saturday for a midweek date", () => {
@@ -38,5 +38,21 @@ describe("weekStartingMonday", () => {
   it("still returns Monday through Sunday when asked", () => {
     expect(weekStartingMonday("2026-09-16")[0]).toBe("2026-09-14");
     expect(weekStartingMonday("2026-09-16")[6]).toBe("2026-09-20");
+  });
+});
+
+describe("previousWorkingDay", () => {
+  it("skips Sunday when today is Monday, landing on Saturday", () => {
+    // 2026-09-21 is a Monday.
+    expect(previousWorkingDay("2026-09-21")).toBe("2026-09-19");
+  });
+
+  it("is a plain calendar day back for every other weekday", () => {
+    expect(previousWorkingDay("2026-09-22")).toBe("2026-09-21"); // Tue -> Mon
+    expect(previousWorkingDay("2026-09-19")).toBe("2026-09-18"); // Sat -> Fri
+  });
+
+  it("still steps back one day from a Sunday, landing on Saturday", () => {
+    expect(previousWorkingDay("2026-09-20")).toBe("2026-09-19"); // Sun -> Sat
   });
 });

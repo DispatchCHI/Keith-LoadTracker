@@ -68,6 +68,8 @@ describe("Call-Off's screen filters", () => {
     const src = readFileSync(new URL("../screens/CallOffsScreen.tsx", import.meta.url), "utf8");
     expect(src).toContain('"yesterday"');
     expect(src).toContain("Yesterday (");
-    expect(src).toContain("addDays(today, -1)");
+    // "Yesterday" means the last working day, not a plain calendar day back —
+    // from a Monday that's Saturday, since the yard doesn't run Sundays.
+    expect(src).toContain("previousWorkingDay(today)");
   });
 });
