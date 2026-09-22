@@ -24,7 +24,6 @@ import {
   type DailyEodTotals,
 } from "../lib/dailyEod";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
-import { getSupabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
 type DailyEodContextValue = {
@@ -96,25 +95,6 @@ export function DailyEodProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  useEffect(() => {
-    if (!cloud) return;
-    const supabase = getSupabase();
-    if (!supabase) return;
-    const channel = supabase
-      .channel("daily-eod-totals-crew")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "daily_eod_totals" },
-        () => {
-          void refresh();
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [cloud, refresh]);
 
   useEffect(() => {
     if (!cloud) return;

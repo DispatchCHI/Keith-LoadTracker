@@ -275,25 +275,6 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    const supabase = getSupabase();
-    if (!supabase) return;
-    const channel = supabase
-      .channel("specialty-opens-crew")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "specialty_opens" },
-        () => {
-          void refresh();
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [cloud, refresh]);
-
-  useEffect(() => {
-    if (!cloud) return;
     return attachCloudRefresh(refresh);
   }, [cloud, refresh]);
 

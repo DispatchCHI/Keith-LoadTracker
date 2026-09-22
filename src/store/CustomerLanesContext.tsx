@@ -194,27 +194,6 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    const supabase = getSupabase();
-    if (!supabase) return;
-    const channel = supabase
-      .channel("customer-lanes-crew")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: CUSTOMER_LANES_TABLE },
-        () => {
-          scheduleCloudRefresh(() => {
-            void refresh();
-          });
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [cloud, refresh]);
-
-  useEffect(() => {
-    if (!cloud) return;
     return attachCloudRefresh(() => {
       void refresh();
     });

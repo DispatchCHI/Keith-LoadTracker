@@ -22,7 +22,6 @@ import {
   type DispatchTalliesStore,
 } from "../lib/dispatchTallies";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
-import { getSupabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
 type DispatchTalliesContextValue = {
@@ -96,25 +95,6 @@ export function DispatchTalliesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  useEffect(() => {
-    if (!cloud) return;
-    const supabase = getSupabase();
-    if (!supabase) return;
-    const channel = supabase
-      .channel("day-dispatch-tallies-crew")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "day_dispatch_tallies" },
-        () => {
-          void refresh();
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [cloud, refresh]);
 
   useEffect(() => {
     if (!cloud) return;

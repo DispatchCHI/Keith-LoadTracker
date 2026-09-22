@@ -20,7 +20,6 @@ import {
   type DayNotesStore,
 } from "../lib/dayNotes";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
-import { getSupabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
 type DayNotesContextValue = {
@@ -91,25 +90,6 @@ export function DayNotesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  useEffect(() => {
-    if (!cloud) return;
-    const supabase = getSupabase();
-    if (!supabase) return;
-    const channel = supabase
-      .channel("day-notes-crew")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "day_notes" },
-        () => {
-          void refresh();
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [cloud, refresh]);
 
   useEffect(() => {
     if (!cloud) return;

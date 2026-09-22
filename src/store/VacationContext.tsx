@@ -372,32 +372,6 @@ export function VacationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    const supabase = getSupabase();
-    if (!supabase) return;
-    const channel = supabase
-      .channel("vacation-calendar-crew")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "vacation_weeks" },
-        () => {
-          void refresh();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "vacation_entries" },
-        () => {
-          void refresh();
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [cloud, refresh]);
-
-  useEffect(() => {
-    if (!cloud) return;
     return attachCloudRefresh(refresh);
   }, [cloud, refresh]);
 
