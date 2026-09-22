@@ -162,24 +162,21 @@ export function LoadForm({
     [value.stationId],
   );
   const commodities = useMemo(() => {
+    if (!pickupName) return [];
     const fromLanes = laneBookPickup
       ? commoditiesForCustomer(customerLanes, laneBookPickup, today)
       : [];
-    const hasWalkingFloorLane = fromLanes.some(isWalkingFloorName);
-    const namedLanes = uniqueNames(fromLanes);
-    if (hasWalkingFloorLane) {
-      return uniqueNames([
-        ...namedLanes,
-        ...catalogCommodities,
-        "C&D",
-        "Recycle",
-        "Yard Waste",
-        "Cardboard",
-      ]);
-    }
-    if (namedLanes.length) return namedLanes;
-    return uniqueNames([...catalogCommodities, "C&D"]);
-  }, [catalogCommodities, customerLanes, laneBookPickup, today]);
+    return uniqueNames([
+      ...fromLanes,
+      ...catalogCommodities,
+      "C&D",
+      "Recycle",
+      "Yard Waste",
+      "Cardboard",
+      "Residual",
+      "Wood",
+    ]);
+  }, [catalogCommodities, customerLanes, laneBookPickup, pickupName, today]);
   const destinations = useMemo(() => {
     if (!value.commodity.trim()) return [];
     const fromLanes = laneBookPickup
@@ -190,17 +187,16 @@ export function LoadForm({
           today,
         )
       : [];
-    if (fromLanes.length) return fromLanes;
-    if (laneBookPickup) {
-      const walkingDests = destinationsForCustomer(
-        customerLanes,
-        laneBookPickup,
-        "Walking-floor",
-        today,
-      );
-      if (walkingDests.length) return walkingDests;
-    }
-    return destinationsFor(value.stationId, value.commodity);
+    const catalog = destinationsFor(value.stationId, value.commodity);
+    const walkingDests = laneBookPickup
+      ? destinationsForCustomer(
+          customerLanes,
+          laneBookPickup,
+          "Walking-floor",
+          today,
+        )
+      : [];
+    return uniqueNames([...fromLanes, ...catalog, ...walkingDests]);
   }, [customerLanes, laneBookPickup, today, value.commodity, value.stationId]);
   const cascadeNote = useMemo(() => {
     if (!laneBookPickup) return null;
@@ -275,7 +271,7 @@ export function LoadForm({
     Boolean(original?.commodity) &&
     original!.commodity !== value.commodity &&
     original!.commodity !== "" &&
-    !commodities.some((item) => commoditiesMatch(item, original!.commodity)) &&
+    !commodities.some((item) => item === original!.commodity) &&
     !isWalkingFloorName(original!.commodity);
   const invalidDestination =
     Boolean(original?.destination) &&
@@ -384,14 +380,11 @@ export function LoadForm({
         {isCustom && !laneBookPickup ? (
           <>
             <div className="chip-row">
-              {(customPickupId
-                ? specialtyCommodityChips(CUSTOM_SPECIALTY_LOAD_TYPES)
-                : uniqueNames([
-                    ...CUSTOM.exampleCommodities,
-                    ...catalogCommodities,
-                    "C&D",
-                  ])
-              ).map((item) => (
+              {specialtyCommodityChips([
+                ...CUSTOM_SPECIALTY_LOAD_TYPES,
+                ...CUSTOM.exampleCommodities,
+                ...catalogCommodities,
+              ]).map((item) => (
                 <Chip
                   key={item}
                   label={item}
@@ -417,7 +410,7 @@ export function LoadForm({
               <Chip
                 key={item}
                 label={item}
-                selected={commoditiesMatch(value.commodity, item)}
+                selected={value.commodity === item}
                 muted={!pickupName}
                 onClick={() => {
                   if (!pickupName) return;
@@ -433,7 +426,9 @@ export function LoadForm({
                   onChange({
                     ...value,
                     commodity: item,
-                    destination: cascaded.destination,
+                    destination: isWalkingFloorName(cascaded.destination)
+                      ? ""
+                      : cascaded.destination,
                   });
                 }}
               />
