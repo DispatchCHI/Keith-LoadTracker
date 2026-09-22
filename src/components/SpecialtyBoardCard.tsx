@@ -305,7 +305,7 @@ function CustomSpecialtyPicker({
   onCancel: () => void;
   onAdd: (chip: string) => void;
 }) {
-  const [loadType, setLoadType] = useState<CustomSpecialtyLoadType>("Walking-floor");
+  const [loadType, setLoadType] = useState<CustomSpecialtyLoadType>("Recycle");
   const [dest, setDest] = useState("");
   return (
     <form
