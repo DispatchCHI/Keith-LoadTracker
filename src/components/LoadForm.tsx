@@ -4,6 +4,8 @@ import {
   CUSTOM_ID,
   FREQUENT_STATION_IDS,
   STATIONS,
+  commoditiesFor,
+  destinationsFor,
   getStation,
   sameDestination,
 } from "../data/stations";
@@ -43,11 +45,17 @@ const CUSTOM_SPECIALTY_COMMODITIES: Record<string, string> = {
   Wood: "Wood",
 };
 
+const WALKING_FLOOR_NAME = /walking[\s-]*floor/i;
+
+function isWalkingFloorName(value: string): boolean {
+  return WALKING_FLOOR_NAME.test(value);
+}
+
 function specialtyCommodityChips(loadTypes: readonly string[]): string[] {
   const seen = new Set<string>();
   const chips: string[] = [];
   for (const item of loadTypes) {
-    if (item === "Walking-floor" || item === "Walking Floor") continue;
+    if (isWalkingFloorName(item)) continue;
     const label = CUSTOM_SPECIALTY_COMMODITIES[item] ?? item;
     if (seen.has(label)) continue;
     seen.add(label);
@@ -55,6 +63,20 @@ function specialtyCommodityChips(loadTypes: readonly string[]): string[] {
   }
   if (!chips.includes("C&D")) chips.push("C&D");
   return chips;
+}
+
+function uniqueNames(values: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const name = value.trim();
+    if (!name || isWalkingFloorName(name)) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
 }
 
 export type FormState = {
@@ -135,26 +157,51 @@ export function LoadForm({
     if (laneCustomers.some((name) => placesMatch(name, pickupName))) return pickupName;
     return null;
   }, [laneCustomers, pickupName]);
+  const catalogCommodities = useMemo(
+    () => commoditiesFor(value.stationId === CUSTOM_ID ? undefined : value.stationId),
+    [value.stationId],
+  );
   const commodities = useMemo(() => {
-    if (laneBookPickup) {
-      return commoditiesForCustomer(customerLanes, laneBookPickup, today).filter(
-        (item) => !/walking[\s-]*floor/i.test(item),
-      );
+    const fromLanes = laneBookPickup
+      ? commoditiesForCustomer(customerLanes, laneBookPickup, today)
+      : [];
+    const hasWalkingFloorLane = fromLanes.some(isWalkingFloorName);
+    const namedLanes = uniqueNames(fromLanes);
+    if (hasWalkingFloorLane) {
+      return uniqueNames([
+        ...namedLanes,
+        ...catalogCommodities,
+        "C&D",
+        "Recycle",
+        "Yard Waste",
+        "Cardboard",
+      ]);
     }
-    if (isCustom) return [];
-    return [];
-  }, [customerLanes, isCustom, laneBookPickup, today]);
+    if (namedLanes.length) return namedLanes;
+    return uniqueNames([...catalogCommodities, "C&D"]);
+  }, [catalogCommodities, customerLanes, laneBookPickup, today]);
   const destinations = useMemo(() => {
-    if (laneBookPickup && value.commodity.trim()) {
-      return destinationsForCustomer(
+    if (!value.commodity.trim()) return [];
+    const fromLanes = laneBookPickup
+      ? destinationsForCustomer(
+          customerLanes,
+          laneBookPickup,
+          value.commodity,
+          today,
+        )
+      : [];
+    if (fromLanes.length) return fromLanes;
+    if (laneBookPickup) {
+      const walkingDests = destinationsForCustomer(
         customerLanes,
         laneBookPickup,
-        value.commodity,
+        "Walking-floor",
         today,
       );
+      if (walkingDests.length) return walkingDests;
     }
-    return [];
-  }, [customerLanes, laneBookPickup, today, value.commodity]);
+    return destinationsFor(value.stationId, value.commodity);
+  }, [customerLanes, laneBookPickup, today, value.commodity, value.stationId]);
   const cascadeNote = useMemo(() => {
     if (!laneBookPickup) return null;
     return `${laneBookPickup} commodity and destination come from Customers lanes.`;
@@ -185,7 +232,7 @@ export function LoadForm({
         value.destination,
         today,
       );
-      const commodity = /walking[\s-]*floor/i.test(cascaded.commodity)
+      const commodity = isWalkingFloorName(cascaded.commodity)
         ? ""
         : cascaded.commodity;
       onChange({
@@ -213,7 +260,7 @@ export function LoadForm({
       value.destination,
       today,
     );
-    const commodity = /walking[\s-]*floor/i.test(cascaded.commodity)
+    const commodity = isWalkingFloorName(cascaded.commodity)
       ? ""
       : cascaded.commodity;
     onChange({
@@ -227,13 +274,12 @@ export function LoadForm({
   const invalidCommodity =
     Boolean(original?.commodity) &&
     original!.commodity !== value.commodity &&
-    Boolean(laneBookPickup) &&
     original!.commodity !== "" &&
-    !commodities.some((item) => commoditiesMatch(item, original!.commodity));
+    !commodities.some((item) => commoditiesMatch(item, original!.commodity)) &&
+    !isWalkingFloorName(original!.commodity);
   const invalidDestination =
     Boolean(original?.destination) &&
     original!.destination !== value.destination &&
-    Boolean(laneBookPickup) &&
     original!.destination !== "" &&
     !destinations.some(
       (item) =>
@@ -340,9 +386,11 @@ export function LoadForm({
             <div className="chip-row">
               {(customPickupId
                 ? specialtyCommodityChips(CUSTOM_SPECIALTY_LOAD_TYPES)
-                : CUSTOM.exampleCommodities.filter(
-                    (item) => !/walking[\s-]*floor/i.test(item),
-                  )
+                : uniqueNames([
+                    ...CUSTOM.exampleCommodities,
+                    ...catalogCommodities,
+                    "C&D",
+                  ])
               ).map((item) => (
                 <Chip
                   key={item}
@@ -370,16 +418,18 @@ export function LoadForm({
                 key={item}
                 label={item}
                 selected={commoditiesMatch(value.commodity, item)}
-                muted={!laneBookPickup}
+                muted={!pickupName}
                 onClick={() => {
-                  if (!laneBookPickup) return;
-                  const cascaded = cascadeCustomerLaneRoute(
-                    customerLanes,
-                    laneBookPickup,
-                    item,
-                    value.destination,
-                    today,
-                  );
+                  if (!pickupName) return;
+                  const cascaded = laneBookPickup
+                    ? cascadeCustomerLaneRoute(
+                        customerLanes,
+                        laneBookPickup,
+                        item,
+                        value.destination,
+                        today,
+                      )
+                    : { destination: value.destination };
                   onChange({
                     ...value,
                     commodity: item,
@@ -388,7 +438,7 @@ export function LoadForm({
                 }}
               />
             ))}
-            {!laneBookPickup ? (
+            {!pickupName ? (
               <p className="field-hint">Select a pickup first.</p>
             ) : commodities.length === 0 ? (
               <p className="field-hint">No lanes for this customer yet — add them on Customers.</p>
@@ -438,15 +488,15 @@ export function LoadForm({
                   placesMatch(value.destination, item) ||
                   sameDestination(value.destination, item)
                 }
-                muted={!laneBookPickup || !value.commodity.trim()}
+                muted={!pickupName || !value.commodity.trim()}
                 onClick={() =>
-                  laneBookPickup &&
+                  pickupName &&
                   value.commodity.trim() &&
                   onChange({ ...value, destination: item })
                 }
               />
             ))}
-            {laneBookPickup && value.commodity.trim() && destinations.length === 0 ? (
+            {pickupName && value.commodity.trim() && destinations.length === 0 ? (
               <p className="field-hint">No destinations for this commodity on Customers.</p>
             ) : null}
           </div>
@@ -464,7 +514,7 @@ export function formComplete(value: FormState): boolean {
       value.commodity.trim() &&
       value.destination.trim() &&
       value.destination !== "Other..." &&
-      !/walking[\s-]*floor/i.test(value.commodity),
+      !isWalkingFloorName(value.commodity),
   );
 }
 
