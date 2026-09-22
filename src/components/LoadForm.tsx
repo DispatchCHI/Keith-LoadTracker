@@ -33,7 +33,6 @@ import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useLoads } from "../store/LoadsContext";
 import { Chip } from "./Chip";
 
-/** Labels shown on the log-load commodity chips. Walking-floor is a tally, not a commodity. */
 const CUSTOM_SPECIALTY_COMMODITIES: Record<string, string> = {
   Leachate: "Leachate (tanker)",
   Trash: "Trash (MSW)",
