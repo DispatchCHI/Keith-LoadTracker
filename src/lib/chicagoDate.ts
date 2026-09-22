@@ -62,6 +62,16 @@ export function addDays(iso: string, n: number): string {
   return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 
+/**
+ * The prior calendar day, skipping Sunday — so "yesterday" from a Monday
+ * lands on Saturday, the last day the yard actually ran, instead of the
+ * (normally empty) Sunday before it.
+ */
+export function previousWorkingDay(iso: string): string {
+  const prev = addDays(iso, -1);
+  return isChicagoSunday(prev) ? addDays(prev, -1) : prev;
+}
+
 export function weekStartingMonday(iso: string): string[] {
   const dow = weekdayOfISO(iso);
   const mondayOffset = dow === 0 ? -6 : 1 - dow;
