@@ -9,7 +9,6 @@ import {
 import { createPortal } from "react-dom";
 import { formatHeaderDate } from "../lib/chicagoDate";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
-import { getSupabase } from "../lib/supabase";
 import { useAuth } from "../store/AuthContext";
 import {
   STATION_CALL_HOURS,
@@ -454,34 +453,10 @@ export function StationCallsCard({ date }: { date: string }) {
 
     void hydrate();
 
-    const supabase = getSupabase();
-    if (!supabase) {
-      return () => {
-        alive = false;
-      };
-    }
-    const channel = supabase
-      .channel("station-call-crew")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "station_call_days" },
-        () => {
-          void hydrate();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "station_call_notes" },
-        () => {
-          void hydrate();
-        },
-      )
-      .subscribe();
     const stopRefresh = attachCloudRefresh(hydrate);
     return () => {
       alive = false;
       stopRefresh();
-      void supabase.removeChannel(channel);
     };
   }, [cloud, user?.id]);
 
