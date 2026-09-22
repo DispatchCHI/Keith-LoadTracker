@@ -6,7 +6,7 @@
     "types": ["node"],
     "skipLibCheck": true,
 
-    /* Bundler mode — vite.config imports src/lib HTTP helpers */
+    /* Bundler mode — vite.config is a plain Vite config file */
     "module": "esnext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
@@ -21,7 +21,6 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": [
-    "vite.config.ts",
-    "src/lib/sigalertHttp.ts"
+    "vite.config.ts"
   ]
 }
