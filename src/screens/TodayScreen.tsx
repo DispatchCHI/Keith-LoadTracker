@@ -16,7 +16,6 @@ import { DayPicker } from "../components/DayPicker";
 import { DriversCard } from "../components/DriversCard";
 import { StationCallsCard } from "../components/StationCallsCard";
 import { SpecialtyBoardCard } from "../components/SpecialtyBoardCard";
-import { ChicagoTrafficCard } from "../components/ChicagoTrafficCard";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
 import { LoadRow } from "../components/LoadRow";
 
@@ -153,8 +152,6 @@ export function TodayScreen({
           hookerDispatchedToday={msWDispatchedToday.hooker}
         />
       </div>
-
-      <ChicagoTrafficCard />
 
       <StationCallsCard date={date} />
 
