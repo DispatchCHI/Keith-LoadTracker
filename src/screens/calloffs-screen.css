@@ -48,6 +48,66 @@
   gap: 6px;
 }
 
+/* These presets intentionally mirror the Available drivers page colors. */
+.calloffs-reason-row .calloff-kind-btn {
+  min-height: 48px;
+  height: 48px;
+  width: auto;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  opacity: 1;
+}
+
+/* Call Off = blue */
+.calloffs-reason-row .calloff-kind-call-off,
+.calloffs-reason-row .calloff-kind-call-off.selected {
+  background: #1d4f91 !important;
+  border: 1px solid #163e73 !important;
+  color: #ffffff !important;
+}
+
+/* P-Day = green */
+.calloffs-reason-row .calloff-kind-p-day,
+.calloffs-reason-row .calloff-kind-p-day.selected {
+  background: #166534 !important;
+  border: 1px solid #14532d !important;
+  color: #ffffff !important;
+}
+
+/* Ok'd Off = gray */
+.calloffs-reason-row .calloff-kind-okd-off,
+.calloffs-reason-row .calloff-kind-okd-off.selected {
+  background: #6b7280 !important;
+  border: 1px solid #4b5563 !important;
+  color: #ffffff !important;
+}
+
+/* Vacation Day = light blue */
+.calloffs-reason-row .calloff-preset-vacation,
+.calloffs-reason-row .calloff-preset-vacation.selected {
+  background: #d6e8fb !important;
+  border: 1px solid #7eb6ff !important;
+  color: #123152 !important;
+}
+
+/* FMLA = pink */
+.calloffs-reason-row .calloff-kind-fmla,
+.calloffs-reason-row .calloff-kind-fmla.selected {
+  background: #db2777 !important;
+  border: 1px solid #be185d !important;
+  color: #ffffff !important;
+}
+
+/* Late/Early = yellow */
+.calloffs-reason-row .calloff-kind-late-early,
+.calloffs-reason-row .calloff-kind-late-early.selected {
+  background: #facc15 !important;
+  border: 1px solid #eab308 !important;
+  color: #422006 !important;
+}
+
 .calloffs-table-wrap {
   overflow: auto;
   border: 1px solid var(--line);
