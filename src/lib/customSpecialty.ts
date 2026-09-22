@@ -25,7 +25,11 @@ export const CUSTOM_SPECIALTY_LOAD_TYPES = [
 
 export type CustomSpecialtyLoadType = (typeof CUSTOM_SPECIALTY_LOAD_TYPES)[number];
 
+export const SPECIALTY_CUSTOM_NAMES_EVENT = "klt-specialty-names";
+export const SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT = "klt-specialty-names-flush";
+
 const NAMES_KEY = "chitrader.load-tracker.specialty-custom-names.v1";
+const NAMES_META_KEY = "chitrader.load-tracker.specialty-custom-names.meta.v1";
 
 export function isCustomSpecialtyId(id: string): id is CustomSpecialtyId {
   return (CUSTOM_SPECIALTY_IDS as readonly string[]).includes(id);
@@ -54,6 +58,52 @@ export function readCustomSpecialtyNames(): Record<CustomSpecialtyId, string> {
   return next;
 }
 
+export function readCustomSpecialtyNamesUpdatedAt(): string {
+  try {
+    const raw = localStorage.getItem(NAMES_META_KEY);
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as { updatedAt?: unknown };
+    return typeof parsed.updatedAt === "string" ? parsed.updatedAt : "";
+  } catch {
+    return "";
+  }
+}
+
+function writeNamesMeta(updatedAt: string): void {
+  try {
+    localStorage.setItem(NAMES_META_KEY, JSON.stringify({ updatedAt }));
+  } catch {
+    /* private mode */
+  }
+}
+
+export function namesHaveCustomLabels(
+  names: Record<CustomSpecialtyId, string> = readCustomSpecialtyNames(),
+): boolean {
+  return CUSTOM_SPECIALTY_IDS.some((id) => isCustomSpecialtyRenamed(id, names[id]));
+}
+
+export function applyCustomSpecialtyNames(
+  incoming: Record<string, unknown>,
+  updatedAt: string,
+): Record<CustomSpecialtyId, string> {
+  const next: Record<CustomSpecialtyId, string> = { ...CUSTOM_SPECIALTY_DEFAULT_NAMES };
+  for (const id of CUSTOM_SPECIALTY_IDS) {
+    const value = incoming[id];
+    next[id] = typeof value === "string" ? value : next[id];
+  }
+  try {
+    localStorage.setItem(NAMES_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode */
+  }
+  writeNamesMeta(updatedAt);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(SPECIALTY_CUSTOM_NAMES_EVENT));
+  }
+  return next;
+}
+
 export function readCustomSpecialtyNameField(id: CustomSpecialtyId): string {
   return readCustomSpecialtyNames()[id] ?? CUSTOM_SPECIALTY_DEFAULT_NAMES[id];
 }
@@ -61,7 +111,12 @@ export function readCustomSpecialtyNameField(id: CustomSpecialtyId): string {
 export function writeCustomSpecialtyName(id: CustomSpecialtyId, name: string): void {
   const names = readCustomSpecialtyNames();
   names[id] = name;
-  localStorage.setItem(NAMES_KEY, JSON.stringify(names));
+  try {
+    localStorage.setItem(NAMES_KEY, JSON.stringify(names));
+  } catch {
+    /* private mode */
+  }
+  writeNamesMeta(new Date().toISOString());
 }
 
 export function isCustomSpecialtyRenamed(
