@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
-import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { attachCloudRefresh, scheduleCloudRefresh } from "../lib/cloudRefresh";
 import { clearCustomerBrandOverride } from "../lib/customerBrands";
 import {
   CUSTOMER_LANES_TABLE,
@@ -54,7 +54,6 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     if (Object.keys(persisted.lanes).length) {
       return { lanes: persisted.lanes };
     }
-    // Already seeded (or customers intentionally wiped) — do not resurrect the full book.
     if (persisted.seededAt || persisted.deletedCustomerNames.length) {
       return { lanes: {} };
     }
@@ -154,7 +153,6 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
         toUpload.push(lane);
       }
     }
-    // Strip tombstoned customers so a stale remote row cannot resurrect them.
     const tombstoneIds: string[] = [];
     for (const [id, lane] of Object.entries(merged)) {
       if (deletedCustomersRef.current.has(normalizePlaceName(lane.customer))) {
@@ -188,8 +186,11 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
   }, [refreshInner]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    if (!cloud) return;
+    scheduleCloudRefresh(() => {
+      void refresh();
+    });
+  }, [cloud, refresh]);
 
   useEffect(() => {
     if (!cloud) return;
@@ -201,7 +202,9 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
         "postgres_changes",
         { event: "*", schema: "public", table: CUSTOMER_LANES_TABLE },
         () => {
-          void refresh();
+          scheduleCloudRefresh(() => {
+            void refresh();
+          });
         },
       )
       .subscribe();
@@ -212,7 +215,9 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    return attachCloudRefresh(refresh);
+    return attachCloudRefresh(() => {
+      void refresh();
+    });
   }, [cloud, refresh]);
 
   const saveLane = useCallback(
@@ -224,7 +229,6 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
         deletedCustomersRef.current.delete(key);
       }
       persistLocal(result.store);
-      // Local SoR first — never hold the Save UI on a hung Supabase upsert.
       if (cloud) void cloudUpsert([result.lane]);
       return result.lane;
     },
