@@ -7,6 +7,7 @@ import {
   commoditiesFor,
   destinationsFor,
   getStation,
+  resolveStationId,
   sameDestination,
 } from "../data/stations";
 import { pickupLabel } from "../lib/cascade";
@@ -26,7 +27,6 @@ import {
 import {
   cascadeCustomerLaneRoute,
   commoditiesForCustomer,
-  commoditiesMatch,
   customersWithRealLanes,
   destinationsForCustomer,
   placesMatch,
@@ -157,25 +157,18 @@ export function LoadForm({
     if (laneCustomers.some((name) => placesMatch(name, pickupName))) return pickupName;
     return null;
   }, [laneCustomers, pickupName]);
+  const catalogStationId = resolveStationId(pickupName, value.stationId);
   const catalogCommodities = useMemo(
-    () => commoditiesFor(value.stationId === CUSTOM_ID ? undefined : value.stationId),
-    [value.stationId],
+    () =>
+      commoditiesFor(catalogStationId === CUSTOM_ID ? undefined : catalogStationId),
+    [catalogStationId],
   );
   const commodities = useMemo(() => {
     if (!pickupName) return [];
     const fromLanes = laneBookPickup
       ? commoditiesForCustomer(customerLanes, laneBookPickup, today)
       : [];
-    return uniqueNames([
-      ...fromLanes,
-      ...catalogCommodities,
-      "C&D",
-      "Recycle",
-      "Yard Waste",
-      "Cardboard",
-      "Residual",
-      "Wood",
-    ]);
+    return uniqueNames([...fromLanes, ...catalogCommodities]);
   }, [catalogCommodities, customerLanes, laneBookPickup, pickupName, today]);
   const destinations = useMemo(() => {
     if (!value.commodity.trim()) return [];
@@ -187,17 +180,19 @@ export function LoadForm({
           today,
         )
       : [];
-    const catalog = destinationsFor(value.stationId, value.commodity);
-    const walkingDests = laneBookPickup
-      ? destinationsForCustomer(
-          customerLanes,
-          laneBookPickup,
-          "Walking-floor",
-          today,
-        )
-      : [];
-    return uniqueNames([...fromLanes, ...catalog, ...walkingDests]);
-  }, [customerLanes, laneBookPickup, today, value.commodity, value.stationId]);
+    const catalog = destinationsFor(
+      catalogStationId === CUSTOM_ID ? value.stationId : catalogStationId,
+      value.commodity,
+    );
+    return uniqueNames([...fromLanes, ...catalog]);
+  }, [
+    catalogStationId,
+    customerLanes,
+    laneBookPickup,
+    today,
+    value.commodity,
+    value.stationId,
+  ]);
   const cascadeNote = useMemo(() => {
     if (!laneBookPickup) return null;
     return `${laneBookPickup} commodity and destination come from Customers lanes.`;
@@ -261,7 +256,7 @@ export function LoadForm({
       : cascaded.commodity;
     onChange({
       ...value,
-      stationId: CUSTOM_ID,
+      stationId: resolveStationId(name, CUSTOM_ID),
       pickup: name,
       commodity,
       destination: commodity ? cascaded.destination : "",
