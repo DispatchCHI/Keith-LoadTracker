@@ -9,11 +9,7 @@ import {
   logEntrySubtracts,
   type CallOffLogEntry,
 } from "../lib/callOffLog";
-import {
-  CALL_OFF_KIND_OPTIONS,
-  callOffKindFromReason,
-  type CallOffKind,
-} from "../lib/driverAvailability";
+import { CALL_OFF_KIND_OPTIONS } from "../lib/driverAvailability";
 import { useCallOffLog } from "../store/CallOffLogContext";
 import "./calloffs-screen.css";
 
@@ -22,16 +18,6 @@ type FilterId = "upcoming" | "today" | "yesterday" | "all";
 function kindLabel(reason: string): string {
   const kind = kindForLogEntry({ reason });
   return CALL_OFF_KIND_OPTIONS.find((row) => row.kind === kind)?.label ?? "Note";
-}
-
-function presetKind(reason: string): CallOffKind {
-  return callOffKindFromReason(reason);
-}
-
-function presetClass(reason: string): string {
-  return /^vacation\s+day$/i.test(reason.trim())
-    ? "calloff-preset-vacation"
-    : `calloff-kind-${presetKind(reason)}`;
 }
 
 export function CallOffsScreen() {
@@ -45,15 +31,21 @@ export function CallOffsScreen() {
   const [reason, setReason] = useState("P-Day");
   const [formError, setFormError] = useState<string | null>(null);
 
+  const cutoff = addDays(today, -30);
+  const activeRows = useMemo(
+    () => rows.filter((row) => (row.end ?? row.start) >= cutoff),
+    [rows, cutoff],
+  );
+
   const visible = useMemo(() => {
-    return rows.filter((row) => {
+    return activeRows.filter((row) => {
       const last = row.end ?? row.start;
       if (filter === "today") return row.start <= today && last >= today;
       if (filter === "yesterday") return row.start <= yesterday && last >= yesterday;
       if (filter === "upcoming") return last >= today;
       return true;
     });
-  }, [rows, filter, today, yesterday]);
+  }, [activeRows, filter, today, yesterday]);
 
   const todayCount = rows.filter((row) => {
     const last = row.end ?? row.start;
@@ -69,7 +61,12 @@ export function CallOffsScreen() {
       setFormError("Pick a call-off date.");
       return;
     }
-    const entry = await addRow({ name, start, end: end || null, reason });
+    const entry = await addRow({
+      name,
+      start,
+      end: end || null,
+      reason,
+    });
     if (!entry) {
       setFormError("Could not save that row.");
       return;
@@ -91,7 +88,7 @@ export function CallOffsScreen() {
           </div>
         </div>
         <p className="field-hint tight">
-          {rows.length} row{rows.length === 1 ? "" : "s"} · {todayCount} off today
+          {activeRows.length} row{activeRows.length === 1 ? "" : "s"} · {todayCount} off today
           {cloud ? " · synced" : " · this device"}
         </p>
       </header>
@@ -110,65 +107,99 @@ export function CallOffsScreen() {
       >
         <div className="calloffs-add-grid">
           <DriverNameInput value={name} onChange={setName} placeholder="Driver name" aria-label="Driver name" />
-          <input className="text-input" type="date" value={start} onChange={(event) => setStart(event.target.value)} aria-label="Call off date" />
-          <input className="text-input" type="date" value={end} onChange={(event) => setEnd(event.target.value)} aria-label="Through date" />
+          <input
+            className="text-input"
+            type="date"
+            value={start}
+            onChange={(event) => setStart(event.target.value)}
+            aria-label="Call off date"
+          />
+          <input
+            className="text-input"
+            type="date"
+            value={end}
+            onChange={(event) => setEnd(event.target.value)}
+            aria-label="Through date"
+          />
         </div>
-
         <input
-          className="text-input calloffs-reason-input"
+          className="text-input"
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder="Reason"
           aria-label="Reason"
         />
-
         <div className="calloffs-reason-row" role="group" aria-label="Reason presets">
-          {CALL_OFF_REASON_PRESETS.map((item) => {
-            const selected = reason === item;
-            return (
-              <button
-                key={item}
-                type="button"
-                className={`${presetClass(item)}${selected ? " selected" : ""}`}
-                aria-pressed={selected}
-                onClick={() => setReason(item)}
-              >
-                {item}
-              </button>
-            );
-          })}
+          {CALL_OFF_REASON_PRESETS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              className={reason === item ? "day-chip day-chip-active" : "day-chip"}
+              onClick={() => setReason(item)}
+            >
+              {item}
+            </button>
+          ))}
         </div>
-
         {formError ? <p className="form-error">{formError}</p> : null}
         <div className="vac-add-actions">
-          <button type="submit" className="text-btn amber">Add row</button>
+          <button type="submit" className="text-btn amber">
+            Add row
+          </button>
         </div>
       </form>
 
       <div className="vac-year-row" role="tablist" aria-label="Call-off filter">
         {(
           [
-            ["all", `All (${rows.length})`],
+            ["all", `All (${activeRows.length})`],
             ["upcoming", "Upcoming"],
             ["today", `Today (${formatSheetStyleDate(today)})`],
             ["yesterday", `Yesterday (${formatSheetStyleDate(yesterday)})`],
           ] as const
         ).map(([id, label]) => (
-          <button key={id} type="button" className={filter === id ? "day-chip day-chip-active" : "day-chip"} onClick={() => setFilter(id)}>
+          <button
+            key={id}
+            type="button"
+            className={filter === id ? "day-chip day-chip-active" : "day-chip"}
+            onClick={() => setFilter(id)}
+          >
             {label}
           </button>
         ))}
       </div>
 
       {error ? <p className="field-hint">{error}</p> : null}
+
       <div className="calloffs-table-wrap">
         <table className="calloffs-table">
-          <thead><tr><th>Name</th><th>Call Off</th><th>Through Date</th><th>Reason</th><th /></tr></thead>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Call Off</th>
+              <th>Through Date</th>
+              <th>Reason</th>
+              <th />
+            </tr>
+          </thead>
           <tbody>
             {visible.map((row) => (
-              <SheetRow key={row.id} row={row} today={today} onRemove={() => void removeRow(row.id)} />
+              <SheetRow
+                key={row.id}
+                row={row}
+                today={today}
+                onRemove={() => void removeRow(row.id)}
+              />
             ))}
-            {!visible.length ? <tr><td colSpan={5}><p className="oot-empty">No rows yet. Add a driver above to start the log.</p></td></tr> : null}
+            {!visible.length ? (
+              <tr>
+                <td colSpan={5}>
+                  <p className="oot-empty">
+                    No rows yet. Add a driver above to start the log.
+                  </p>
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
@@ -176,11 +207,18 @@ export function CallOffsScreen() {
   );
 }
 
-function SheetRow({ row, today, onRemove }: { row: CallOffLogEntry; today: string; onRemove: () => void }) {
+function SheetRow({
+  row,
+  today,
+  onRemove,
+}: {
+  row: CallOffLogEntry;
+  today: string;
+  onRemove: () => void;
+}) {
   const last = row.end ?? row.start;
   const current = row.start <= today && last >= today;
   const past = last < today;
-
   return (
     <tr className={current ? "is-today" : past ? "is-past" : undefined}>
       <td>{row.name}</td>
@@ -193,7 +231,9 @@ function SheetRow({ row, today, onRemove }: { row: CallOffLogEntry; today: strin
         </span>
       </td>
       <td className="calloffs-actions">
-        <button type="button" className="text-btn" onClick={onRemove} aria-label={`Remove ${row.name}`}>×</button>
+        <button type="button" className="text-btn" onClick={onRemove} aria-label={`Remove ${row.name}`}>
+          ×
+        </button>
       </td>
     </tr>
   );
