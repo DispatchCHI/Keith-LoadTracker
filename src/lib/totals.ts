@@ -9,7 +9,6 @@ export type RankRow = {
   key: string;
   label: string;
   count: number;
-  /** Today / EOD TRASH bubble count for this group (MSW only). */
   trashCount: number;
   custom?: boolean;
 };
@@ -20,7 +19,6 @@ function sortRanks(rows: RankRow[]): RankRow[] {
   );
 }
 
-/** Collapsed grouping-row label: trash / total, e.g. `10 / 30`. */
 export function formatRankTrashTotal(
   row: Pick<RankRow, "count" | "trashCount">,
   opts?: { commodity?: boolean },
@@ -73,13 +71,14 @@ export function rankDestinations(loads: Load[]): RankRow[] {
   return sortRanks([...map.values()]);
 }
 
-/** Today commodity accordion: one row per real commodity (C&D, Recycle, Residual…). */
 export function rankCommodities(loads: Load[]): RankRow[] {
   const map = new Map<string, RankRow>();
   for (const load of loads) {
     const key = tallyLabel(load.commodity);
+    if (!key) continue;
     const label =
       key === "TRASH" ? "Trash (MSW)" : commodityRankLabel(load.commodity);
+    if (!label) continue;
     bumpRank(map, key, label, load);
   }
   return sortRanks([...map.values()]);
@@ -167,7 +166,6 @@ function isMswOrLeachate(load: Load): boolean {
   return key === "TRASH" || key === "LEACHATE";
 }
 
-/** Header walking-floor bubble: every load that is not Trash (MSW) and not Leachate. */
 export function isWalkingFloorLoad(load: Load): boolean {
   if (isVanDrunenPickup(load) || isGraysLakeRecycleLane(load)) return true;
   if (isMswOrLeachate(load)) return false;
