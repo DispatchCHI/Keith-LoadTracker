@@ -17,8 +17,8 @@ import { DriversCard } from "../components/DriversCard";
 import { StationCallsCard } from "../components/StationCallsCard";
 import { SpecialtyBoardCard } from "../components/SpecialtyBoardCard";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
+import { EodReportButton } from "../components/EodReportButton";
 import { LoadRow } from "../components/LoadRow";
-
 
 function scrollParentFor(el: HTMLElement | null): HTMLElement | null {
   let node: HTMLElement | null = el?.parentElement ?? null;
@@ -74,8 +74,6 @@ export function TodayScreen({
     pinDayLoadsTopRef.current = false;
     const el = dayLoadsBlockRef.current;
     if (!el) return;
-    // Pin the Day Loads header to the top of the scroll container. Expanding a
-    // long list otherwise leaves scroll stuck at the document bottom.
     const pad = 8;
     const scroller = scrollParentFor(el);
     if (scroller) {
@@ -144,6 +142,7 @@ export function TodayScreen({
           <button type="button" className="log-load-top notes-top" onClick={() => onNotes(date)}>
             Notes
           </button>
+          <EodReportButton date={date} />
         </div>
         <DispatchTalliesRow
           date={date}
@@ -184,7 +183,6 @@ export function TodayScreen({
             className="totals-toggle"
             aria-expanded={loadsOpen}
             onMouseDown={(event) => {
-              // Keep focus from scrolling the newly expanded list into view.
               event.preventDefault();
             }}
             onClick={() => {
@@ -221,7 +219,6 @@ export function TodayScreen({
           ) : null}
         </section>
       )}
-
     </div>
   );
 }
