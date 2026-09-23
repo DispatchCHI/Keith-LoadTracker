@@ -1,5 +1,5 @@
 import type { DriverRosterEntry, DriverRosterStore } from "./driverRoster";
-import { cleanAssignedTruck } from "./driverRoster";
+import { cleanAssignedTruck, cleanTruckNumber } from "./driverRoster";
 
 /**
  * Assigned unit numbers live on the Full Roster card until a dispatcher
@@ -17,6 +17,20 @@ export function preserveAssignedTrucks(
     const kept = cleanAssignedTruck(previous.entries[id]?.assignedTruck ?? null);
     if (!kept) continue;
     entries[id] = { ...row, assignedTruck: kept };
+  }
+  return { entries };
+}
+
+export function preserveTruckNumbers(
+  previous: DriverRosterStore,
+  incoming: DriverRosterStore,
+): DriverRosterStore {
+  const entries: Record<string, DriverRosterEntry> = { ...incoming.entries };
+  for (const [id, row] of Object.entries(entries)) {
+    if (cleanTruckNumber(row.truckNumber)) continue;
+    const kept = cleanTruckNumber(previous.entries[id]?.truckNumber ?? null);
+    if (!kept) continue;
+    entries[id] = { ...row, truckNumber: kept };
   }
   return { entries };
 }
