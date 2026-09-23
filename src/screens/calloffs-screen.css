@@ -159,6 +159,13 @@
   text-transform: uppercase;
 }
 
+.calloffs-emp {
+  width: 72px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
 .calloffs-table tr.is-today {
   background: color-mix(in srgb, var(--brand, #d8282c) 10%, transparent);
 }
