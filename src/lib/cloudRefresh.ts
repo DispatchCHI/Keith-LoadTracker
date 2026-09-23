@@ -13,6 +13,7 @@ import {
   CLOUD_REFRESH_DEBOUNCE_MS,
   isNetworkSyncBackoffActive,
 } from "./syncControl";
+import { getSupabase } from "./supabase";
 
 export const CLOUD_REFRESH_INTERVAL_MS = 90_000;
 
@@ -79,5 +80,36 @@ export function attachCloudRefresh(
     window.removeEventListener("focus", onVisible);
     window.removeEventListener("online", run);
     window.clearInterval(pollId);
+  };
+}
+
+/**
+ * Subscribe to postgres_changes on crew tables so other desks see edits
+ * immediately. Events are funneled through scheduleCloudRefresh so a burst
+ * of row writes collapses into one pull instead of a sync storm.
+ * Tables must already be in the supabase_realtime publication.
+ */
+export function attachCrewTableRealtime(
+  channelName: string,
+  tables: string[],
+  onChange: CloudRefreshFn,
+): () => void {
+  const supabase = getSupabase();
+  if (!supabase || !tables.length) return () => {};
+
+  let channel = supabase.channel(channelName);
+  for (const table of tables) {
+    channel = channel.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table },
+      () => {
+        scheduleCloudRefresh(onChange);
+      },
+    );
+  }
+  channel.subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
   };
 }
