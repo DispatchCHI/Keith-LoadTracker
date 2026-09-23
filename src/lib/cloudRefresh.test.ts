@@ -46,8 +46,6 @@ describe("attachCloudRefresh", () => {
     clearNetworkSyncBackoff();
   });
 
-  // Ensure a prior suite's backoff cannot suppress pulls.
-
   it("pulls on focus, online, tab visible, and the poll interval", () => {
     vi.useFakeTimers();
     const { emit } = stubDom("visible");
@@ -57,7 +55,6 @@ describe("attachCloudRefresh", () => {
     emit("focus");
     emit("online");
     emit("visibilitychange");
-    // Debounce coalesces the burst into a single pull.
     vi.advanceTimersByTime(1_000);
     expect(refresh).toHaveBeenCalledTimes(1);
     stop();
@@ -94,6 +91,20 @@ describe("crew cloud refresh wiring", () => {
     for (const file of files) {
       const src = readFileSync(new URL(file, import.meta.url), "utf8");
       expect(src, file).toContain("attachCloudRefresh");
+    }
+  });
+
+  it("wires vacation, roster, call-off, gone, and lanes to crew realtime", () => {
+    const files = [
+      "../store/VacationContext.tsx",
+      "../store/DriverRosterContext.tsx",
+      "../store/CallOffLogContext.tsx",
+      "../store/DriverGoneContext.tsx",
+      "../store/CustomerLanesContext.tsx",
+    ];
+    for (const file of files) {
+      const src = readFileSync(new URL(file, import.meta.url), "utf8");
+      expect(src, file).toContain("attachCrewTableRealtime");
     }
   });
 });
