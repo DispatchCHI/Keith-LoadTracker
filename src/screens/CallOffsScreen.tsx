@@ -9,12 +9,15 @@ import {
   logEntrySubtracts,
   type CallOffLogEntry,
 } from "../lib/callOffLog";
+import { cleanDriverName } from "../lib/driverRoster";
 import {
   CALL_OFF_KIND_OPTIONS,
   callOffKindFromReason,
   type CallOffKind,
 } from "../lib/driverAvailability";
 import { useCallOffLog } from "../store/CallOffLogContext";
+import { useDriverGone } from "../store/DriverGoneContext";
+import { useDriverRoster } from "../store/DriverRosterContext";
 import "./calloffs-screen.css";
 
 type FilterId = "upcoming" | "today" | "yesterday" | "all";
@@ -34,16 +37,65 @@ function presetClass(reason: string): string {
     : `calloff-kind-${presetKind(reason)}`;
 }
 
+function nameKey(raw: string): string {
+  return cleanDriverName(raw)
+    .toLowerCase()
+    .replace(/\s*-\s*t\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function lastFirstKey(raw: string): string {
+  const parts = nameKey(raw).split(" ").filter(Boolean);
+  if (parts.length < 2) return nameKey(raw);
+  return `${parts[parts.length - 1]} ${parts[0]}`;
+}
+
+function lookupEmpNumber(
+  name: string,
+  byExact: Map<string, string>,
+  byLastFirst: Map<string, string>,
+): string {
+  const exact = nameKey(name);
+  if (byExact.has(exact)) return byExact.get(exact) ?? "";
+  const flip = lastFirstKey(name);
+  return byLastFirst.get(flip) ?? "";
+}
+
 export function CallOffsScreen() {
   const today = chicagoToday();
   const yesterday = previousWorkingDay(today);
   const { rows, cloud, error, addRow, removeRow } = useCallOffLog();
+  const { store: roster } = useDriverRoster();
+  const gone = useDriverGone();
   const [filter, setFilter] = useState<FilterId>("all");
   const [name, setName] = useState("");
   const [start, setStart] = useState(today);
   const [end, setEnd] = useState("");
   const [reason, setReason] = useState("P-Day");
   const [formError, setFormError] = useState<string | null>(null);
+
+  const empMaps = useMemo(() => {
+    const byExact = new Map<string, string>();
+    const byLastFirst = new Map<string, string>();
+    const remember = (label: string, emp: string | null | undefined) => {
+      const number = (emp ?? "").trim();
+      if (!number) return;
+      const exact = nameKey(label);
+      if (!exact) return;
+      if (!byExact.has(exact)) byExact.set(exact, number);
+      const flip = lastFirstKey(label);
+      if (flip && !byLastFirst.has(flip)) byLastFirst.set(flip, number);
+    };
+    for (const entry of Object.values(roster.entries)) {
+      if (entry.kind !== "full") continue;
+      remember(entry.name, entry.truckNumber);
+    }
+    for (const entry of Object.values(gone.store.entries)) {
+      remember(entry.name, entry.employeeNumber);
+    }
+    return { byExact, byLastFirst };
+  }, [gone.store.entries, roster.entries]);
 
   const cutoff = addDays(today, -30);
   const activeRows = useMemo(
@@ -103,7 +155,7 @@ export function CallOffsScreen() {
       </header>
 
       <p className="field-hint">
-        Same sheet as before: Name, Call Off, Through Date, Reason. P-Day / Call Off /
+        Same sheet as before: EMP #, Name, Call Off, Through Date, Reason. P-Day / Call Off /
         Ok'd Off subtract from Available. Park-by and late notes do not.
       </p>
 
@@ -169,12 +221,33 @@ export function CallOffsScreen() {
       {error ? <p className="field-hint">{error}</p> : null}
       <div className="calloffs-table-wrap">
         <table className="calloffs-table">
-          <thead><tr><th>Name</th><th>Call Off</th><th>Through Date</th><th>Reason</th><th /></tr></thead>
+          <thead>
+            <tr>
+              <th className="calloffs-emp">EMP #</th>
+              <th>Name</th>
+              <th>Call Off</th>
+              <th>Through Date</th>
+              <th>Reason</th>
+              <th />
+            </tr>
+          </thead>
           <tbody>
             {visible.map((row) => (
-              <SheetRow key={row.id} row={row} today={today} onRemove={() => void removeRow(row.id)} />
+              <SheetRow
+                key={row.id}
+                row={row}
+                emp={lookupEmpNumber(row.name, empMaps.byExact, empMaps.byLastFirst)}
+                today={today}
+                onRemove={() => void removeRow(row.id)}
+              />
             ))}
-            {!visible.length ? <tr><td colSpan={5}><p className="oot-empty">No rows yet. Add a driver above to start the log.</p></td></tr> : null}
+            {!visible.length ? (
+              <tr>
+                <td colSpan={6}>
+                  <p className="oot-empty">No rows yet. Add a driver above to start the log.</p>
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
@@ -182,13 +255,24 @@ export function CallOffsScreen() {
   );
 }
 
-function SheetRow({ row, today, onRemove }: { row: CallOffLogEntry; today: string; onRemove: () => void }) {
+function SheetRow({
+  row,
+  emp,
+  today,
+  onRemove,
+}: {
+  row: CallOffLogEntry;
+  emp: string;
+  today: string;
+  onRemove: () => void;
+}) {
   const last = row.end ?? row.start;
   const current = row.start <= today && last >= today;
   const past = last < today;
 
   return (
     <tr className={current ? "is-today" : past ? "is-past" : undefined}>
+      <td className="calloffs-emp">{emp || "—"}</td>
       <td>{row.name}</td>
       <td>{formatSheetStyleDate(row.start)}</td>
       <td>{row.end ? formatSheetStyleDate(row.end) : ""}</td>
