@@ -41,13 +41,28 @@ describe("preserveAssignedTrucks", () => {
   it("queues a local unit for upload when cloud is blank", () => {
     const local = hired("Alice Smith", "418");
     const id = Object.keys(local.entries)[0]!;
-    const remote = {
+    const incoming = {
       entries: {
         [id]: { ...local.entries[id]!, assignedTruck: null },
       },
     };
-    expect(assignedTrucksNeedingUpload(local, remote).map((row) => row.assignedTruck)).toEqual([
+    expect(assignedTrucksNeedingUpload(local, incoming).map((row) => row.assignedTruck)).toEqual([
       "418",
     ]);
+  });
+
+  it("keeps a unit when the incoming row uses a different id for the same driver", () => {
+    const local = hired("Alice Smith", "418");
+    const oldId = Object.keys(local.entries)[0]!;
+    const incoming = {
+      entries: {
+        "new-id": {
+          ...local.entries[oldId]!,
+          id: "new-id",
+          assignedTruck: null,
+        },
+      },
+    };
+    expect(preserveAssignedTrucks(local, incoming).entries["new-id"]?.assignedTruck).toBe("418");
   });
 });
