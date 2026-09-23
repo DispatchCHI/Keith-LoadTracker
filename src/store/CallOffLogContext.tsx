@@ -10,7 +10,7 @@ import {
 } from "react";
 import { callOffLogSeedRows } from "../data/callOffLogSeed";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
-import { attachCloudRefresh, scheduleCloudRefresh } from "../lib/cloudRefresh";
+import { attachCloudRefresh, attachCrewTableRealtime, scheduleCloudRefresh } from "../lib/cloudRefresh";
 import {
   addCallOffLogEntry,
   cleanCallOffLogRows,
@@ -221,9 +221,16 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    return attachCloudRefresh(() => {
+    const stopPoll = attachCloudRefresh(() => {
       void refresh();
     });
+    const stopLive = attachCrewTableRealtime("call-off-crew", ["call_off_log"], () => {
+      void refresh();
+    });
+    return () => {
+      stopPoll();
+      stopLive();
+    };
   }, [cloud, refresh]);
 
   const loadSheet = useCallback(async () => {
