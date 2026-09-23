@@ -50,16 +50,19 @@
 }
 
 /* Pill chips, same colors as Available drivers. */
+.calloffs-reason-row button,
 .calloffs-reason-row .calloff-kind-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
-  height: 32px;
+  min-height: 28px;
+  height: 28px;
   width: auto;
-  padding: 0 14px;
-  border-radius: 999px;
+  padding: 0 12px;
+  border-radius: 999px !important;
+  font-size: 12px;
   font-weight: 800;
+  line-height: 1;
   white-space: nowrap;
   opacity: 1;
 }
@@ -110,6 +113,18 @@
   background: #facc15 !important;
   border: 1px solid #eab308 !important;
   color: #422006 !important;
+}
+
+.calloffs-screen .vac-year-row {
+  gap: 6px;
+}
+
+.calloffs-screen .day-chip {
+  min-height: 34px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 999px;
 }
 
 .calloffs-table-wrap {

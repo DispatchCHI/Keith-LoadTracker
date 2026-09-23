@@ -135,7 +135,7 @@ export function CallOffsScreen() {
               <button
                 key={item}
                 type="button"
-                className={`${presetClass(item)}${selected ? " selected" : ""}`}
+                className={`calloff-kind-btn ${presetClass(item)}${selected ? " selected" : ""}`}
                 aria-pressed={selected}
                 onClick={() => setReason(item)}
               >
