@@ -63,7 +63,6 @@ export function buildEodReportPng(opts: {
   const width = 1480;
   const hourColW = 56;
   const nameColW = 132;
-  const gridW = nameColW + COLS.length * hourColW;
   const rowH = 28;
   const headerH = 30;
   const gridH = headerH + yards.length * rowH;
@@ -74,20 +73,7 @@ export function buildEodReportPng(opts: {
   const lfRowH = 52;
   const lfRows = Math.ceil(Math.max(landfills.length, 1) / lfCols);
   const lfH = 36 + lfRows * lfRowH;
-  const height =
-    pad +
-    64 +
-    28 +
-    gridH +
-    28 +
-    24 +
-    cardsH +
-    16 +
-    tableH +
-    28 +
-    lfH +
-    36 +
-    pad;
+  const height = pad + 64 + 28 + gridH + 28 + 24 + cardsH + 16 + tableH + 28 + lfH + 36 + pad;
 
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(width * dpr);
@@ -114,7 +100,7 @@ export function buildEodReportPng(opts: {
   ctx.fillText("END OF DAY LOAD COUNT", pad, y + 26);
   ctx.font = "500 15px ui-sans-serif, system-ui, sans-serif";
   ctx.fillStyle = "#6b7280";
-  ctx.fillText(`${formatHeaderDate(opts.date)}  ·  Keith's Load Tracker`, pad, y + 50);
+  ctx.fillText(`${formatHeaderDate(opts.date)}  \u00b7  Keith's Load Tracker`, pad, y + 50);
   y += 64;
 
   ctx.fillStyle = "#111827";
@@ -122,7 +108,7 @@ export function buildEodReportPng(opts: {
   ctx.fillText("Load Count By Hour", pad, y + 16);
   y += 28;
   card(pad, y, width - pad * 2, gridH + 16);
-  drawHourGrid(ctx, pad + 10, y + 8, gridW, yards, store, opts.date, board, nameColW, hourColW, rowH, headerH);
+  drawHourGrid(ctx, pad + 10, y + 8, yards, store, opts.date, board, nameColW, hourColW, rowH, headerH);
   y += gridH + 28;
 
   ctx.fillStyle = "#111827";
@@ -137,7 +123,7 @@ export function buildEodReportPng(opts: {
 
   ctx.fillStyle = "#111827";
   ctx.font = "700 15px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText(`Landfill  ·  ${landfills.length} groups`, pad, y + 16);
+  ctx.fillText(`Landfill  \u00b7  ${landfills.length} groups`, pad, y + 16);
   y += 28;
   drawLandfills(ctx, pad, y, width - pad * 2, landfills, lfCols, lfRowH);
 
@@ -152,7 +138,6 @@ function drawHourGrid(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  _gridW: number,
   yards: { id: string; label: string }[],
   store: StationCallStore,
   date: string,
@@ -208,10 +193,10 @@ function drawStatCards(
   const cards = endOfDayCards(eod);
   const gap = 10;
   const cw = (w - gap * (cards.length - 1)) / cards.length;
-  cards.forEach((card, i) => {
+  cards.forEach((item, i) => {
     const cx = x + i * (cw + gap);
-    ctx.fillStyle = card.emphasis ? "#fef3f2" : "#ffffff";
-    ctx.strokeStyle = card.emphasis ? "#fecaca" : "#e5e7eb";
+    ctx.fillStyle = item.emphasis ? "#fef3f2" : "#ffffff";
+    ctx.strokeStyle = item.emphasis ? "#fecaca" : "#e5e7eb";
     ctx.lineWidth = 1;
     roundRect(ctx, cx, y, cw, h, 12);
     ctx.fill();
@@ -219,10 +204,10 @@ function drawStatCards(
     ctx.fillStyle = "#6b7280";
     ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(card.label, cx + cw / 2, y + 22);
+    ctx.fillText(item.label, cx + cw / 2, y + 22);
     ctx.fillStyle = "#111827";
     ctx.font = "700 32px ui-sans-serif, system-ui, sans-serif";
-    ctx.fillText(String(card.count), cx + cw / 2, y + 58);
+    ctx.fillText(String(item.count), cx + cw / 2, y + 58);
     ctx.textAlign = "left";
   });
 }
@@ -235,10 +220,10 @@ function drawStationTable(
   eod: EndOfDaySummary,
 ) {
   const cols = [
-    { label: "STATION", key: "label", align: "left" as const, width: w * 0.4 },
-    { label: "TOTALS", key: "pickedUp", align: "right" as const, width: w * 0.2 },
-    { label: "MSW", key: "msw", align: "right" as const, width: w * 0.2 },
-    { label: "CLOSED", key: "left", align: "right" as const, width: w * 0.2 },
+    { label: "STATION", align: "left" as const, width: w * 0.4 },
+    { label: "TOTALS", align: "right" as const, width: w * 0.2 },
+    { label: "MSW", align: "right" as const, width: w * 0.2 },
+    { label: "CLOSED", align: "right" as const, width: w * 0.2 },
   ];
   ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
   ctx.fillStyle = "#6b7280";
@@ -253,7 +238,7 @@ function drawStationTable(
     ctx.fillStyle = "#111827";
     ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
     let px = x;
-    const values = [row.label, String(row.pickedUp), String(row.msw), row.left ?? "—"];
+    const values = [row.label, String(row.pickedUp), String(row.msw), row.left ?? "\u2014"];
     cols.forEach((col, ci) => {
       ctx.textAlign = col.align;
       ctx.fillText(values[ci], col.align === "left" ? px : px + col.width, ry);
