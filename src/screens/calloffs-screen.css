@@ -67,11 +67,11 @@
   opacity: 1;
 }
 
-/* Call Off = blue */
+/* Call Off = orange */
 .calloffs-reason-row .calloff-kind-call-off,
 .calloffs-reason-row .calloff-kind-call-off.selected {
-  background: #1d4f91 !important;
-  border: 1px solid #163e73 !important;
+  background: #f97316 !important;
+  border: 1px solid #ea580c !important;
   color: #ffffff !important;
 }
 
