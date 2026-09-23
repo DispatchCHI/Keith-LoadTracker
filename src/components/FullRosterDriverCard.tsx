@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ROSTER_UNAVAILABLE_REASONS,
   rosterStatusLabel,
@@ -50,10 +50,19 @@ export function FullRosterDriverCard({
   const [truckError, setTruckError] = useState<string | null>(null);
   const [phone, setPhone] = useState(entry.phone ?? "");
   const [hireDate, setHireDate] = useState(entry.hireDate ?? "");
+  const [truckFocused, setTruckFocused] = useState(false);
+  const truckDirty = useRef(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (truckFocused || truckDirty.current) return;
     setTruck(entry.assignedTruck ?? "");
-  }, [entry.assignedTruck]);
+  }, [entry.assignedTruck, truckFocused]);
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
   useEffect(() => {
     setPhone(entry.phone ?? "");
   }, [entry.phone]);
@@ -64,14 +73,19 @@ export function FullRosterDriverCard({
   const yos = yearsOfService(entry.hireDate, today);
   const tier = payTierFromHireDate(entry.hireDate, asOf);
 
-  const saveTruck = async () => {
-    const next = truck.trim();
-    if ((entry.assignedTruck ?? "") === next) return;
+  const saveTruck = async (raw = truck) => {
+    const next = raw.trim();
+    if ((entry.assignedTruck ?? "") === next) {
+      truckDirty.current = false;
+      return;
+    }
     const result = await onTruck(next);
     if (result && !result.ok) {
+      truckDirty.current = false;
       setTruck(entry.assignedTruck ?? "");
       setTruckError(`Truck # already assigned to ${result.conflictName ?? "another driver"}.`);
     } else {
+      truckDirty.current = false;
       setTruckError(null);
     }
   };
@@ -198,10 +212,21 @@ export function FullRosterDriverCard({
               className="text-input drv-assigned-truck"
               value={truck}
               onChange={(event) => {
-                setTruck(event.target.value);
+                const next = event.target.value;
+                truckDirty.current = true;
+                setTruck(next);
                 if (truckError) setTruckError(null);
+                if (saveTimer.current) clearTimeout(saveTimer.current);
+                saveTimer.current = setTimeout(() => {
+                  void saveTruck(next);
+                }, 400);
               }}
-              onBlur={() => void saveTruck()}
+              onFocus={() => setTruckFocused(true)}
+              onBlur={() => {
+                setTruckFocused(false);
+                if (saveTimer.current) clearTimeout(saveTimer.current);
+                void saveTruck();
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
               }}
@@ -283,4 +308,4 @@ export function FullRosterDriverCard({
       ) : null}
     </article>
   );
-} 
+}
