@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
-import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { attachCloudRefresh, attachCrewTableRealtime } from "../lib/cloudRefresh";
 import {
   addGoneEntry,
   applyGoneTombstones,
@@ -158,7 +158,6 @@ export function DriverGoneProvider({ children }: { children: ReactNode }) {
     if (!ids.length) return;
     const supabase = getSupabase();
     if (!supabase) return;
-    // Explicit × and retry of those tombstones are the only path that may DELETE a cloud Gone row.
     const { error } = await supabase.from("driver_gone_entries").delete().in("id", ids);
     if (error) console.warn("driver gone delete failed", error.message);
   }, []);
@@ -234,7 +233,16 @@ export function DriverGoneProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    return attachCloudRefresh(refresh);
+    const stopPoll = attachCloudRefresh(refresh);
+    const stopLive = attachCrewTableRealtime(
+      "driver-gone-crew",
+      ["driver_gone_entries"],
+      refresh,
+    );
+    return () => {
+      stopPoll();
+      stopLive();
+    };
   }, [cloud, refresh]);
 
   const addGone = useCallback(
