@@ -125,3 +125,22 @@ function rowsToStore(rows: EntryRow[]): DriverRosterStore {
   }
   return store;
 }
+
+function entryToRow(entry: DriverRosterEntry, userId: string | null) {
+  return {
+    id: entry.id,
+    kind: entry.kind,
+    yard: entry.yard,
+    truck_number: entry.truckNumber,
+    assigned_truck: entry.assignedTruck,
+    name: entry.name,
+    status: entry.status,
+    hire_date: entry.hireDate,
+    phone: entry.phone,
+    sort_order: entry.sortOrder,
+    for_date: entry.forDate,
+    created_at: entry.createdAt,
+    updated_at: entry.updatedAt,
+    created_by: userId,
+  };
+}
