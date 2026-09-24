@@ -7,15 +7,20 @@
  *
  * This module now centralizes refresh scheduling across the app so repeated
  * focus/visibility/online events collapse into a single debounced run.
+ *
+ * Realtime channels are also singleton-per-name. Re-rendering a provider
+ * must not open a second websocket or the Realtime message meter explodes.
  */
 
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   CLOUD_REFRESH_DEBOUNCE_MS,
   isNetworkSyncBackoffActive,
 } from "./syncControl";
 import { getSupabase } from "./supabase";
 
-export const CLOUD_REFRESH_INTERVAL_MS = 90_000;
+/** Fallback poll only. Live desks should ride postgres_changes, not this. */
+export const CLOUD_REFRESH_INTERVAL_MS = 300_000;
 
 type CloudRefreshFn = () => void | Promise<void>;
 
@@ -83,11 +88,22 @@ export function attachCloudRefresh(
   };
 }
 
+type LiveSlot = {
+  channel: RealtimeChannel;
+  refs: number;
+  listeners: Set<CloudRefreshFn>;
+};
+
+const LIVE_CHANNELS = new Map<string, LiveSlot>();
+
 /**
  * Subscribe to postgres_changes on crew tables so other desks see edits
  * immediately. Events are funneled through scheduleCloudRefresh so a burst
  * of row writes collapses into one pull instead of a sync storm.
  * Tables must already be in the supabase_realtime publication.
+ *
+ * Same channel name is shared across React remounts. Opening a second
+ * "loads-crew" socket was the Realtime quota killer.
  */
 export function attachCrewTableRealtime(
   channelName: string,
@@ -97,19 +113,37 @@ export function attachCrewTableRealtime(
   const supabase = getSupabase();
   if (!supabase || !tables.length) return () => {};
 
-  let channel = supabase.channel(channelName);
-  for (const table of tables) {
-    channel = channel.on(
-      "postgres_changes",
-      { event: "*", schema: "public", table },
-      () => {
-        scheduleCloudRefresh(onChange);
-      },
-    );
+  let slot = LIVE_CHANNELS.get(channelName);
+  if (!slot) {
+    let channel = supabase.channel(channelName);
+    for (const table of tables) {
+      channel = channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table },
+        () => {
+          const live = LIVE_CHANNELS.get(channelName);
+          if (!live) return;
+          for (const listener of live.listeners) {
+            scheduleCloudRefresh(listener);
+          }
+        },
+      );
+    }
+    channel.subscribe();
+    slot = { channel, refs: 0, listeners: new Set() };
+    LIVE_CHANNELS.set(channelName, slot);
   }
-  channel.subscribe();
+
+  slot.refs += 1;
+  slot.listeners.add(onChange);
 
   return () => {
-    void supabase.removeChannel(channel);
+    const live = LIVE_CHANNELS.get(channelName);
+    if (!live) return;
+    live.listeners.delete(onChange);
+    live.refs -= 1;
+    if (live.refs > 0) return;
+    LIVE_CHANNELS.delete(channelName);
+    void supabase.removeChannel(live.channel);
   };
 }
