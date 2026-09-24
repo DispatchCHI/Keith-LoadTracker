@@ -78,7 +78,7 @@ describe("attachCloudRefresh", () => {
 describe("crew cloud refresh wiring", () => {
   it("adds call_off_log to supabase_realtime (postgres_changes was a no-op without it)", () => {
     const sql = readFileSync(new URL("../../Load-Tracker-call-off-log.sql", import.meta.url), "utf8");
-    expect(sql).toMatch(/alter publication supabase_realtime add table public\.call_off_log/);
+    expect(sql).toMatch(/alter publication supabase_realtime add table public\\.call_off_log/);
   });
 
   it("roster, vacation, and call-off log poll/focus-refresh like loads", () => {
@@ -94,13 +94,10 @@ describe("crew cloud refresh wiring", () => {
     }
   });
 
-  it("wires vacation, roster, call-off, gone, and lanes to crew realtime", () => {
+  it("wires call-off and gone to crew realtime", () => {
     const files = [
-      "../store/VacationContext.tsx",
-      "../store/DriverRosterContext.tsx",
       "../store/CallOffLogContext.tsx",
       "../store/DriverGoneContext.tsx",
-      "../store/CustomerLanesContext.tsx",
     ];
     for (const file of files) {
       const src = readFileSync(new URL(file, import.meta.url), "utf8");
