@@ -77,7 +77,14 @@ export const CUSTOMER_LANE_SEED: readonly SeedLane[] = [
   stub("Apollo"),
   stub("Calumet"),
   stub("Northlake"),
-  stub("Arc"),
+  // Arc must be a real lane customer so Log Load shows the chip after
+  // lane-strict pickup filtering. Destinations match stations.ts.
+  catalogRoute("Arc", "Winnebago"),
+  catalogRoute("Arc", "Pontiac"),
+  catalogRoute("Arc", "Organix", "Yard Waste"),
+  catalogRoute("Arc", "Thelens", "Yard Waste"),
+  catalogRoute("Arc", "Hodgkins", "Recycle"),
+  catalogRoute("Arc", "Resource MGT", "Recycle"),
   stub("Hooker Street"),
   stub("Wheeling"),
   stub("CitiWaste"),

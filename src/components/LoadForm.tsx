@@ -28,7 +28,6 @@ import {
   cascadeCustomerLaneRoute,
   commoditiesForCustomer,
   customersWithRealLanes,
-  defaultCustomerLaneRoute,
   destinationsForCustomer,
   placesMatch,
 } from "../lib/customerLanes";
@@ -166,32 +165,26 @@ export function LoadForm({
   );
   const commodities = useMemo(() => {
     if (!pickupName) return [];
-    // Named Customers-board pickups: lane book only (never invent catalog dests).
-    if (laneBookPickup) {
-      return uniqueNames(
-        commoditiesForCustomer(customerLanes, laneBookPickup, today),
-      );
-    }
-    return uniqueNames(catalogCommodities);
+    const fromLanes = laneBookPickup
+      ? commoditiesForCustomer(customerLanes, laneBookPickup, today)
+      : [];
+    return uniqueNames([...fromLanes, ...catalogCommodities]);
   }, [catalogCommodities, customerLanes, laneBookPickup, pickupName, today]);
   const destinations = useMemo(() => {
     if (!value.commodity.trim()) return [];
-    if (laneBookPickup) {
-      return uniqueNames(
-        destinationsForCustomer(
+    const fromLanes = laneBookPickup
+      ? destinationsForCustomer(
           customerLanes,
           laneBookPickup,
           value.commodity,
           today,
-        ),
-      );
-    }
-    return uniqueNames(
-      destinationsFor(
-        catalogStationId === CUSTOM_ID ? value.stationId : catalogStationId,
-        value.commodity,
-      ),
+        )
+      : [];
+    const catalog = destinationsFor(
+      catalogStationId === CUSTOM_ID ? value.stationId : catalogStationId,
+      value.commodity,
     );
+    return uniqueNames([...fromLanes, ...catalog]);
   }, [
     catalogStationId,
     customerLanes,
@@ -223,11 +216,12 @@ export function LoadForm({
     }
     const name = stationId === CUSTOM_ID ? pickup.trim() : pickup;
     if (name && laneCustomers.some((n) => placesMatch(n, name))) {
-      const cascaded = defaultCustomerLaneRoute(
+      const cascaded = cascadeCustomerLaneRoute(
         customerLanes,
         name,
+        value.commodity,
+        value.destination,
         today,
-        loads,
       );
       const commodity = isWalkingFloorName(cascaded.commodity)
         ? ""
@@ -250,11 +244,12 @@ export function LoadForm({
     });
   };
   const selectLaneCustomer = (name: string) => {
-    const cascaded = defaultCustomerLaneRoute(
+    const cascaded = cascadeCustomerLaneRoute(
       customerLanes,
       name,
+      value.commodity,
+      value.destination,
       today,
-      loads,
     );
     const commodity = isWalkingFloorName(cascaded.commodity)
       ? ""
