@@ -44,9 +44,25 @@ export function writeQueue(ops: QueueOp[]): void {
 }
 
 export function enqueueUpsert(load: Load): QueueOp[] {
-  const next = readQueue().filter((op) => {
-    if (op.kind === "upsert") return op.load.id !== load.id;
+  const ops = readQueue();
+  const existing = ops.find((op) => op.kind === "upsert" && op.load.id === load.id);
+  // Refresh / merge often re-enqueues loads that are already pending. Keep the
+  // same opId and queue position so an in-flight flushQueue removeQueueOp(opId)
+  // still matches — rewriting the UUID mid-drain left Chrome stuck at ~1000+.
+  if (existing && existing.kind === "upsert") {
+    const next = ops
+      .filter((op) => !(op.kind === "delete" && op.loadId === load.id))
+      .map((op) =>
+        op.kind === "upsert" && op.load.id === load.id
+          ? { opId: existing.opId, kind: "upsert" as const, load, queuedAt: existing.queuedAt }
+          : op,
+      );
+    writeQueue(next);
+    return next;
+  }
+  const next = ops.filter((op) => {
     if (op.kind === "delete") return op.loadId !== load.id;
+    if (op.kind === "upsert") return op.load.id !== load.id;
     return true;
   });
   next.push({
@@ -114,6 +130,26 @@ export function pendingIds(ops = readQueue()): Set<string> {
 export function removeQueueOp(opId: string): QueueOp[] {
   const ops = readQueue();
   const next = ops.filter((op) => op.opId !== opId);
+  if (next.length !== ops.length) writeQueue(next);
+  return next;
+}
+
+/**
+ * Drop a flushed op by opId, or by load identity if refresh rewrote the UUID
+ * while the HTTP call was in flight.
+ */
+export function removeFlushedOp(op: QueueOp): QueueOp[] {
+  const ops = readQueue();
+  const next = ops.filter((row) => {
+    if (row.opId === op.opId) return false;
+    if (op.kind === "upsert" && row.kind === "upsert" && row.load.id === op.load.id) {
+      return false;
+    }
+    if (op.kind === "delete" && row.kind === "delete" && row.loadId === op.loadId) {
+      return false;
+    }
+    return true;
+  });
   if (next.length !== ops.length) writeQueue(next);
   return next;
 }

@@ -1,6 +1,6 @@
 import { useAuth } from "../store/AuthContext";
 import { useLoads } from "../store/LoadsContext";
-import { hugeQueueMessage } from "../lib/syncControl";
+import { HUGE_QUEUE_THRESHOLD, hugeQueueMessage } from "../lib/syncControl";
 import { CrewPresenceList } from "./CrewPresenceList";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -13,6 +13,7 @@ export function SessionBar() {
     uploadLocalLoads,
     localPendingCount,
     pushAllLoadsToCloud,
+    flushPendingQueue,
   } = useLoads();
 
   if (!configured) {
@@ -47,8 +48,9 @@ export function SessionBar() {
 
   const hugeNotice = hugeQueueMessage(queuedCount);
   const statusWithHuge = hugeNotice ? `${statusLabel} · ${hugeNotice}` : statusLabel;
-  const pushLabel =
-    syncStatus === "error" || queuedCount > 0 ? "Sync now" : "Push all to cloud";
+  const hugeQueue = queuedCount >= HUGE_QUEUE_THRESHOLD;
+  const needsDrain = queuedCount > 0 || syncStatus === "error";
+  const pushLabel = needsDrain ? "Sync now" : "Push all to cloud";
 
   return (
     <div className="session-bar">
@@ -61,7 +63,7 @@ export function SessionBar() {
       </div>
       <span className="session-actions">
         <ThemeToggle />
-        {localPendingCount > 0 ? (
+        {localPendingCount > 0 && !hugeQueue ? (
           <button
             type="button"
             className="text-btn amber"
@@ -74,7 +76,11 @@ export function SessionBar() {
         <button
           type="button"
           className="text-btn amber"
-          onClick={() => void pushAllLoadsToCloud()}
+          onClick={() => {
+            // Pending ops: flush only. Refresh/re-merge fights a large drain.
+            if (needsDrain) void flushPendingQueue();
+            else void pushAllLoadsToCloud();
+          }}
           disabled={syncStatus === "syncing"}
         >
           {pushLabel}

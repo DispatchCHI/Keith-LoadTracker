@@ -42,7 +42,7 @@ import {
   pendingIds,
   QUEUE_KEY,
   readQueue,
-  removeQueueOp,
+  removeFlushedOp,
   warnNonExplicitRemoteDelete,
 } from "../lib/queue";
 import { buildSeedLoads } from "../lib/seed";
@@ -50,6 +50,7 @@ import { sortLoads } from "../lib/sortLoads";
 import { getSupabase, isCloudConfigured } from "../lib/supabase";
 import {
   FLUSH_OP_GAP_MS,
+  HUGE_QUEUE_THRESHOLD,
   MAX_FLUSH_ATTEMPTS_TRANSIENT,
   clearNetworkSyncBackoff,
   hugeQueueMessage,
@@ -96,6 +97,8 @@ type LoadsContextValue = {
   localPendingCount: number;
   uploadLocalLoads: () => Promise<number>;
   pushAllLoadsToCloud: () => Promise<number>;
+  /** Drain localStorage queue only — no refresh / re-enqueue. */
+  flushPendingQueue: () => Promise<void>;
 };
 
 const CACHE_KEY = "chitrader.load-tracker.cloud-cache.v1";
@@ -309,7 +312,7 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
               await sleepMs(400 * attempts);
             }
           }
-          const rest = removeQueueOp(op.opId);
+          const rest = removeFlushedOp(op);
           setQueuedCount(rest.length);
           if (rest.length) await sleepMs(FLUSH_OP_GAP_MS);
         }
@@ -377,6 +380,9 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
   const refreshFromCloud = useCallback(async () => {
     if (refreshFlightRef.current) return refreshFlightRef.current;
     if (isNetworkSyncBackoffActive()) return;
+    // Do not refresh/re-merge while a large queue is mid-flush — merge would
+    // re-touch pending upserts and historically fought the drain.
+    if (flushing.current && readQueue().length >= HUGE_QUEUE_THRESHOLD) return;
     const supabase = getSupabase();
     if (!supabase || !session) return;
 
@@ -473,7 +479,8 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
           lastFullReconcileAtRef.current = refreshStartedAt;
         }
       }
-      if (toUpsert.length) enqueueMissing(toUpsert);
+      // Never rewrite the outbound queue while a flush holds opIds in flight.
+      if (toUpsert.length && !flushing.current) enqueueMissing(toUpsert);
       // Flush after refresh, but skip when network backoff is armed so we
       // do not immediately re-storm Failed-to-fetch.
       if (!isNetworkSyncBackoffActive()) await flushQueue();
@@ -635,6 +642,10 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
   }, [persistLocal]);
 
   const uploadLocalLoads = useCallback(async () => {
+    if (readQueue().length >= HUGE_QUEUE_THRESHOLD) {
+      await flushQueue();
+      return 0;
+    }
     const local = localOnlyLoadsForUpload(storeRef.current, readStore(), readQueue());
     if (local.length) enqueueMissing(local);
     await flushQueue();
@@ -643,13 +654,22 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
 
   const pushAllLoadsToCloud = useCallback(async () => {
     if (!cloud) return 0;
+    // Huge queue: drain only. Refresh/re-merge would fight the flush.
+    if (readQueue().length >= HUGE_QUEUE_THRESHOLD) {
+      await flushQueue();
+      return readQueue().length;
+    }
     // Refresh-first: mergeCloudLoads decides toUpsert. Remote DELETE is
     // never queued here — only deleteLoad may enqueue an explicit delete.
     // Blindly enqueueing deviceLoadsForPush re-upserts the whole cache and
     // can resurrect rows another device already deleted.
     await refreshFromCloud();
     return readQueue().length;
-  }, [cloud, refreshFromCloud]);
+  }, [cloud, flushQueue, refreshFromCloud]);
+
+  const flushPendingQueue = useCallback(async () => {
+    await flushQueue();
+  }, [flushQueue]);
 
   const localPendingCount = useMemo(() => {
     if (!cloud) return 0;
@@ -689,11 +709,13 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
       localPendingCount,
       uploadLocalLoads,
       pushAllLoadsToCloud,
+      flushPendingQueue,
     };
   }, [
     clearSampleLoads,
     cloud,
     deleteLoad,
+    flushPendingQueue,
     localPendingCount,
     pushAllLoadsToCloud,
     queuedCount,
