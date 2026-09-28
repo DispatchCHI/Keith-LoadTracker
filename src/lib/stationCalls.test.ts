@@ -236,6 +236,28 @@ describe("station call merge / clears", () => {
     });
     expect(mergeBoardCells(local, remote)["hooker"]!.hours["8"]).toBe("12");
   });
+
+  it("keeps a fresh local 3pm edit over a stale remote blank from an in-flight hydrate", () => {
+    let local: StationCallStore = {};
+    local = setStationHour(
+      local,
+      "2026-09-28",
+      "melrose",
+      "15",
+      "7",
+      "2026-09-28T20:05:00.000Z",
+    );
+    const remote: StationCallStore = {
+      "2026-09-28": boardWith("melrose", {
+        hours: { "14": "6" },
+        hoursAt: { "14": "2026-09-28T19:00:00.000Z" },
+      }),
+    };
+    const { merged, toPush } = reconcileStationCallCloud(local, remote);
+    expect(merged["2026-09-28"]!["melrose"]!.hours["15"]).toBe("7");
+    expect(merged["2026-09-28"]!["melrose"]!.hours["14"]).toBe("6");
+    expect(toPush.some((row) => row.date === "2026-09-28")).toBe(true);
+  });
 });
 
 describe("station call notes", () => {

@@ -83,16 +83,25 @@ function CellInput({
   col: StationCallCol;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-  const shown = draft !== null ? draft : value === null || value === undefined ? "" : String(value);
+  const parentShown = value === null || value === undefined ? "" : String(value);
+  const shown = draft !== null ? draft : parentShown;
   const isZero = draft === null && parseNumericCell(value) === 0;
   const committedRef = useRef(false);
+
+  // Drop the local draft once the parent store shows the same text. Clearing
+  // draft in onBlur made 3pm (and every hour) flash blank / look reverted
+  // while setStore was still flushing — worse when a cloud hydrate raced in.
+  useEffect(() => {
+    if (draft === null) return;
+    if (draft === parentShown) setDraft(null);
+  }, [draft, parentShown]);
 
   const commit = (raw?: string) => {
     if (committedRef.current) return;
     committedRef.current = true;
     const next = commitStationCell(raw ?? draft ?? shown);
-    if (next === null) setDraft("");
-    else setDraft(null);
+    // Keep showing what we just saved until parentShown catches up.
+    setDraft(next === null ? "" : String(next));
     onCommit(next);
   };
 
@@ -127,7 +136,6 @@ function CellInput({
         // focus from the next row so Keith had to press Enter twice.
         if (!committedRef.current) commit();
         committedRef.current = false;
-        setDraft(null);
       }}
       onKeyDown={(e) => {
         if (e.key === "Backspace" || e.key === "Delete") {
@@ -416,14 +424,19 @@ export function StationCallsCard({ date }: { date: string }) {
     let alive = true;
 
     const hydrate = async () => {
-      const localDays = readStationCallStore();
-      const localNotes = readStationNoteStore();
-      const localLegacy = readLegacyNotesFromStationCallStorage();
       const [remoteDays, remoteNotes] = await Promise.all([
         fetchStationCallStoreFromCloud(),
         fetchStationNotesFromCloud(),
       ]);
       if (!alive) return;
+
+      // Re-read AFTER the await. A snapshot taken before the fetch discarded
+      // hour edits Keith made while cloud was in flight — 3pm was the usual
+      // victim because that is the column he fills at end of day when focus
+      // / interval refresh fires.
+      const localDays = readStationCallStore();
+      const localNotes = readStationNoteStore();
+      const localLegacy = readLegacyNotesFromStationCallStorage();
 
       if (remoteDays) {
         const { merged, toPush } = reconcileStationCallCloud(localDays, remoteDays.days);
@@ -487,16 +500,18 @@ export function StationCallsCard({ date }: { date: string }) {
 
   const onHour = useCallback(
     (stationId: string, hour: StationHourKey, value: StationCellValue | null) => {
-      persistDays(setStationHour(store, date, stationId, hour, value));
+      // Always merge onto localStorage — a closed-over `store` lost sibling
+      // hour cells when Enter advanced down the 3pm column before React re-rendered.
+      persistDays(setStationHour(readStationCallStore(), date, stationId, hour, value));
     },
-    [persistDays, store, date],
+    [persistDays, date],
   );
 
   const onClose = useCallback(
     (stationId: string, value: StationCellValue | null) => {
-      persistDays(setStationClose(store, date, stationId, value));
+      persistDays(setStationClose(readStationCallStore(), date, stationId, value));
     },
-    [persistDays, store, date],
+    [persistDays, date],
   );
 
   const onNote = useCallback(

@@ -149,4 +149,27 @@ describe("station call single poller", () => {
     expect(totals).not.toContain("attachCloudRefresh");
     expect(totals).toContain("subscribeStationCallStore");
   });
+
+  it("StationCallsCard re-reads local days after the cloud await so in-flight hour edits survive", () => {
+    const card = readFileSync(new URL("../components/StationCallsCard.tsx", import.meta.url), "utf8");
+    const hydrateStart = card.indexOf("const hydrate = async");
+    expect(hydrateStart).toBeGreaterThan(0);
+    const hydrateBody = card.slice(hydrateStart, card.indexOf("void hydrate()"));
+    const awaitIdx = hydrateBody.indexOf("await Promise.all");
+    const localReadIdx = hydrateBody.indexOf("readStationCallStore()", awaitIdx);
+    expect(awaitIdx).toBeGreaterThan(0);
+    expect(localReadIdx).toBeGreaterThan(awaitIdx);
+    // Must not snapshot local *only* before the fetch (that wiped 3pm edits).
+    expect(hydrateBody.indexOf("readStationCallStore()")).toBe(localReadIdx);
+  });
+
+  it("hour/close commits merge onto readStationCallStore, not a stale React store closure", () => {
+    const card = readFileSync(new URL("../components/StationCallsCard.tsx", import.meta.url), "utf8");
+    expect(card).toMatch(/setStationHour\(\s*readStationCallStore\(\)/);
+    expect(card).toMatch(/setStationClose\(\s*readStationCallStore\(\)/);
+    expect(card).toContain("if (!committedRef.current) commit()");
+    // Enter focuses the next row immediately (no rAF) so blur still sees committedRef.
+    expect(card).toContain("focusStationCallCell(nextStation, col)");
+    expect(card).not.toMatch(/requestAnimationFrame\(\s*\(\)\s*=>\s*\{\s*focusStationCallCell/);
+  });
 });
