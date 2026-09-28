@@ -122,8 +122,10 @@ function CellInput({
       }}
       onFocus={(e) => e.target.select()}
       onBlur={() => {
-        committedRef.current = false;
-        commit();
+        // Honor Enter's commit guard. Resetting committedRef before commit()
+        // forced a second setStore on every Enter, and that re-render stole
+        // focus from the next row so Keith had to press Enter twice.
+        if (!committedRef.current) commit();
         committedRef.current = false;
         setDraft(null);
       }}
@@ -149,9 +151,9 @@ function CellInput({
           (e.target as HTMLInputElement).blur();
           return;
         }
-        requestAnimationFrame(() => {
-          focusStationCallCell(nextStation, col);
-        });
+        // Focus immediately while committedRef is still true so blur skips the
+        // redundant commit. Tab / arrows stay on the browser default.
+        focusStationCallCell(nextStation, col);
       }}
     />
   );
