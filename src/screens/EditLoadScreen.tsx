@@ -375,7 +375,12 @@ export function EditLoadScreen({
             type="button"
             className="btn-primary grow"
             disabled={!canSave}
-            onClick={() => commit()}
+            onClick={() =>
+              commit({
+                forceDuplicate: Boolean(duplicate),
+                forceSpecialty: Boolean(specialtyWarn),
+              })
+            }
           >
             Save
           </button>

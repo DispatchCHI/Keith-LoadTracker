@@ -18,8 +18,9 @@ describe("Log Load primary Save for a complete draft", () => {
     expect(log).toMatch(/disabled=\{!formComplete\(form\)\}/);
     // Soft-warns must never remove/replace the primary Save footer.
     expect(log).not.toMatch(/duplicate \|\| specialtyWarn \? null/);
-    // Primary Save is the normal commit path — no warn-flow required to click.
-    expect(log).toMatch(/onClick=\{\(\) => commit\(\)\}/);
+    // Primary Save forces through an already-visible soft-warn (looks enabled otherwise).
+    expect(log).toMatch(/forceDuplicate: Boolean\(duplicate\)/);
+    expect(log).toMatch(/forceSpecialty: Boolean\(specialtyWarn\)/);
   });
 
   it("specialty soft-warn allows Save anyway (morning behavior)", () => {

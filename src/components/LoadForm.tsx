@@ -25,12 +25,15 @@ import {
   unmatchedLaneCustomers,
 } from "../lib/pickupRank";
 import {
-  cascadeCustomerLaneRoute,
   commoditiesForCustomer,
   customersWithRealLanes,
   destinationsForCustomer,
   placesMatch,
 } from "../lib/customerLanes";
+import {
+  destinationAfterCommoditySelect,
+  routeForPickupSelect,
+} from "../lib/logLoadRoute";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useLoads } from "../store/LoadsContext";
 import { Chip } from "./Chip";
@@ -215,51 +218,36 @@ export function LoadForm({
       return;
     }
     const name = stationId === CUSTOM_ID ? pickup.trim() : pickup;
-    if (name && laneCustomers.some((n) => placesMatch(n, name))) {
-      const cascaded = cascadeCustomerLaneRoute(
-        customerLanes,
-        name,
-        value.commodity,
-        value.destination,
-        today,
-      );
-      const commodity = isWalkingFloorName(cascaded.commodity)
-        ? ""
-        : cascaded.commodity;
-      onChange({
-        ...value,
-        stationId,
-        pickup: name,
-        commodity,
-        destination: commodity ? cascaded.destination : "",
-      });
-      return;
-    }
+    const cascaded = routeForPickupSelect({
+      stationId,
+      pickupName: name,
+      store: customerLanes,
+      asOf: today,
+      loads,
+    });
     onChange({
       ...value,
       stationId,
-      pickup,
-      commodity: "",
-      destination: "",
+      pickup: name || pickup,
+      commodity: cascaded.commodity,
+      destination: cascaded.destination,
     });
   };
   const selectLaneCustomer = (name: string) => {
-    const cascaded = cascadeCustomerLaneRoute(
-      customerLanes,
-      name,
-      value.commodity,
-      value.destination,
-      today,
-    );
-    const commodity = isWalkingFloorName(cascaded.commodity)
-      ? ""
-      : cascaded.commodity;
+    const stationId = resolveStationId(name, CUSTOM_ID);
+    const cascaded = routeForPickupSelect({
+      stationId,
+      pickupName: name,
+      store: customerLanes,
+      asOf: today,
+      loads,
+    });
     onChange({
       ...value,
-      stationId: resolveStationId(name, CUSTOM_ID),
+      stationId,
       pickup: name,
-      commodity,
-      destination: commodity ? cascaded.destination : "",
+      commodity: cascaded.commodity,
+      destination: cascaded.destination,
     });
   };
   const invalidCommodity =
@@ -409,21 +397,19 @@ export function LoadForm({
                 muted={!pickupName}
                 onClick={() => {
                   if (!pickupName) return;
-                  const cascaded = laneBookPickup
-                    ? cascadeCustomerLaneRoute(
-                        customerLanes,
-                        laneBookPickup,
-                        item,
-                        value.destination,
-                        today,
-                      )
-                    : { destination: value.destination };
+                  const destination = destinationAfterCommoditySelect({
+                    stationId: value.stationId,
+                    pickupName,
+                    commodity: item,
+                    currentDestination: value.destination,
+                    store: customerLanes,
+                    asOf: today,
+                    laneBookPickup,
+                  });
                   onChange({
                     ...value,
                     commodity: item,
-                    destination: isWalkingFloorName(cascaded.destination)
-                      ? ""
-                      : cascaded.destination,
+                    destination,
                   });
                 }}
               />

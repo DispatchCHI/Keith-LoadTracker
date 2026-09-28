@@ -295,7 +295,12 @@ export function LogLoadScreen({
             type="button"
             className="btn-primary grow"
             disabled={!formComplete(form)}
-            onClick={() => commit()}
+            onClick={() =>
+              commit({
+                forceDuplicate: Boolean(duplicate),
+                forceSpecialty: Boolean(specialtyWarn),
+              })
+            }
           >
             {qty === 1 ? "Save" : `Save ${qty} loads`}
           </button>

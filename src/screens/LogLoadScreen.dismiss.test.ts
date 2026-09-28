@@ -43,7 +43,8 @@ describe("Log Load overlay dismisses on successful save", () => {
     expect(log).toMatch(/onClick=\{onCancel\}/);
     expect(log).not.toMatch(/duplicate \|\| specialtyWarn \? null/);
     expect(log).toMatch(/disabled=\{!formComplete\(form\)\}/);
-    expect(log).toMatch(/onClick=\{\(\) => commit\(\)\}/);
+    expect(log).toMatch(/forceDuplicate: Boolean\(duplicate\)/);
+    expect(log).toMatch(/forceSpecialty: Boolean\(specialtyWarn\)/);
   });
 
   it("edit specialty soft-warn allows Save anyway (morning behavior)", () => {
