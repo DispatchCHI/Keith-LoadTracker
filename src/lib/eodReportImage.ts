@@ -43,11 +43,28 @@ export const EOD_IMAGE_LAYOUT = {
   tableHeaderH: 22,
   tableRowH: 22,
   tableCardPad: 10,
-  lfCols: 2,
+  /** Station totals: fixed dense cols (not % of full canvas). */
+  tableNameW: 148,
+  tableNumW: 72,
+  /** Landfill cards: fixed width + packed columns (not 2 stretched half-width cards). */
+  lfCardW: 300,
   lfRowH: 42,
   lfGap: 8,
   footerH: 28,
 } as const;
+
+/** How many fixed-width landfill cards fit across the content area. */
+export function landfillColumnCount(contentWidth = EOD_IMAGE_LAYOUT.width - EOD_IMAGE_LAYOUT.pad * 2): number {
+  const L = EOD_IMAGE_LAYOUT;
+  const avail = Math.max(L.lfCardW, contentWidth);
+  return Math.max(1, Math.floor((avail + L.lfGap) / (L.lfCardW + L.lfGap)));
+}
+
+/** Content width of the station totals table (name + 3 numeric cols). */
+export function stationTableContentWidth(): number {
+  const L = EOD_IMAGE_LAYOUT;
+  return L.tableNameW + L.tableNumW * 3;
+}
 
 export type EodReportLayout = {
   width: number;
@@ -71,7 +88,8 @@ export function measureEodReportLayout(opts: {
   const landfills = Math.max(opts.landfillCount, 1);
   const gridH = L.gridHeaderH + yards * L.gridRowH;
   const tableH = L.tableHeaderH + stations * L.tableRowH;
-  const lfRows = Math.ceil(landfills / L.lfCols);
+  const lfCols = landfillColumnCount();
+  const lfRows = Math.ceil(landfills / lfCols);
   const lfH = lfRows * L.lfRowH;
   const height =
     L.pad +
@@ -196,15 +214,17 @@ export function buildEodReportPng(opts: {
   y += L.sectionTitleH;
   drawStatCards(ctx, L.pad, y, width - L.pad * 2, cardsH, eod);
   y += cardsH + L.afterCardsGap;
-  card(L.pad, y, width - L.pad * 2, tableH + L.tableCardPad);
-  drawStationTable(ctx, L.pad + 10, y + 6, width - L.pad * 2 - 20, eod, L.tableHeaderH, L.tableRowH);
+  const tableInnerW = stationTableContentWidth();
+  const tableCardW = Math.min(width - L.pad * 2, tableInnerW + 20);
+  card(L.pad, y, tableCardW, tableH + L.tableCardPad);
+  drawStationTable(ctx, L.pad + 10, y + 6, eod, L.tableHeaderH, L.tableRowH);
   y += tableH + L.tableCardPad + L.sectionGap;
 
   ctx.fillStyle = "#111827";
   ctx.font = "700 14px ui-sans-serif, system-ui, sans-serif";
   ctx.fillText(`Landfill  \u00b7  ${landfills.length} groups`, L.pad, y + 14);
   y += L.sectionTitleH;
-  drawLandfills(ctx, L.pad, y, width - L.pad * 2, landfills, L.lfCols, L.lfRowH, L.lfGap);
+  drawLandfills(ctx, L.pad, y, width - L.pad * 2, landfills, L.lfRowH, L.lfGap);
 
   ctx.fillStyle = "#9ca3af";
   ctx.font = "500 11px ui-sans-serif, system-ui, sans-serif";
@@ -295,16 +315,16 @@ function drawStationTable(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  w: number,
   eod: EndOfDaySummary,
   headerH: number,
   rowH: number,
 ) {
+  const L = EOD_IMAGE_LAYOUT;
   const cols = [
-    { label: "STATION", align: "left" as const, width: w * 0.4 },
-    { label: "TOTALS", align: "right" as const, width: w * 0.2 },
-    { label: "MSW", align: "right" as const, width: w * 0.2 },
-    { label: "CLOSED", align: "right" as const, width: w * 0.2 },
+    { label: "STATION", align: "left" as const, width: L.tableNameW },
+    { label: "TOTALS", align: "right" as const, width: L.tableNumW },
+    { label: "MSW", align: "right" as const, width: L.tableNumW },
+    { label: "CLOSED", align: "right" as const, width: L.tableNumW },
   ];
   ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
   ctx.fillStyle = "#6b7280";
@@ -335,12 +355,16 @@ function drawLandfills(
   y: number,
   w: number,
   rows: RankRow[],
-  cols: number,
   rowH: number,
   gap: number,
 ) {
-  const cw = (w - gap) / cols;
+  const L = EOD_IMAGE_LAYOUT;
+  const cw = L.lfCardW;
+  const cols = landfillColumnCount(w);
   const list = rows.length ? rows : [{ key: "none", label: "No destinations logged", count: 0, trashCount: 0 }];
+  /** Name + counts sit close: counts right-aligned in a narrow trailing band, not card far edge of a stretched half-width cell. */
+  const countBand = 78;
+  const nameMax = cw - 24 - countBand - 8;
   list.forEach((row, i) => {
     const c = i % cols;
     const r = Math.floor(i / cols);
@@ -356,14 +380,29 @@ function drawLandfills(
     ctx.fillStyle = "#111827";
     ctx.font = "700 13px ui-sans-serif, system-ui, sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText(row.label, cx + 12, cy + 22);
+    const label = truncateLabel(ctx, row.label, nameMax);
+    ctx.fillText(label, cx + 12, cy + 22);
+    const countRight = cx + cw - 12;
     ctx.textAlign = "right";
-    ctx.fillText(`${row.trashCount} / ${row.count}`, cx + cw - 12, cy + 18);
+    ctx.fillText(`${row.trashCount} / ${row.count}`, countRight, cy + 18);
     ctx.fillStyle = "#9ca3af";
     ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
-    ctx.fillText("MSW / TOTAL", cx + cw - 12, cy + 30);
+    ctx.fillText("MSW / TOTAL", countRight, cy + 30);
     ctx.textAlign = "left";
   });
+}
+
+function truncateLabel(ctx: CanvasRenderingContext2D, label: string, maxW: number): string {
+  if (ctx.measureText(label).width <= maxW) return label;
+  const ell = "\u2026";
+  let lo = 0;
+  let hi = label.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (ctx.measureText(label.slice(0, mid) + ell).width <= maxW) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo <= 0 ? ell : label.slice(0, lo) + ell;
 }
 
 function roundRect(

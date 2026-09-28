@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { EOD_IMAGE_LAYOUT, measureEodReportLayout } from "./eodReportImage";
+import {
+  EOD_IMAGE_LAYOUT,
+  landfillColumnCount,
+  measureEodReportLayout,
+  stationTableContentWidth,
+} from "./eodReportImage";
 
 /** Previous (pre-tighten) height formula for the same content counts. */
 function legacyHeight(yards: number, stations: number, landfills: number): number {
@@ -27,6 +32,28 @@ describe("EOD_IMAGE_LAYOUT", () => {
     expect(EOD_IMAGE_LAYOUT.footerH).toBeLessThanOrEqual(32);
     expect(EOD_IMAGE_LAYOUT.sectionGap).toBeLessThanOrEqual(12);
   });
+
+  it("keeps station totals columns compact (not full-canvas percent widths)", () => {
+    const tableW = stationTableContentWidth();
+    const contentW = EOD_IMAGE_LAYOUT.width - EOD_IMAGE_LAYOUT.pad * 2;
+    // Dense table should be well under half the canvas content width.
+    expect(tableW).toBeLessThan(contentW * 0.45);
+    expect(EOD_IMAGE_LAYOUT.tableNameW).toBeLessThanOrEqual(180);
+    expect(EOD_IMAGE_LAYOUT.tableNumW).toBeLessThanOrEqual(90);
+    expect(tableW).toBe(
+      EOD_IMAGE_LAYOUT.tableNameW + EOD_IMAGE_LAYOUT.tableNumW * 3,
+    );
+  });
+
+  it("packs landfill cards at a fixed compact width (more than 2 columns)", () => {
+    expect(EOD_IMAGE_LAYOUT.lfCardW).toBeLessThanOrEqual(340);
+    expect(EOD_IMAGE_LAYOUT.lfCardW).toBeGreaterThanOrEqual(220);
+    const cols = landfillColumnCount();
+    expect(cols).toBeGreaterThanOrEqual(3);
+    // Fixed cards must not stretch to half-canvas width.
+    const half = (EOD_IMAGE_LAYOUT.width - EOD_IMAGE_LAYOUT.pad * 2 - EOD_IMAGE_LAYOUT.lfGap) / 2;
+    expect(EOD_IMAGE_LAYOUT.lfCardW).toBeLessThan(half * 0.75);
+  });
 });
 
 describe("measureEodReportLayout", () => {
@@ -43,8 +70,8 @@ describe("measureEodReportLayout", () => {
     expect(layout.height).toBeLessThan(old);
     expect(layout.height).toBeLessThan(old - 150);
     expect(layout.width).toBe(EOD_IMAGE_LAYOUT.width);
-    expect(layout.lfRows).toBe(2);
-    expect(layout.lfH).toBe(2 * EOD_IMAGE_LAYOUT.lfRowH);
+    expect(layout.lfRows).toBe(Math.ceil(4 / landfillColumnCount()));
+    expect(layout.lfH).toBe(layout.lfRows * EOD_IMAGE_LAYOUT.lfRowH);
     // Footer band is small — no tall blank bottom reserved beyond footerH + pad.
     expect(EOD_IMAGE_LAYOUT.footerH + EOD_IMAGE_LAYOUT.pad).toBeLessThanOrEqual(48);
   });
@@ -54,6 +81,6 @@ describe("measureEodReportLayout", () => {
     const big = measureEodReportLayout({ yardCount: 20, stationCount: 20, landfillCount: 9 });
     expect(big.height).toBeGreaterThan(small.height);
     expect(big.gridH).toBeGreaterThan(small.gridH);
-    expect(big.lfRows).toBe(5);
+    expect(big.lfRows).toBe(Math.ceil(9 / landfillColumnCount()));
   });
 });
