@@ -30,28 +30,28 @@ const COLS: { key: "start" | StationHourKey | "close"; label: string }[] = [
 export const EOD_IMAGE_LAYOUT = {
   pad: 16,
   width: 1480,
-  titleH: 50,
-  sectionTitleH: 20,
+  titleH: 52,
+  sectionTitleH: 22,
   sectionGap: 10,
   /** Gap between left/right columns in the two side-by-side bands. */
   colGap: 12,
   hourColW: 56,
   nameColW: 132,
-  gridHeaderH: 24,
-  gridRowH: 24,
+  gridHeaderH: 26,
+  gridRowH: 26,
   gridCardPad: 12,
   /** Inner horizontal pad inside the hour-grid card. */
   gridInnerPad: 8,
   /**
-   * Compact End-of-day stat bubbles (right of hour grid).
-   * Shorter than the old full-width row so five stacked cards fit beside the grid.
+   * Compact End-of-day commodity/stat bubbles (right of hour grid).
+   * Dense chips — small pad/font so five stacked cards fit beside the grid.
    */
-  cardsH: 52,
-  cardGap: 6,
+  cardsH: 40,
+  cardGap: 5,
   /** How many EOD stat cards are drawn (TRASH/LEACHATE/WALKING-FLOOR/LOADS/SUBS). */
   cardCount: 5,
-  tableHeaderH: 22,
-  tableRowH: 22,
+  tableHeaderH: 24,
+  tableRowH: 24,
   tableCardPad: 10,
   /** Station totals: fixed dense cols (not % of full canvas). */
   tableNameW: 148,
@@ -242,9 +242,9 @@ export function buildEodReportPng(opts: {
 
   let y = L.pad;
   ctx.fillStyle = "#111827";
-  ctx.font = "700 24px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText("END OF DAY LOAD COUNT", L.pad, y + 22);
-  ctx.font = "500 14px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = "700 26px ui-sans-serif, system-ui, sans-serif";
+  ctx.fillText("END OF DAY LOAD COUNT", L.pad, y + 24);
+  ctx.font = "500 15px ui-sans-serif, system-ui, sans-serif";
   ctx.fillStyle = "#6b7280";
   ctx.fillText(`${formatHeaderDate(opts.date)}  ·  Keith's Load Tracker`, L.pad, y + 42);
   y += L.titleH;
@@ -253,7 +253,7 @@ export function buildEodReportPng(opts: {
   const gridCardW = hourGridCardWidth();
   const statsX = L.pad + gridCardW + L.colGap;
   ctx.fillStyle = "#111827";
-  ctx.font = "700 14px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = "700 15px ui-sans-serif, system-ui, sans-serif";
   ctx.fillText("Load Count By Hour", L.pad, y + 14);
   ctx.fillText("End of day", statsX, y + 14);
   y += L.sectionTitleH;
@@ -281,12 +281,12 @@ export function buildEodReportPng(opts: {
   card(L.pad, y, tableCardW, tableH + L.tableCardPad);
   drawStationTable(ctx, L.pad + L.tableInnerPad, y + 6, eod, L.tableHeaderH, L.tableRowH);
   ctx.fillStyle = "#111827";
-  ctx.font = "700 14px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = "700 15px ui-sans-serif, system-ui, sans-serif";
   ctx.fillText(`Landfill  ·  ${landfills.length} groups`, lfX, y + 14);
   drawLandfills(ctx, lfX, y + L.sectionTitleH, lfColW, landfills, L.lfRowH, L.lfGap);
 
   ctx.fillStyle = "#9ca3af";
-  ctx.font = "500 11px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = "500 12px ui-sans-serif, system-ui, sans-serif";
   ctx.fillText("For informational purposes only", L.pad, height - L.pad + 2);
 
   return canvas.toDataURL("image/png");
@@ -305,7 +305,7 @@ function drawHourGrid(
   rowH: number,
   headerH: number,
 ) {
-  ctx.font = "600 11px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif";
   ctx.fillStyle = "#6b7280";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -320,7 +320,7 @@ function drawHourGrid(
       ctx.fillRect(x, ry, nameColW + COLS.length * hourColW, rowH);
     }
     ctx.fillStyle = "#111827";
-    ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
     ctx.textBaseline = "middle";
     ctx.fillText(yard.label, x + 6, ry + rowH / 2);
     COLS.forEach((col, i) => {
@@ -332,7 +332,7 @@ function drawHourGrid(
             : hourCell(board, yard.id, col.key);
       const cx = x + nameColW + i * hourColW + hourColW / 2;
       ctx.textAlign = "center";
-      ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif";
+      ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
       ctx.fillStyle = isZeroish(value) ? "#dc2626" : "#111827";
       ctx.fillText(value, cx, ry + rowH / 2);
       ctx.textAlign = "left";
@@ -357,18 +357,18 @@ function drawStatCards(
     ctx.fillStyle = item.emphasis ? "#fef3f2" : "#ffffff";
     ctx.strokeStyle = item.emphasis ? "#fecaca" : "#e5e7eb";
     ctx.lineWidth = 1;
-    roundRect(ctx, x, cy, w, h, 10);
+    roundRect(ctx, x, cy, w, h, 8);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "#6b7280";
-    ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(item.label, x + 14, cy + h / 2);
+    ctx.fillText(item.label, x + 10, cy + h / 2);
     ctx.fillStyle = "#111827";
-    ctx.font = "700 22px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = "700 18px ui-sans-serif, system-ui, sans-serif";
     ctx.textAlign = "right";
-    ctx.fillText(String(item.count), x + w - 14, cy + h / 2);
+    ctx.fillText(String(item.count), x + w - 10, cy + h / 2);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   });
@@ -389,7 +389,7 @@ function drawStationTable(
     { label: "MSW", align: "right" as const, width: L.tableNumW },
     { label: "CLOSED", align: "right" as const, width: L.tableNumW },
   ];
-  ctx.font = "700 11px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = "700 12px ui-sans-serif, system-ui, sans-serif";
   ctx.fillStyle = "#6b7280";
   let cx = x;
   cols.forEach((col) => {
@@ -400,7 +400,7 @@ function drawStationTable(
   eod.stations.forEach((row, i) => {
     const ry = y + headerH + i * rowH + rowH / 2;
     ctx.fillStyle = "#111827";
-    ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
     let px = x;
     const values = [row.label, String(row.pickedUp), String(row.msw), row.left ?? "\u2014"];
     cols.forEach((col, ci) => {
@@ -441,7 +441,7 @@ function drawLandfills(
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "#111827";
-    ctx.font = "700 13px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = "700 14px ui-sans-serif, system-ui, sans-serif";
     ctx.textAlign = "left";
     const label = truncateLabel(ctx, row.label, nameMax);
     ctx.fillText(label, cx + 12, cy + 22);
@@ -449,7 +449,7 @@ function drawLandfills(
     ctx.textAlign = "right";
     ctx.fillText(`${row.trashCount} / ${row.count}`, countRight, cy + 18);
     ctx.fillStyle = "#9ca3af";
-    ctx.font = "600 9px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
     ctx.fillText("MSW / TOTAL", countRight, cy + 30);
     ctx.textAlign = "left";
   });

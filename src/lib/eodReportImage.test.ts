@@ -34,7 +34,8 @@ describe("EOD_IMAGE_LAYOUT", () => {
     expect(EOD_IMAGE_LAYOUT.pad).toBeLessThanOrEqual(18);
     expect(EOD_IMAGE_LAYOUT.gridRowH).toBeLessThanOrEqual(26);
     expect(EOD_IMAGE_LAYOUT.tableRowH).toBeLessThanOrEqual(24);
-    expect(EOD_IMAGE_LAYOUT.cardsH).toBeLessThanOrEqual(56);
+    expect(EOD_IMAGE_LAYOUT.cardsH).toBeLessThanOrEqual(44);
+    expect(EOD_IMAGE_LAYOUT.cardGap).toBeLessThanOrEqual(5);
     expect(EOD_IMAGE_LAYOUT.lfRowH).toBeLessThanOrEqual(46);
     expect(EOD_IMAGE_LAYOUT.footerH).toBeLessThanOrEqual(32);
     expect(EOD_IMAGE_LAYOUT.sectionGap).toBeLessThanOrEqual(12);
