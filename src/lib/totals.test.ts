@@ -24,6 +24,7 @@ import {
   loadMatchesCallYard,
   rankCommodities,
   rankAccordionLoads,
+  rankDestinations,
   rankPickups,
   formatRankTrashTotal,
 } from "./totals";
@@ -570,6 +571,45 @@ describe("daySummaryCards", () => {
     expect(value("TRASH") + value("LEACHATE") + value("WALKING-FLOOR")).toBe(
       value("LOADS"),
     );
+  });
+});
+
+describe("rankDestinations", () => {
+  it("merges DeKalb case-insensitively under the canonical display name", () => {
+    const rows = rankDestinations([
+      load({ id: "1", destination: "DeKalb" }),
+      load({ id: "2", destination: "Dekalb" }),
+    ]);
+
+    expect(rows).toEqual([
+      { key: "DeKalb", label: "DeKalb", count: 2, trashCount: 2 },
+    ]);
+  });
+
+  it("merges other case-only destination variants without merging different sites", () => {
+    const rows = rankDestinations([
+      load({ id: "1", destination: "Newton" }),
+      load({ id: "2", destination: "NEWTON" }),
+      load({ id: "3", destination: "Newton South" }),
+    ]);
+
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.label === "Newton")).toMatchObject({ count: 2 });
+    expect(rows.find((row) => row.label === "Newton South")).toMatchObject({ count: 1 });
+  });
+
+  it("filters every case variant when a merged destination row is expanded", () => {
+    const loads = [
+      load({ id: "1", destination: "DeKalb" }),
+      load({ id: "2", destination: "Dekalb" }),
+      load({ id: "3", destination: "Newton" }),
+    ];
+
+    expect(
+      rankAccordionLoads(loads, { kind: "destination", key: "DeKalb" })
+        .map((row) => row.id)
+        .sort(),
+    ).toEqual(["1", "2"]);
   });
 });
 

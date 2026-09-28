@@ -62,11 +62,34 @@ export function rankPickups(loads: Load[]): RankRow[] {
   return sortRanks([...map.values()]);
 }
 
+const CANONICAL_DESTINATION_NAMES: Readonly<Record<string, string>> = {
+  dekalb: "DeKalb",
+};
+
+/** Case-insensitive grouping key; distinct destination spellings otherwise stay separate. */
+function destinationKey(value: string): string {
+  return value.trim().toLocaleLowerCase("en-US") || "—";
+}
+
+function destinationLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "—";
+  return CANONICAL_DESTINATION_NAMES[destinationKey(trimmed)] ?? trimmed;
+}
+
 export function rankDestinations(loads: Load[]): RankRow[] {
   const map = new Map<string, RankRow>();
   for (const load of loads) {
-    const key = load.destination.trim() || "—";
-    bumpRank(map, key, key, load);
+    const groupKey = destinationKey(load.destination);
+    const existing = map.get(groupKey);
+    if (existing) {
+      bumpRank(map, groupKey, existing.label, load);
+      continue;
+    }
+    const label = destinationLabel(load.destination);
+    bumpRank(map, groupKey, label, load);
+    // Keep the public row key display-friendly while the map remains normalized.
+    map.get(groupKey)!.key = label;
   }
   return sortRanks([...map.values()]);
 }
@@ -95,9 +118,8 @@ export function filterLoads(loads: Load[], filter: TotalsFilter | null): Load[] 
     return loads.filter((load) => (load.pickup.trim() || "—") === filter.key);
   }
   if (filter.kind === "destination") {
-    return loads.filter(
-      (load) => (load.destination.trim() || "—") === filter.key,
-    );
+    const key = destinationKey(filter.key);
+    return loads.filter((load) => destinationKey(load.destination) === key);
   }
   return loads.filter((load) => tallyLabel(load.commodity) === filter.key);
 }
