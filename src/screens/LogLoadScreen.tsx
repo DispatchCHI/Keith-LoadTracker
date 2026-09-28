@@ -44,8 +44,14 @@ export function LogLoadScreen({
     : "screen overlay-screen";
   const { saveLoad, loads } = useLoads();
   const { store: rosterStore } = useDriverRoster();
-  const { consumeOpens } = useSpecialty();
+  const { opensFor, consumeOpens } = useSpecialty();
   const [duplicate, setDuplicate] = useState<Load | null>(null);
+  const [specialtyWarn, setSpecialtyWarn] = useState<{
+    opens: number;
+    stationId: string;
+    destination: string;
+    pickup: string;
+  } | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [truck, setTruck] = useState(initialTruck);
   const [step, setStep] = useState<"truck" | "form">(
@@ -102,6 +108,7 @@ export function LogLoadScreen({
 
     // Dismiss immediately — specialty cloud deletes must not block the log screen.
     setDuplicate(null);
+    setSpecialtyWarn(null);
     onSaved(lastId, targetDate);
 
     const lane = resolveSpecialtyBoardMatch(
@@ -117,15 +124,17 @@ export function LogLoadScreen({
     }
   };
 
-  const commit = (opts?: { forceDuplicate?: boolean }) => {
+  const commit = (opts?: {
+    forceDuplicate?: boolean;
+    forceSpecialty?: boolean;
+  }) => {
     if (!formComplete(form)) return;
     const forceDuplicate = opts?.forceDuplicate ?? false;
+    const forceSpecialty = opts?.forceSpecialty ?? false;
     const now = new Date().toISOString();
     const pickup = pickupLabel(form.stationId, form.pickup);
     const destination = form.destination.trim();
 
-    // Duplicate soft-warn only — specialty opens must never block primary Save.
-    // consumeOpens still runs fire-and-forget in finishSave when matched.
     if (!forceDuplicate) {
       const match = findNearDuplicate(loads, {
         truck: form.truck.trim(),
@@ -135,7 +144,28 @@ export function LogLoadScreen({
         createdAt: now,
       });
       if (match) {
+        setSpecialtyWarn(null);
         setDuplicate(match);
+        return;
+      }
+    }
+
+    const lane = resolveSpecialtyBoardMatch(
+      form.stationId,
+      pickup,
+      destination,
+      form.commodity,
+    );
+    if (!forceSpecialty && lane) {
+      const opens = opensFor(targetDate, lane.specialtyId, lane.chips);
+      if (opens < qty) {
+        setDuplicate(null);
+        setSpecialtyWarn({
+          opens,
+          stationId: lane.specialtyId,
+          destination: lane.chip,
+          pickup,
+        });
         return;
       }
     }
@@ -224,6 +254,36 @@ export function LogLoadScreen({
         </div>
       ) : null}
 
+      {specialtyWarn ? (
+        <div className="delete-confirm warn-confirm">
+          <p className="specialty-warn-title">No Available Loads</p>
+          <p>
+            {specialtyWarn.opens === 0
+              ? `No specialty opens for ${specialtyWarn.pickup} → ${specialtyWarn.destination} on this day.`
+              : `Only ${specialtyWarn.opens} specialty open${specialtyWarn.opens === 1 ? "" : "s"} for ${specialtyWarn.pickup} → ${specialtyWarn.destination}, but you are logging ${qty}.`}{" "}
+            Add {qty === 1 ? "this load" : `these ${qty} loads`} to the daily tally
+            anyway?
+          </p>
+          <div className="overlay-footer">
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setSpecialtyWarn(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary grow"
+              onClick={() =>
+                commit({ forceDuplicate: true, forceSpecialty: true })
+              }
+            >
+              Save anyway
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="overlay-footer overlay-footer-stack">
         <QuantityStepper value={qty} onChange={setQuantity} />

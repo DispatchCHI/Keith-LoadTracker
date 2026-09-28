@@ -54,7 +54,7 @@ export function EditLoadScreen({
 }: EditLoadScreenProps) {
   const { saveLoad, deleteLoad, loads } = useLoads();
   const { store: rosterStore } = useDriverRoster();
-  const { consumeOpens } = useSpecialty();
+  const { opensFor, consumeOpens } = useSpecialty();
   const original = useMemo(() => loadToForm(load), [load]);
   const [form, setForm] = useState<FormState>(original);
   const [date, setDate] = useState(load.date);
@@ -63,6 +63,12 @@ export function EditLoadScreen({
   const [truckDigits, setTruckDigits] = useState(form.truck);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [duplicate, setDuplicate] = useState<Load | null>(null);
+  const [specialtyWarn, setSpecialtyWarn] = useState<{
+    opens: number;
+    pickup: string;
+    destination: string;
+    specialtyId: string;
+  } | null>(null);
 
   const dirty = !sameForm(form, original) || date !== load.date;
   const canSave = formComplete(form) && dirty;
@@ -109,6 +115,7 @@ export function EditLoadScreen({
       load.commodity.trim().toLowerCase() !== form.commodity.trim().toLowerCase();
 
     setDuplicate(null);
+    setSpecialtyWarn(null);
     onSaved(load.id, date);
 
     if (lane && routeChanged) {
@@ -118,15 +125,14 @@ export function EditLoadScreen({
     }
   };
 
-  const commit = (opts?: { forceDuplicate?: boolean }) => {
+  const commit = (opts?: { forceDuplicate?: boolean; forceSpecialty?: boolean }) => {
     if (!canSave) return;
     const forceDuplicate = opts?.forceDuplicate ?? false;
+    const forceSpecialty = opts?.forceSpecialty ?? false;
     const pickup = pickupLabel(form.stationId, form.pickup);
     const destination = form.destination.trim();
     const now = new Date().toISOString();
 
-    // Duplicate soft-warn only — specialty opens must never block primary Save.
-    // consumeOpens still runs fire-and-forget in finishSave when matched.
     if (!forceDuplicate) {
       const match = findNearDuplicate(loads, {
         id: load.id,
@@ -137,7 +143,35 @@ export function EditLoadScreen({
         createdAt: now,
       });
       if (match) {
+        setSpecialtyWarn(null);
         setDuplicate(match);
+        return;
+      }
+    }
+
+    const lane = resolveSpecialtyBoardMatch(
+      form.stationId,
+      pickup,
+      destination,
+      form.commodity,
+    );
+    const routeChanged =
+      load.stationId !== form.stationId ||
+      load.destination.trim().toLowerCase() !== destination.toLowerCase() ||
+      load.date !== date ||
+      load.pickup.trim().toLowerCase() !== pickup.toLowerCase() ||
+      load.commodity.trim().toLowerCase() !== form.commodity.trim().toLowerCase();
+
+    if (!forceSpecialty && lane && routeChanged) {
+      const opens = opensFor(date, lane.specialtyId, lane.chips);
+      if (opens < 1) {
+        setDuplicate(null);
+        setSpecialtyWarn({
+          opens,
+          pickup,
+          destination: lane.chip,
+          specialtyId: lane.specialtyId,
+        });
         return;
       }
     }
@@ -294,6 +328,32 @@ export function EditLoadScreen({
               type="button"
               className="btn-primary grow"
               onClick={() => commit({ forceDuplicate: true })}
+            >
+              Save anyway
+            </button>
+          </div>
+        </div>
+      ) : specialtyWarn ? (
+        <div className="delete-confirm warn-confirm">
+          <p className="specialty-warn-title">No Available Loads</p>
+          <p>
+            No specialty opens for {specialtyWarn.pickup} → {specialtyWarn.destination}{" "}
+            on this day. Save this edit to the daily tally anyway?
+          </p>
+          <div className="overlay-footer">
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setSpecialtyWarn(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary grow"
+              onClick={() =>
+                commit({ forceDuplicate: true, forceSpecialty: true })
+              }
             >
               Save anyway
             </button>

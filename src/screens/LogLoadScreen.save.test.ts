@@ -22,15 +22,18 @@ describe("Log Load primary Save for a complete draft", () => {
     expect(log).toMatch(/onClick=\{\(\) => commit\(\)\}/);
   });
 
-  it("primary commit never early-returns on specialty opens (save + close)", () => {
+  it("specialty soft-warn allows Save anyway (morning behavior)", () => {
     const start = log.indexOf("const commit");
     const end = log.indexOf("if (step === \"truck\")", start);
     const commit = log.slice(start, end);
     expect(commit).toMatch(/finishSave/);
-    expect(commit).not.toMatch(/opensFor/);
-    expect(commit).not.toMatch(/setSpecialtyWarn/);
-    expect(commit).not.toMatch(/forceSpecialty/);
+    expect(commit).toMatch(/opensFor/);
+    expect(commit).toMatch(/setSpecialtyWarn/);
+    expect(commit).toMatch(/forceSpecialty/);
     expect(commit).toMatch(/findNearDuplicate/);
+    // Warn UI still offers Save anyway — Keith is never stuck.
+    expect(log).toMatch(/Save anyway/);
+    expect(log).toMatch(/forceSpecialty: true/);
   });
 
   it("complete draft (truck + pickup + commodity + dest) enables Save without specialty warn", () => {
