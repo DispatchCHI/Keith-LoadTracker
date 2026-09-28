@@ -296,24 +296,30 @@ export function LogLoadScreen({
         </div>
       ) : null}
 
-      {duplicate || specialtyWarn ? null : (
-        <div className="overlay-footer overlay-footer-stack">
-          <QuantityStepper value={qty} onChange={setQuantity} />
-          <div className="overlay-footer-actions">
-            <button type="button" className="btn-ghost" onClick={onCancel}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-primary grow"
-              disabled={!formComplete(form)}
-              onClick={() => commit()}
-            >
-              {qty === 1 ? "Save" : `Save ${qty} loads`}
-            </button>
-          </div>
+      {/* Always keep main Save available — warn dialogs are additive, not a
+          replacement. Hiding the footer made Save look disabled/stuck when a
+          duplicate or specialty soft-warn appeared after the first click. */}
+      <div className="overlay-footer overlay-footer-stack">
+        <QuantityStepper value={qty} onChange={setQuantity} />
+        <div className="overlay-footer-actions">
+          <button type="button" className="btn-ghost" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn-primary grow"
+            disabled={!formComplete(form)}
+            onClick={() =>
+              commit({
+                forceDuplicate: Boolean(duplicate),
+                forceSpecialty: Boolean(specialtyWarn),
+              })
+            }
+          >
+            {qty === 1 ? "Save" : `Save ${qty} loads`}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -41,9 +41,14 @@ describe("Log Load overlay dismisses on successful save", () => {
     expect(finish).not.toMatch(/await\s+consumeOpens/);
   });
 
-  it("Back / Cancel stay available; warn dialogs hide the main Save footer", () => {
+  it("Back / Cancel stay available; main Save footer stays mounted with warns", () => {
     expect(log).toMatch(/aria-label="Back"/);
     expect(log).toMatch(/onClick=\{onCancel\}/);
-    expect(log).toMatch(/duplicate \|\| specialtyWarn \? null/);
+    // Do not hide the Save footer when duplicate/specialty soft-warns show —
+    // that left Save looking disabled/stuck after the first click.
+    expect(log).not.toMatch(/duplicate \|\| specialtyWarn \? null/);
+    expect(log).toMatch(/forceDuplicate: Boolean\(duplicate\)/);
+    expect(log).toMatch(/forceSpecialty: Boolean\(specialtyWarn\)/);
+    expect(log).toMatch(/disabled=\{!formComplete\(form\)\}/);
   });
 });

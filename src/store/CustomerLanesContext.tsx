@@ -52,8 +52,22 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
   const [store, setStore] = useState<CustomerLaneStore>(() => {
     const persisted = readCustomerLanePersisted();
     deletedCustomersRef.current = new Set(persisted.deletedCustomerNames);
+    // Always merge catalog seed upgrades (e.g. Medill stub → real routes) so
+    // Log Load chips/defaults work before the first cloud refresh.
     if (Object.keys(persisted.lanes).length) {
-      return { lanes: persisted.lanes };
+      const seeded = mergeSeededLanes(
+        { lanes: persisted.lanes },
+        undefined,
+        deletedCustomersRef.current,
+      );
+      if (Object.keys(seeded.lanes).length !== Object.keys(persisted.lanes).length) {
+        writeCustomerLanePersisted({
+          ...persisted,
+          lanes: seeded.lanes,
+          seededAt: persisted.seededAt ?? new Date().toISOString(),
+        });
+      }
+      return seeded;
     }
     if (persisted.seededAt || persisted.deletedCustomerNames.length) {
       return { lanes: {} };
