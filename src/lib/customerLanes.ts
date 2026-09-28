@@ -583,6 +583,100 @@ export function destinationsForCustomer(
   return out.sort((a, b) => a.localeCompare(b, "en"));
 }
 
+function pickPreferredCommodity(commodities: string[], preferred = ""): string {
+  if (!commodities.length) return "";
+  if (preferred.trim()) {
+    const keep = commodities.find((c) => commoditiesSameChip(c, preferred));
+    if (keep) return keep;
+  }
+  const trash = commodities.find((c) => commoditiesSameChip(c, "Trash (MSW)"));
+  return trash ?? commodities[0];
+}
+
+export type LaneRouteLoad = {
+  pickup: string;
+  commodity: string;
+  destination: string;
+  stationId?: string;
+};
+
+/** Valid commodity→destination pairs for a customer as of a date (lane book only). */
+export function lanePairsForCustomer(
+  store: CustomerLaneStore,
+  customer: string,
+  asOf: string,
+): { commodity: string; destination: string }[] {
+  const out: { commodity: string; destination: string }[] = [];
+  const seen = new Set<string>();
+  for (const lane of currentLanesByCustomer(store, asOf)) {
+    if (isLaneStub(lane)) continue;
+    if (!placesMatch(lane.customer, customer)) continue;
+    const commodity = commodityRankLabel(lane.commodity) || lane.commodity.trim();
+    const destination = lane.destination.trim();
+    if (!commodity || !destination) continue;
+    const key = `${commodityChipKey(commodity)}|${normalizePlaceName(destination)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ commodity, destination });
+  }
+  return out;
+}
+
+/**
+ * On pickup select: most-logged valid lane combo for that customer.
+ * If no history, prefer Trash + that lane's destination; else first valid pair.
+ */
+export function defaultCustomerLaneRoute(
+  store: CustomerLaneStore,
+  customer: string,
+  asOf: string,
+  loads: readonly LaneRouteLoad[] = [],
+): { commodity: string; destination: string } {
+  const pairs = lanePairsForCustomer(store, customer, asOf);
+  if (!pairs.length) return { commodity: "", destination: "" };
+
+  const counts = new Map<string, number>();
+  for (const load of loads) {
+    const pickup = cleanPlaceName(load.pickup);
+    if (!pickup || !placesMatch(pickup, customer)) continue;
+    const commodity = cleanPlaceName(load.commodity);
+    const destination = cleanPlaceName(load.destination);
+    if (!commodity || !destination) continue;
+    const hit = pairs.find(
+      (pair) =>
+        commoditiesSameChip(pair.commodity, commodity) &&
+        placesMatch(pair.destination, destination),
+    );
+    if (!hit) continue;
+    const key = `${commodityChipKey(hit.commodity)}|${normalizePlaceName(hit.destination)}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  let best: { commodity: string; destination: string } | null = null;
+  let bestCount = 0;
+  for (const pair of pairs) {
+    const key = `${commodityChipKey(pair.commodity)}|${normalizePlaceName(pair.destination)}`;
+    const n = counts.get(key) ?? 0;
+    if (n > bestCount) {
+      bestCount = n;
+      best = pair;
+    }
+  }
+  if (best && bestCount > 0) return best;
+
+  const trashPairs = pairs.filter((pair) => commoditiesSameChip(pair.commodity, "Trash (MSW)"));
+  if (trashPairs.length) {
+    return [...trashPairs].sort((a, b) =>
+      a.destination.localeCompare(b.destination, "en"),
+    )[0];
+  }
+  return [...pairs].sort((a, b) => {
+    const byCom = a.commodity.localeCompare(b.commodity, "en");
+    if (byCom) return byCom;
+    return a.destination.localeCompare(b.destination, "en");
+  })[0];
+}
+
 export function cascadeCustomerLaneRoute(
   store: CustomerLaneStore,
   customer: string,
@@ -592,9 +686,7 @@ export function cascadeCustomerLaneRoute(
 ): { commodity: string; destination: string } {
   const commodities = commoditiesForCustomer(store, customer, asOf);
   if (!commodities.length) return { commodity: "", destination: "" };
-  const nextCommodity = commodities.some((c) => commoditiesSameChip(c, commodity))
-    ? commodities.find((c) => commoditiesSameChip(c, commodity)) ?? commodities[0]
-    : commodities[0];
+  const nextCommodity = pickPreferredCommodity(commodities, commodity);
   const destinations = destinationsForCustomer(store, customer, nextCommodity, asOf);
   if (!destinations.length) return { commodity: nextCommodity, destination: "" };
   const nextDest = destinations.some((d) => placesMatch(d, destination))

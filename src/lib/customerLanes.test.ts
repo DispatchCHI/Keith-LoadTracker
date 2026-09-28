@@ -4,6 +4,7 @@ import {
   commoditiesForCustomer,
   commoditiesMatch,
   currentLanesByCustomer,
+  defaultCustomerLaneRoute,
   destinationsForCustomer,
   mergeSeededLanes,
   placesMatch,
@@ -257,3 +258,110 @@ describe("lane-book commodities and destinations", () => {
   });
 });
 
+describe("defaultCustomerLaneRoute", () => {
+  it("prefers Trash when there is no load history", () => {
+    let store: CustomerLaneStore = { lanes: {} };
+    store = upsertCustomerLane(store, {
+      customer: "Arc",
+      destination: "Organix",
+      commodity: "Yard Waste",
+      effectiveDate: "2025-01-01",
+      tier1: 80,
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "Arc",
+      destination: "Winnebago",
+      commodity: "Trash (MSW)",
+      effectiveDate: "2025-01-01",
+      tier1: 100,
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "Arc",
+      destination: "Hodgkins",
+      commodity: "Recycle",
+      effectiveDate: "2025-01-01",
+      tier1: 90,
+    }).store;
+    const route = defaultCustomerLaneRoute(store, "Arc", "2026-09-16");
+    expect(commoditiesMatch(route.commodity, "Trash (MSW)")).toBe(true);
+    expect(placesMatch(route.destination, "Winnebago")).toBe(true);
+  });
+
+  it("defaults to the most-logged valid combo for that pickup", () => {
+    let store: CustomerLaneStore = { lanes: {} };
+    store = upsertCustomerLane(store, {
+      customer: "Arc",
+      destination: "Organix",
+      commodity: "Yard Waste",
+      effectiveDate: "2025-01-01",
+      tier1: 80,
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "Arc",
+      destination: "Winnebago",
+      commodity: "Trash (MSW)",
+      effectiveDate: "2025-01-01",
+      tier1: 100,
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "Arc",
+      destination: "Rockford",
+      commodity: "Trash (MSW)",
+      effectiveDate: "2025-01-01",
+      tier1: 95,
+    }).store;
+    const loads = [
+      { pickup: "Arc", commodity: "Yard Waste", destination: "Organix" },
+      { pickup: "Arc", commodity: "Trash (MSW)", destination: "Winnebago" },
+      { pickup: "Arc", commodity: "Trash (MSW)", destination: "Winnebago" },
+      { pickup: "Arc", commodity: "Trash (MSW)", destination: "Rockford" },
+      // Invalid / other pickup — ignored
+      { pickup: "Arc", commodity: "Cardboard", destination: "DuPage" },
+      { pickup: "Elgin", commodity: "Trash (MSW)", destination: "DeKalb" },
+    ];
+    const route = defaultCustomerLaneRoute(store, "Arc", "2026-09-16", loads);
+    expect(commoditiesMatch(route.commodity, "Trash (MSW)")).toBe(true);
+    expect(placesMatch(route.destination, "Winnebago")).toBe(true);
+  });
+
+  it("Elgin seed has Trash only — never invents Cardboard→DuPage", () => {
+    const store = seededCustomerLaneStore();
+    expect(commoditiesForCustomer(store, "Elgin", "2026-09-16")).toEqual([
+      "Trash (MSW)",
+    ]);
+    expect(
+      destinationsForCustomer(store, "Elgin", "Cardboard", "2026-09-16"),
+    ).toEqual([]);
+    expect(
+      destinationsForCustomer(store, "Elgin", "Trash (MSW)", "2026-09-16").sort(),
+    ).toEqual(["DeKalb", "Rockford"]);
+    const route = defaultCustomerLaneRoute(store, "Elgin", "2026-09-16");
+    expect(commoditiesMatch(route.commodity, "Trash (MSW)")).toBe(true);
+    expect(["DeKalb", "Rockford"].some((d) => placesMatch(d, route.destination))).toBe(
+      true,
+    );
+  });
+});
+
+describe("cascade prefers Trash when current commodity is invalid", () => {
+  it("picks Trash over alphabetically-first Yard Waste", () => {
+    let store: CustomerLaneStore = { lanes: {} };
+    store = upsertCustomerLane(store, {
+      customer: "Arc",
+      destination: "Organix",
+      commodity: "Yard Waste",
+      effectiveDate: "2025-01-01",
+      tier1: 80,
+    }).store;
+    store = upsertCustomerLane(store, {
+      customer: "Arc",
+      destination: "Winnebago",
+      commodity: "Trash (MSW)",
+      effectiveDate: "2025-01-01",
+      tier1: 100,
+    }).store;
+    const route = cascadeCustomerLaneRoute(store, "Arc", "", "", "2026-09-16");
+    expect(commoditiesMatch(route.commodity, "Trash (MSW)")).toBe(true);
+    expect(placesMatch(route.destination, "Winnebago")).toBe(true);
+  });
+});
