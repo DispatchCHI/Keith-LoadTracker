@@ -182,12 +182,15 @@ describe("CALL_OFF_KIND_OPTIONS + tones", () => {
       "ncns",
       "late-early",
       "fmla",
+      "vacation",
     ]);
     expect(
       CALL_OFF_KIND_OPTIONS.find((row) => row.kind === "late-early")?.label,
     ).toBe("Late/Early");
     expect(isCallOffKind("late-early")).toBe(true);
     expect(kindRemovesFromAvailable("late-early")).toBe(false);
+    expect(kindRemovesFromAvailable("vacation")).toBe(true);
+    expect(kindRemovesFromAvailable("fmla")).toBe(true);
     for (const kind of ["call-off", "p-day", "okd-off", "ncns"] as const) {
       expect(kindRemovesFromAvailable(kind)).toBe(true);
     }
@@ -199,6 +202,8 @@ describe("CALL_OFF_KIND_OPTIONS + tones", () => {
     expect(CALL_OFF_KIND_TONES["p-day"]).toBe("green");
     expect(CALL_OFF_KIND_TONES["okd-off"]).toBe("gray");
     expect(CALL_OFF_KIND_TONES["ncns"]).toBe("red");
+    expect(CALL_OFF_KIND_TONES.vacation).toBe("blue");
+    expect(CALL_OFF_KIND_TONES.fmla).toBe("pink");
     const tones = Object.values(CALL_OFF_KIND_TONES);
     expect(new Set(tones).size).toBe(CALL_OFF_KIND_OPTIONS.length);
     expect(tones.filter((tone) => tone === "orange")).toEqual(["orange"]);
@@ -221,8 +226,11 @@ describe("callOffKindFromReason", () => {
     expect(callOffKindFromReason("Late/Early")).toBe("late-early");
     expect(callOffKindFromReason("late-early")).toBe("late-early");
     expect(callOffKindFromReason("FMLA Day")).toBe("fmla");
+    expect(callOffKindFromReason("Vacation Day")).toBe("vacation");
+    expect(callOffKindFromReason("1 vacation day")).toBe("vacation");
     expect(callOffKindFromReason("Jury Duty")).toBe("call-off");
     expect(reasonForKind("late-early")).toBe("Late/Early");
+    expect(reasonForKind("vacation")).toBe("Vacation Day");
   });
 });
 

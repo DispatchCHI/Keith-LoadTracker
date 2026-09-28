@@ -27,6 +27,7 @@ const CALL_OFF_KIND_BUTTON_STYLE: Record<
   ncns: { background: "#b91c1c", border: "1px solid #7f1d1d", color: "#ffffff" },
   "late-early": { background: "#facc15", border: "1px solid #eab308", color: "#422006" },
   fmla: { background: "#db2777", border: "1px solid #be185d", color: "#ffffff" },
+  vacation: { background: "#d6e8fb", border: "1px solid #7eb6ff", color: "#123152" },
 };
 
 function pulledLabel(iso: string | null): string {

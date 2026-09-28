@@ -92,8 +92,8 @@
 }
 
 /* Vacation Day = light blue */
-.calloffs-reason-row .calloff-preset-vacation,
-.calloffs-reason-row .calloff-preset-vacation.selected {
+.calloffs-reason-row .calloff-kind-vacation,
+.calloffs-reason-row .calloff-kind-vacation.selected {
   background: #d6e8fb !important;
   border: 1px solid #7eb6ff !important;
   color: #123152 !important;

@@ -21,7 +21,7 @@ describe("call-off log", () => {
       fullDayOffEntries(rows, [], "2026-08-15")
         .map((row) => row.kind)
         .sort(),
-    ).toEqual(["call-off", "okd-off", "okd-off", "okd-off", "okd-off"]);
+    ).toEqual(["okd-off", "okd-off", "okd-off", "okd-off", "vacation"]);
     expect(fullDayOffCount(rows, "2026-08-14")).toBe(1);
     expect(fullDayOffCount(rows, "2026-09-15")).toBe(3);
   });
@@ -41,6 +41,22 @@ describe("call-off log", () => {
     expect(kindForLogEntry({ reason: "P-Day" })).toBe("p-day");
     expect(kindForLogEntry({ reason: "ok'd off" })).toBe("okd-off");
     expect(kindForLogEntry({ reason: "Call Off" })).toBe("call-off");
+    expect(kindForLogEntry({ reason: "Vacation Day" })).toBe("vacation");
+    expect(kindForLogEntry({ reason: "FMLA Day" })).toBe("fmla");
+    expect(kindForLogEntry({ reason: "Late/Early" })).toBe("late-early");
+    expect(logEntrySubtracts({ reason: "Vacation Day" })).toBe(true);
+  });
+
+  it("persists Vacation Day reason without rewriting it to Call Off", () => {
+    const { entry } = addCallOffLogEntry([], {
+      name: "Francisco Ramirez",
+      start: "2026-09-30",
+      reason: "Vacation Day",
+    });
+    expect(entry).not.toBeNull();
+    expect(entry?.reason).toBe("Vacation Day");
+    expect(kindForLogEntry(entry!)).toBe("vacation");
+    expect(logEntrySubtracts(entry!)).toBe(true);
   });
 
   it("adds and merges without duplicating seed ids", () => {

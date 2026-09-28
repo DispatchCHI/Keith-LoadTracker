@@ -142,6 +142,13 @@ select {
   color: #ffffff !important;
 }
 
+.calloff-kind-vacation,
+.calloff-kind-vacation.selected {
+  background: #d6e8fb !important;
+  border: 1px solid #7eb6ff !important;
+  color: #123152 !important;
+}
+
 .calloff-chip-call-off {
   background: #f97316 !important;
   border-color: #ea580c !important;
@@ -181,4 +188,11 @@ select {
   background: #db2777 !important;
   border-color: #be185d !important;
   color: #ffffff !important;
+}
+
+/* Vacation Day on Call-Off's / Today is light blue, not orange Call Off. */
+.calloff-chip-vacation {
+  background: #d6e8fb !important;
+  border-color: #7eb6ff !important;
+  color: #123152 !important;
 }

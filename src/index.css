@@ -1975,6 +1975,15 @@ button.notes-top:focus-visible {
   color: #ffffff !important;
 }
 
+.calloff-add-form .calloff-kind-vacation,
+.calloff-kind-vacation,
+.calloff-add-form .calloff-kind-vacation.selected,
+.calloff-kind-vacation.selected {
+  background: #d6e8fb !important;
+  border: 1px solid #7eb6ff !important;
+  color: #123152 !important;
+}
+
 .calloff-add-error {
   margin: 0;
   color: #ffb4b4;
@@ -2031,6 +2040,12 @@ button.notes-top:focus-visible {
   border-color: #f472b6;
   background: #fce7f3;
   color: #9d174d;
+}
+
+.calloff-chip-vacation {
+  border-color: #7eb6ff;
+  background: #d6e8fb;
+  color: #123152;
 }
 
 .vacation-chip {

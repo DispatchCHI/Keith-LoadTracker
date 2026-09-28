@@ -32,9 +32,7 @@ function presetKind(reason: string): CallOffKind {
 }
 
 function presetClass(reason: string): string {
-  return /^vacation\s+day$/i.test(reason.trim())
-    ? "calloff-preset-vacation"
-    : `calloff-kind-${presetKind(reason)}`;
+  return `calloff-kind-${presetKind(reason)}`;
 }
 
 function nameKey(raw: string): string {
