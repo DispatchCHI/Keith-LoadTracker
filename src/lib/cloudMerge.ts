@@ -681,3 +681,68 @@ export function enqueueRemoteDeletesFromRefresh(
   }
   return [];
 }
+
+/**
+ * Apply a watermark delta (`updated_at` since last sync) onto the device
+ * cache. Unlike {@link mergeCloudLoads}, absence from `remoteDelta` does
+ * **not** imply delete — deletes ride realtime, the explicit queue, or a
+ * rare full reconcile.
+ */
+export function mergeIncrementalCloudLoads(input: CloudMergeInput): CloudMergeResult {
+  const extras = input.extra ?? [];
+  const explicitDeletes = explicitPendingDeleteIds(input.pending);
+  const durableTombstones = deletedLoadIds([], input.cache, input.local, ...extras);
+  const deleted = new Set<string>([...explicitDeletes, ...durableTombstones]);
+  const pendingUpserts = pendingUpsertLoads(input.pending, deleted);
+
+  const mergedMap = new Map<string, Load>();
+  putUnseeded(mergedMap, realDeviceLoads(input.cache, input.local, deleted));
+  for (const extra of extras) {
+    putUnseeded(mergedMap, realDeviceLoads(extra, { version: 1, loadsByDate: {} }, deleted));
+  }
+  putUnseeded(mergedMap, pendingUpserts);
+
+  const remoteKept = input.remote.filter(
+    (load) => !load.seeded && !explicitDeletes.has(load.id),
+  );
+  putUnseeded(mergedMap, remoteKept);
+  putUnseeded(mergedMap, pendingUpserts);
+
+  const remoteById = new Map(remoteKept.map((load) => [load.id, load]));
+  const toDelete = input.remote.filter(
+    (load) => !load.seeded && explicitDeletes.has(load.id),
+  );
+  const toDeleteIds = new Set(toDelete.map((load) => load.id));
+  for (const id of explicitDeletes) mergedMap.delete(id);
+  for (const id of toDeleteIds) mergedMap.delete(id);
+  for (const id of durableTombstones) {
+    if (remoteById.has(id) && !explicitDeletes.has(id)) continue;
+    mergedMap.delete(id);
+  }
+
+  const merged = sortLoads([...mergedMap.values()]);
+  const pendingIds = new Set(pendingUpserts.map((load) => load.id));
+  const toUpsert = merged.filter((load) => {
+    if (explicitDeletes.has(load.id) || toDeleteIds.has(load.id)) return false;
+    if (durableTombstones.has(load.id) && !remoteById.has(load.id)) return false;
+    const remote = remoteById.get(load.id);
+    if (!remote) {
+      // Delta omission ≠ missing on server; only flush queued upserts.
+      return pendingIds.has(load.id);
+    }
+    return load.updatedAt > remote.updatedAt;
+  });
+
+  const toTombstoneSet = new Set<string>(toDeleteIds);
+  for (const id of durableTombstones) {
+    if (remoteById.has(id) && !explicitDeletes.has(id)) continue;
+    toTombstoneSet.add(id);
+  }
+
+  return {
+    merged,
+    toUpsert,
+    toDelete,
+    toTombstone: [...toTombstoneSet],
+  };
+}

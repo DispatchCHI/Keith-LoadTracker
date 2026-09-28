@@ -5,10 +5,15 @@
  * On flaky Wi-Fi / VPN / Tauri desktop sessions, those refreshes can pile up
  * and trigger a sync storm (failed-to-fetch + ERR_INSUFFICIENT_RESOURCES).
  *
- * This module now centralizes refresh scheduling across the app so repeated
+ * This module centralizes refresh scheduling across the app so repeated
  * focus/visibility/online events collapse into a single debounced run.
+ *
+ * Optional `shouldPoll` gates interval/focus/online pulls (and tab-change
+ * nudges) so cold tables only hit the network while their screen is active.
+ * Callers still own the mount-time first fetch.
  */
 
+import { subscribeActiveTab } from "./activeTab";
 import {
   CLOUD_REFRESH_DEBOUNCE_MS,
   isNetworkSyncBackoffActive,
@@ -54,32 +59,65 @@ export function scheduleCloudRefresh(refresh: CloudRefreshFn): void {
   queueGlobalRefresh();
 }
 
+export type CloudRefreshOptions = {
+  intervalMs?: number;
+  /**
+   * When false, skip interval / focus / visibility / online pulls.
+   * Becoming true (e.g. user opens that tab) triggers a pull while visible.
+   */
+  shouldPoll?: () => boolean;
+  /** Override for tests; defaults to App's active-tab signal. */
+  subscribeTab?: (listener: () => void) => () => void;
+};
+
 export function attachCloudRefresh(
   refresh: CloudRefreshFn,
-  intervalMs = CLOUD_REFRESH_INTERVAL_MS,
+  intervalOrOptions: number | CloudRefreshOptions = CLOUD_REFRESH_INTERVAL_MS,
 ): () => void {
+  const options: CloudRefreshOptions =
+    typeof intervalOrOptions === "number"
+      ? { intervalMs: intervalOrOptions }
+      : intervalOrOptions ?? {};
+  const intervalMs = options.intervalMs ?? CLOUD_REFRESH_INTERVAL_MS;
+  const shouldPoll = options.shouldPoll ?? (() => true);
+  const subscribeTab = options.subscribeTab ?? subscribeActiveTab;
+
   const run = () => {
     if (isNetworkSyncBackoffActive()) return;
     scheduleCloudRefresh(refresh);
   };
 
+  const pullIfAllowed = () => {
+    if (!shouldPoll()) return;
+    if (document.visibilityState !== "visible") return;
+    run();
+  };
+
   const onVisible = () => {
-    if (document.visibilityState === "visible") run();
+    if (document.visibilityState === "visible") pullIfAllowed();
+  };
+  const onOnline = () => {
+    pullIfAllowed();
   };
 
   document.addEventListener("visibilitychange", onVisible);
   window.addEventListener("focus", onVisible);
-  window.addEventListener("online", run);
+  window.addEventListener("online", onOnline);
 
   const pollId = window.setInterval(() => {
-    if (document.visibilityState === "visible") run();
+    pullIfAllowed();
   }, intervalMs);
+
+  const stopTab = subscribeTab(() => {
+    pullIfAllowed();
+  });
 
   return () => {
     document.removeEventListener("visibilitychange", onVisible);
     window.removeEventListener("focus", onVisible);
-    window.removeEventListener("online", run);
+    window.removeEventListener("online", onOnline);
     window.clearInterval(pollId);
+    stopTab();
   };
 }
 

@@ -10,6 +10,7 @@ import {
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
 import { attachCloudRefresh, scheduleCloudRefresh } from "../lib/cloudRefresh";
+import { CUSTOMER_LANES_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
 import { clearCustomerBrandOverride } from "../lib/customerBrands";
 import {
   CUSTOMER_LANES_TABLE,
@@ -196,7 +197,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     if (!cloud) return;
     return attachCloudRefresh(() => {
       void refresh();
-    });
+    }, { shouldPoll: pollWhenTabs(CUSTOMER_LANES_POLL_TABS) });
   }, [cloud, refresh]);
 
   const saveLane = useCallback(

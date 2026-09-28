@@ -7,6 +7,7 @@ import {
   deviceWinsDateAgainstRemote,
   isProtectedDeviceLoad,
   mergeCloudLoads,
+  mergeIncrementalCloudLoads,
   reconcilePersistedSnapshot,
   shouldApplyRealtimeDelete,
   shouldApplyRealtimeUpsert,
@@ -1209,3 +1210,41 @@ describe("isProtectedDeviceLoad", () => {
   });
 });
 
+
+describe("mergeIncrementalCloudLoads", () => {
+  const day = "2026-09-10";
+
+  it("merges delta upserts without dropping local rows absent from the delta", () => {
+    const localOnly = load("local-1", day, { updatedAt: `${day}T10:00:00.000Z` });
+    const shared = load("shared", day, { updatedAt: `${day}T11:00:00.000Z` });
+    const newerRemote = load("shared", day, {
+      updatedAt: `${day}T12:00:00.000Z`,
+      pickup: "Newer",
+    });
+    const brandNew = load("new-1", day, { updatedAt: `${day}T12:30:00.000Z` });
+    const { merged, toUpsert, toDelete, toTombstone } = mergeIncrementalCloudLoads({
+      remote: [newerRemote, brandNew],
+      cache: store([localOnly, shared]),
+      local: store([localOnly, shared]),
+      pending: [],
+    });
+    const ids = merged.map((row) => row.id).sort();
+    expect(ids).toEqual(["local-1", "new-1", "shared"]);
+    expect(merged.find((row) => row.id === "shared")?.pickup).toBe("Newer");
+    expect(toUpsert).toEqual([]);
+    expect(toDelete).toEqual([]);
+    expect(toTombstone).toEqual([]);
+  });
+
+  it("still honors explicit pending deletes against delta rows", () => {
+    const doomed = load("doom", day, { updatedAt: `${day}T12:00:00.000Z` });
+    const { merged, toDelete } = mergeIncrementalCloudLoads({
+      remote: [doomed],
+      cache: store([doomed]),
+      local: store([doomed]),
+      pending: [deleteOp("doom")],
+    });
+    expect(merged.map((row) => row.id)).toEqual([]);
+    expect(toDelete.map((row) => row.id)).toEqual(["doom"]);
+  });
+});

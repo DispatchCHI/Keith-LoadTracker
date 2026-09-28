@@ -24,6 +24,7 @@ import {
   type DailyEodTotals,
 } from "../lib/dailyEod";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { pollWhenTabs, TODAY_HOT_TABS } from "../lib/cloudRefreshTabs";
 import { useAuth } from "./AuthContext";
 
 type DailyEodContextValue = {
@@ -98,7 +99,7 @@ export function DailyEodProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    return attachCloudRefresh(refresh);
+    return attachCloudRefresh(refresh, { shouldPoll: pollWhenTabs(TODAY_HOT_TABS) });
   }, [cloud, refresh]);
 
   const saveTotals = useCallback(

@@ -11,6 +11,7 @@ import {
 import { callOffLogSeedRows } from "../data/callOffLogSeed";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
 import { attachCloudRefresh, attachCrewTableRealtime, scheduleCloudRefresh } from "../lib/cloudRefresh";
+import { CALL_OFF_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
 import {
   addCallOffLogEntry,
   cleanCallOffLogRows,
@@ -223,7 +224,7 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
     if (!cloud) return;
     const stopPoll = attachCloudRefresh(() => {
       void refresh();
-    });
+    }, { shouldPoll: pollWhenTabs(CALL_OFF_POLL_TABS) });
     const stopLive = attachCrewTableRealtime("call-off-crew", ["call_off_log"], () => {
       void refresh();
     });

@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   LOAD_FETCH_PAGE_SIZE,
+  LOADS_FULL_RECONCILE_INTERVAL_MS,
+  LOADS_INCREMENTAL_OVERLAP_MS,
   fetchAllPaged,
   isMissingDriverNameColumn,
   loadToRow,
+  loadsIncrementalSince,
   pagedErrorMessage,
   rowToLoad,
+  shouldFullReconcileLoads,
   type LoadRow,
 } from "./cloud";
 import type { Load } from "../types";
@@ -106,5 +110,44 @@ describe("load driver_name mapping", () => {
       }),
     ).toBe(true);
     expect(isMissingDriverNameColumn({ message: "permission denied" })).toBe(false);
+  });
+});
+
+describe("loads incremental helpers", () => {
+  it("subtracts overlap from the watermark", () => {
+    const base = "2026-09-27T12:00:00.000Z";
+    const since = loadsIncrementalSince(base);
+    expect(Date.parse(base) - Date.parse(since)).toBe(LOADS_INCREMENTAL_OVERLAP_MS);
+  });
+
+  it("requires a full reconcile when never synced or interval elapsed", () => {
+    expect(
+      shouldFullReconcileLoads({
+        lastSuccessfulSyncAt: null,
+        lastFullReconcileAt: null,
+      }),
+    ).toBe(true);
+    expect(
+      shouldFullReconcileLoads({
+        lastSuccessfulSyncAt: "2026-09-27T12:00:00.000Z",
+        lastFullReconcileAt: null,
+      }),
+    ).toBe(true);
+    const last = "2026-09-27T12:00:00.000Z";
+    const now = Date.parse(last) + LOADS_FULL_RECONCILE_INTERVAL_MS - 1;
+    expect(
+      shouldFullReconcileLoads({
+        lastSuccessfulSyncAt: last,
+        lastFullReconcileAt: last,
+        now,
+      }),
+    ).toBe(false);
+    expect(
+      shouldFullReconcileLoads({
+        lastSuccessfulSyncAt: last,
+        lastFullReconcileAt: last,
+        now: now + 2,
+      }),
+    ).toBe(true);
   });
 });

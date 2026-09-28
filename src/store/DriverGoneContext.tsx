@@ -10,6 +10,7 @@ import {
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
 import { attachCloudRefresh, attachCrewTableRealtime } from "../lib/cloudRefresh";
+import { DRIVER_GONE_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
 import {
   addGoneEntry,
   applyGoneTombstones,
@@ -233,7 +234,7 @@ export function DriverGoneProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    const stopPoll = attachCloudRefresh(refresh);
+    const stopPoll = attachCloudRefresh(refresh, { shouldPoll: pollWhenTabs(DRIVER_GONE_POLL_TABS) });
     const stopLive = attachCrewTableRealtime(
       "driver-gone-crew",
       ["driver_gone_entries"],

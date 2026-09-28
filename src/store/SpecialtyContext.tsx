@@ -10,6 +10,7 @@ import {
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { pollWhenTabs, SPECIALTY_POLL_TABS } from "../lib/cloudRefreshTabs";
 import { SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT } from "../lib/customSpecialty";
 import {
   pullAndMergeCustomNames,
@@ -288,7 +289,7 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    return attachCloudRefresh(refresh);
+    return attachCloudRefresh(refresh, { shouldPoll: pollWhenTabs(SPECIALTY_POLL_TABS) });
   }, [cloud, refresh]);
 
   useEffect(() => {

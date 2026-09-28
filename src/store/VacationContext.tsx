@@ -11,6 +11,7 @@ import {
 import { VACATION_SEEDS_BY_YEAR } from "../data/vacationSeed";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { pollWhenTabs, VACATION_POLL_TABS } from "../lib/cloudRefreshTabs";
 import { getSupabase } from "../lib/supabase";
 import {
   addVacationEntry,
@@ -372,7 +373,7 @@ export function VacationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    return attachCloudRefresh(refresh);
+    return attachCloudRefresh(refresh, { shouldPoll: pollWhenTabs(VACATION_POLL_TABS) });
   }, [cloud, refresh]);
 
   const addDriver = useCallback(

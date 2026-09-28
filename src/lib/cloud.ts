@@ -97,3 +97,34 @@ export function loadToRow(
     driver_name: load.driverName ?? null,
   };
 }
+
+/** Overlap watermark so clock skew / in-flight writes are not missed. */
+export const LOADS_INCREMENTAL_OVERLAP_MS = 2_000;
+
+/** Rare full select(*) so deletes not seen via realtime still reconcile. */
+export const LOADS_FULL_RECONCILE_INTERVAL_MS = 30 * 60_000;
+
+/**
+ * Watermark for `.gt("updated_at", …)` incremental pulls. Subtracts a small
+ * overlap from the last successful sync ISO.
+ */
+export function loadsIncrementalSince(lastSuccessfulSyncAt: string): string {
+  const ms = Date.parse(lastSuccessfulSyncAt);
+  if (!Number.isFinite(ms)) return lastSuccessfulSyncAt;
+  return new Date(ms - LOADS_INCREMENTAL_OVERLAP_MS).toISOString();
+}
+
+export function shouldFullReconcileLoads(opts: {
+  lastSuccessfulSyncAt: string | null;
+  lastFullReconcileAt: string | null;
+  now?: number;
+  intervalMs?: number;
+}): boolean {
+  if (!opts.lastSuccessfulSyncAt) return true;
+  if (!opts.lastFullReconcileAt) return true;
+  const fullAt = Date.parse(opts.lastFullReconcileAt);
+  if (!Number.isFinite(fullAt)) return true;
+  const now = opts.now ?? Date.now();
+  const interval = opts.intervalMs ?? LOADS_FULL_RECONCILE_INTERVAL_MS;
+  return now - fullAt >= interval;
+}

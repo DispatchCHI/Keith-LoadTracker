@@ -11,6 +11,7 @@ import {
   parseDeletedIds,
   STALE_AUTO_PRUNE_LOAD_IDS,
   loadsForDate,
+  readLastFullLoadsReconcileAt,
   readLastSuccessfulSyncAt,
   readStore,
   rememberDeletedIds,
@@ -18,6 +19,7 @@ import {
   STORAGE_KEY,
   upsertLoad,
   upsertLoadIntoRef,
+  writeLastFullLoadsReconcileAt,
   writeLastSuccessfulSyncAt,
   writeStore,
   type Persisted,
@@ -209,5 +211,13 @@ describe("lastSuccessfulSyncAt", () => {
   it("ignores invalid values", () => {
     memory.set(LAST_CLOUD_SYNC_KEY, "not-a-date");
     expect(readLastSuccessfulSyncAt()).toBeNull();
+  });
+});
+
+describe("lastFullLoadsReconcileAt", () => {
+  it("round-trips an ISO watermark", () => {
+    expect(readLastFullLoadsReconcileAt()).toBeNull();
+    writeLastFullLoadsReconcileAt("2026-09-27T18:00:00.000Z");
+    expect(readLastFullLoadsReconcileAt()).toBe("2026-09-27T18:00:00.000Z");
   });
 });

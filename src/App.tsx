@@ -5,6 +5,7 @@ import { SessionBar } from "./components/SessionBar";
 import { TabBar } from "./components/TabBar";
 import { chicagoToday } from "./lib/chicagoDate";
 import { useDesktopLayout } from "./lib/layout";
+import { setActiveTab } from "./lib/activeTab";
 import { replaceRetiredTotalsLocation, replaceTabLocation, tabFromLocation } from "./lib/tabRoute";
 import { CallOffsScreen } from "./screens/CallOffsScreen";
 import { CustomersScreen } from "./screens/CustomersScreen";
@@ -71,6 +72,9 @@ function Shell() {
   const [tab, setTab] = useState<TabId>(
     () => tabFromLocation(window.location) ?? "today",
   );
+  useEffect(() => {
+    setActiveTab(tab);
+  }, [tab]);
   const [feedDate, setFeedDate] = useState(chicagoToday);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [justEditedId, setJustEditedId] = useState<string | null>(null);

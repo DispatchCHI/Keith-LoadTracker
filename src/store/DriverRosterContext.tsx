@@ -10,6 +10,7 @@ import {
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { DRIVER_ROSTER_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
 import {
   addRosterEntry,
   applyRosterTombstones,
@@ -410,7 +411,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    return attachCloudRefresh(refresh);
+    return attachCloudRefresh(refresh, { shouldPoll: pollWhenTabs(DRIVER_ROSTER_POLL_TABS) });
   }, [cloud, refresh]);
 
   const addDriver = useCallback(

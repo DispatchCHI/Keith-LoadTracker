@@ -50,7 +50,10 @@ describe("attachCloudRefresh", () => {
     vi.useFakeTimers();
     const { emit } = stubDom("visible");
     const refresh = vi.fn();
-    const stop = attachCloudRefresh(refresh, 1_000);
+    const stop = attachCloudRefresh(refresh, {
+      intervalMs: 1_000,
+      subscribeTab: () => () => undefined,
+    });
 
     emit("focus");
     emit("online");
@@ -68,9 +71,41 @@ describe("attachCloudRefresh", () => {
     vi.useFakeTimers();
     stubDom("hidden");
     const refresh = vi.fn();
-    const stop = attachCloudRefresh(refresh, 1_000);
+    const stop = attachCloudRefresh(refresh, {
+      intervalMs: 1_000,
+      subscribeTab: () => () => undefined,
+    });
     vi.advanceTimersByTime(3_000);
     expect(refresh).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("skips interval and focus while shouldPoll is false, then pulls when it becomes true", () => {
+    vi.useFakeTimers();
+    const { emit } = stubDom("visible");
+    const refresh = vi.fn();
+    let active = false;
+    let tabListener: Handler | null = null;
+    const stop = attachCloudRefresh(refresh, {
+      intervalMs: 1_000,
+      shouldPoll: () => active,
+      subscribeTab: (listener) => {
+        tabListener = listener;
+        return () => {
+          tabListener = null;
+        };
+      },
+    });
+
+    vi.advanceTimersByTime(3_000);
+    emit("focus");
+    vi.advanceTimersByTime(1_000);
+    expect(refresh).not.toHaveBeenCalled();
+
+    active = true;
+    tabListener?.();
+    vi.advanceTimersByTime(1_000);
+    expect(refresh).toHaveBeenCalledTimes(1);
     stop();
   });
 });
@@ -94,17 +129,24 @@ describe("crew cloud refresh wiring", () => {
     }
   });
 
-  it("wires vacation, roster, call-off, gone, and lanes to crew realtime", () => {
+  it("wires call-off log and driver-gone to crew realtime", () => {
     const files = [
-      "../store/VacationContext.tsx",
-      "../store/DriverRosterContext.tsx",
       "../store/CallOffLogContext.tsx",
       "../store/DriverGoneContext.tsx",
-      "../store/CustomerLanesContext.tsx",
     ];
     for (const file of files) {
       const src = readFileSync(new URL(file, import.meta.url), "utf8");
       expect(src, file).toContain("attachCrewTableRealtime");
     }
+  });
+});
+
+describe("station call single poller", () => {
+  it("TotalsScreen reuses the shared store and does not attachCloudRefresh", () => {
+    const totals = readFileSync(new URL("../screens/TotalsScreen.tsx", import.meta.url), "utf8");
+    const card = readFileSync(new URL("../components/StationCallsCard.tsx", import.meta.url), "utf8");
+    expect(card).toContain("attachCloudRefresh");
+    expect(totals).not.toContain("attachCloudRefresh");
+    expect(totals).toContain("subscribeStationCallStore");
   });
 });

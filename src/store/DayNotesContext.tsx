@@ -20,6 +20,7 @@ import {
   type DayNotesStore,
 } from "../lib/dayNotes";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { pollWhenTabs, TODAY_HOT_TABS } from "../lib/cloudRefreshTabs";
 import { useAuth } from "./AuthContext";
 
 type DayNotesContextValue = {
@@ -95,7 +96,7 @@ export function DayNotesProvider({ children }: { children: ReactNode }) {
     if (!cloud) return;
     return attachCloudRefresh(() => {
       void refresh();
-    });
+    }, { shouldPoll: pollWhenTabs(TODAY_HOT_TABS) });
   }, [cloud, refresh]);
 
   const saveNote = useCallback(

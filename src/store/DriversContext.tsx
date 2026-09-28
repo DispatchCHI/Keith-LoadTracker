@@ -44,6 +44,7 @@ import {
   type CallOffRow,
 } from "../lib/driverAvailability";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { DRIVERS_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
 import { liveSheetFromRoster } from "../lib/rosterAvailability";
 import { useCallOffLog } from "./CallOffLogContext";
 import { useDriverRoster } from "./DriverRosterContext";
@@ -318,7 +319,7 @@ export function DriversProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!configured || !session) return;
-    return attachCloudRefresh(refresh);
+    return attachCloudRefresh(refresh, { shouldPoll: pollWhenTabs(DRIVERS_POLL_TABS) });
   }, [configured, session, refresh]);
 
   const availabilityOn = useCallback(

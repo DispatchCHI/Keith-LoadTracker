@@ -22,6 +22,7 @@ import {
   type DispatchTalliesStore,
 } from "../lib/dispatchTallies";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
+import { pollWhenTabs, TODAY_HOT_TABS } from "../lib/cloudRefreshTabs";
 import { useAuth } from "./AuthContext";
 
 type DispatchTalliesContextValue = {
@@ -98,7 +99,7 @@ export function DispatchTalliesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!cloud) return;
-    return attachCloudRefresh(refresh);
+    return attachCloudRefresh(refresh, { shouldPoll: pollWhenTabs(TODAY_HOT_TABS) });
   }, [cloud, refresh]);
 
   const save = useCallback(

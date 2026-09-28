@@ -5,7 +5,7 @@ import { sortLoads } from "./sortLoads";
 /** Same key in the browser and the Tauri WebView — each environment keeps its own store. */
 export const STORAGE_KEY = "chitrader.load-tracker.v1";
 
-/** ISO time of the last successful non-empty paged cloud refresh on this device. */
+/** ISO time of the last successful loads cloud refresh (full or incremental) on this device. */
 export const LAST_CLOUD_SYNC_KEY = "chitrader.load-tracker.last-cloud-sync.v1";
 
 export function readLastSuccessfulSyncAt(): string | null {
@@ -23,6 +23,27 @@ export function readLastSuccessfulSyncAt(): string | null {
 
 export function writeLastSuccessfulSyncAt(iso: string): void {
   localStorage.setItem(LAST_CLOUD_SYNC_KEY, iso);
+}
+
+/** ISO time of the last successful full (non-incremental) loads pull. */
+export const LAST_FULL_LOADS_RECONCILE_KEY =
+  "chitrader.load-tracker.last-full-loads-reconcile.v1";
+
+export function readLastFullLoadsReconcileAt(): string | null {
+  try {
+    const raw = localStorage.getItem(LAST_FULL_LOADS_RECONCILE_KEY);
+    if (!raw || typeof raw !== "string") return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    if (Number.isNaN(Date.parse(trimmed))) return null;
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLastFullLoadsReconcileAt(iso: string): void {
+  localStorage.setItem(LAST_FULL_LOADS_RECONCILE_KEY, iso);
 }
 
 export type Persisted = {

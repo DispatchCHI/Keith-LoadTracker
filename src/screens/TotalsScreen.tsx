@@ -17,11 +17,8 @@ import {
 } from "../lib/chicagoDate";
 import {
   boardForDate,
-  fetchStationCallStoreFromCloud,
-  mergeStationCallStores,
   readStationCallStore,
   subscribeStationCallStore,
-  writeStationCallStore,
 } from "../lib/stationCalls";
 import {
   endOfDayCards,
@@ -32,8 +29,6 @@ import {
   rankPickups,
   type TotalsFilter,
 } from "../lib/totals";
-import { useAuth } from "../store/AuthContext";
-import { attachCloudRefresh } from "../lib/cloudRefresh";
 import { useDailyEod } from "../store/DailyEodContext";
 import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
@@ -46,30 +41,11 @@ type TotalsScreenProps = {
   embedded?: boolean;
 };
 
+/** Read-only view of the shared station-call store (hydrated by StationCallsCard). */
 function useStationCallBoard(date: string) {
-  const { configured, session } = useAuth();
-  const cloud = configured && !!session;
   const [store, setStore] = useState(readStationCallStore);
 
   useEffect(() => subscribeStationCallStore(() => setStore(readStationCallStore())), []);
-
-  useEffect(() => {
-    if (!cloud) return;
-    let alive = true;
-    const pull = () => {
-      void fetchStationCallStoreFromCloud().then((remote) => {
-        if (!alive || !remote) return;
-        const merged = mergeStationCallStores(readStationCallStore(), remote.days);
-        writeStationCallStore(merged);
-      });
-    };
-    pull();
-    const stop = attachCloudRefresh(pull);
-    return () => {
-      alive = false;
-      stop();
-    };
-  }, [cloud]);
 
   return boardForDate(store, date);
 }

@@ -12,9 +12,11 @@ import type { Load } from "../types";
 import {
   fetchAllPaged,
   isMissingDriverNameColumn,
+  loadsIncrementalSince,
   pagedErrorMessage,
   loadToRow,
   rowToLoad,
+  shouldFullReconcileLoads,
   type LoadRow,
 } from "../lib/cloud";
 import {
@@ -23,6 +25,7 @@ import {
   explicitPendingDeleteIds,
   localOnlyLoadsForUpload,
   mergeCloudLoads,
+  mergeIncrementalCloudLoads,
   reconcilePersistedSnapshot,
   shouldApplyRealtimeDelete,
   shouldApplyRealtimeUpsert,
@@ -61,6 +64,7 @@ import {
   gcLoadDeletedIds,
   loadsForDate,
   parseDeletedIds,
+  readLastFullLoadsReconcileAt,
   readLastSuccessfulSyncAt,
   readStore,
   rememberDeletedIds,
@@ -68,6 +72,7 @@ import {
   snapshotFromLoads,
   upsertLoad,
   upsertLoadIntoRef,
+  writeLastFullLoadsReconcileAt,
   writeLastSuccessfulSyncAt,
   writeStore,
   type Persisted,
@@ -152,6 +157,7 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
   const storeRef = useRef(store);
   const lastGoodRef = useRef<Persisted>(store);
   const lastSuccessfulSyncAtRef = useRef<string | null>(readLastSuccessfulSyncAt());
+  const lastFullReconcileAtRef = useRef<string | null>(readLastFullLoadsReconcileAt());
   const refreshStartedAtRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -379,12 +385,21 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
     refreshStartedAtRef.current = refreshStartedAt;
     const lastSuccessfulSyncAt = lastSuccessfulSyncAtRef.current;
     try {
+      const fullReconcile = shouldFullReconcileLoads({
+        lastSuccessfulSyncAt,
+        lastFullReconcileAt: lastFullReconcileAtRef.current,
+      });
+      const since =
+        !fullReconcile && lastSuccessfulSyncAt
+          ? loadsIncrementalSince(lastSuccessfulSyncAt)
+          : null;
       const { data, error } = await fetchAllPaged<LoadRow>(async (from, to) => {
-        const page = await supabase
+        let query = supabase
           .from("loads")
           .select("*")
-          .order("updated_at", { ascending: false })
-          .range(from, to);
+          .order("updated_at", { ascending: false });
+        if (since) query = query.gt("updated_at", since);
+        const page = await query.range(from, to);
         return { data: page.data as LoadRow[] | null, error: page.error };
       });
       if (error || !Array.isArray(data)) {
@@ -413,7 +428,7 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
           ? cache
           : lastGoodRef.current;
       const extra = [lastGoodRef.current, storeRef.current];
-      const { merged, toUpsert, toDelete, toTombstone } = mergeCloudLoads({
+      const mergeInput = {
         remote,
         cache: deviceCache,
         local,
@@ -421,7 +436,10 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
         extra,
         lastSuccessfulSyncAt,
         refreshStartedAt,
-      });
+      };
+      const { merged, toUpsert, toDelete, toTombstone } = fullReconcile
+        ? mergeCloudLoads(mergeInput)
+        : mergeIncrementalCloudLoads(mergeInput);
       const explicitDeletes = explicitPendingDeleteIds(pending);
       const durableOnRemote = deletedLoadIds(pending, deviceCache, local, ...extra);
       const refreshCandidates = remote
@@ -438,15 +456,22 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
       }
       const keptTombstones = gcLoadDeletedIds(
         [...toTombstone, ...explicitDeletes],
+        // Incremental: only clear tombstones for ids present in this delta.
         remote,
         deviceCache,
         local,
         explicitDeletes,
       );
       const persisted = persistCloudCache(snapshotFromLoads(merged, keptTombstones));
-      if (persisted && remote.length > 0) {
+      if (persisted) {
+        // Advance watermark even on empty incremental pulls so the next
+        // cycle stays cheap; full reconcile still requires a successful persist.
         writeLastSuccessfulSyncAt(refreshStartedAt);
         lastSuccessfulSyncAtRef.current = refreshStartedAt;
+        if (fullReconcile) {
+          writeLastFullLoadsReconcileAt(refreshStartedAt);
+          lastFullReconcileAtRef.current = refreshStartedAt;
+        }
       }
       if (toUpsert.length) enqueueMissing(toUpsert);
       // Flush after refresh, but skip when network backoff is armed so we
