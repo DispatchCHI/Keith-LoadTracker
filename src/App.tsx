@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { BrandMark } from "./components/BrandMark";
 import { SessionBar } from "./components/SessionBar";
 import { TabBar } from "./components/TabBar";
@@ -86,7 +86,10 @@ function Shell() {
 
   const afterSave = (id: string, date?: string) => {
     setJustEditedId(id);
-    setOverlay(null);
+    // Commit overlay unmount before specialty consume / load sync continues.
+    flushSync(() => {
+      setOverlay(null);
+    });
     if (date) setFeedDate(date);
     if (tab === "analytics" || tab === "vacation" || tab === "driver" || tab === "calloffs" || tab === "customers") return;
     setTab("today");

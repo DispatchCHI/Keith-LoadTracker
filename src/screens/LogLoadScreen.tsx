@@ -106,21 +106,32 @@ export function LogLoadScreen({
       });
     }
 
-    // Dismiss immediately — specialty cloud deletes must not block the log screen.
+    // Dismiss immediately — specialty cloud deletes / store writes must not keep
+    // the New Load overlay open (same class of bug as specialty await-before-dismiss,
+    // including ordinary Customers-lane Recycle/Yard loads that match the board).
     setDuplicate(null);
     setSpecialtyWarn(null);
     onSaved(lastId, targetDate);
 
-    const lane = resolveSpecialtyBoardMatch(
-      form.stationId,
-      pickup,
-      destination,
-      form.commodity,
-    );
-    if (lane) {
-      void consumeOpens(targetDate, lane.specialtyId, lane.chips, qty).catch(
-        (err) => console.warn("specialty consume after save failed", err),
+    try {
+      const lane = resolveSpecialtyBoardMatch(
+        form.stationId,
+        pickup,
+        destination,
+        form.commodity,
       );
+      if (!lane) return;
+      const { specialtyId, chips } = lane;
+      const date = targetDate;
+      const count = qty;
+      // Next macrotask so React can commit overlay unmount before specialty I/O.
+      setTimeout(() => {
+        void consumeOpens(date, specialtyId, chips, count).catch((err) =>
+          console.warn("specialty consume after save failed", err),
+        );
+      }, 0);
+    } catch (err) {
+      console.warn("specialty match after save failed", err);
     }
   };
 
@@ -285,22 +296,24 @@ export function LogLoadScreen({
         </div>
       ) : null}
 
-      <div className="overlay-footer overlay-footer-stack">
-        <QuantityStepper value={qty} onChange={setQuantity} />
-        <div className="overlay-footer-actions">
-          <button type="button" className="btn-ghost" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn-primary grow"
-            disabled={!formComplete(form)}
-            onClick={() => commit()}
-          >
-            {qty === 1 ? "Save" : `Save ${qty} loads`}
-          </button>
+      {duplicate || specialtyWarn ? null : (
+        <div className="overlay-footer overlay-footer-stack">
+          <QuantityStepper value={qty} onChange={setQuantity} />
+          <div className="overlay-footer-actions">
+            <button type="button" className="btn-ghost" onClick={onCancel}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary grow"
+              disabled={!formComplete(form)}
+              onClick={() => commit()}
+            >
+              {qty === 1 ? "Save" : `Save ${qty} loads`}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
