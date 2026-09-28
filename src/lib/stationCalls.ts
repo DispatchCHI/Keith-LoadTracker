@@ -170,6 +170,63 @@ export const STATION_CALL_HOURS = [
 
 export type StationHourKey = (typeof STATION_CALL_HOURS)[number]["key"];
 
+/** Editable Load Count columns only (Start is read-only). */
+export type StationCallCol = StationHourKey | "close";
+
+export const STATION_CALL_EDIT_COLS: readonly StationCallCol[] = [
+  ...STATION_CALL_HOURS.map((h) => h.key),
+  "close",
+];
+
+/** Next/previous editable hour/Close column. Null at either end. */
+export function adjacentStationCallCol(
+  col: StationCallCol,
+  delta: 1 | -1,
+): StationCallCol | null {
+  const i = STATION_CALL_EDIT_COLS.indexOf(col);
+  if (i < 0) return null;
+  return STATION_CALL_EDIT_COLS[i + delta] ?? null;
+}
+
+/**
+ * Spreadsheet-style target for Enter / arrows on an hour or Close cell.
+ * Enter / Shift+Enter move down / up the same column; arrows move one cell.
+ * Returns null when navigation would leave the board (caller may blur).
+ */
+export function stationCallNavTarget(
+  stationId: string,
+  col: StationCallCol,
+  key: string,
+  shiftKey = false,
+): { stationId: string; col: StationCallCol } | null {
+  if (key === "Enter") {
+    const nextStation = adjacentStationId(stationId, shiftKey ? -1 : 1);
+    if (!nextStation) return null;
+    return { stationId: nextStation, col };
+  }
+  if (key === "ArrowDown") {
+    const nextStation = adjacentStationId(stationId, 1);
+    if (!nextStation) return null;
+    return { stationId: nextStation, col };
+  }
+  if (key === "ArrowUp") {
+    const nextStation = adjacentStationId(stationId, -1);
+    if (!nextStation) return null;
+    return { stationId: nextStation, col };
+  }
+  if (key === "ArrowRight") {
+    const nextCol = adjacentStationCallCol(col, 1);
+    if (!nextCol) return null;
+    return { stationId, col: nextCol };
+  }
+  if (key === "ArrowLeft") {
+    const nextCol = adjacentStationCallCol(col, -1);
+    if (!nextCol) return null;
+    return { stationId, col: nextCol };
+  }
+  return null;
+}
+
 /** Hour/Close cell: free text (empty, decimals, letters). Numeric summaries parse when possible. */
 export type StationCellValue = string;
 

@@ -16,7 +16,6 @@ import {
   addStationCallYard,
   removeStationCallYard,
   STATION_CORNER_NOTE_ID,
-  adjacentStationId,
   boardForDate,
   commitStationCell,
   commitStationNote,
@@ -37,16 +36,15 @@ import {
   setStationHour,
   setStationNote,
   startForStation,
+  stationCallNavTarget,
   stationCellFilled,
   writeStationCallStore,
   writeStationNoteStore,
+  type StationCallCol,
   type StationCellValue,
   type StationHourKey,
   type StationNoteStore,
 } from "../lib/stationCalls";
-
-/** Editable columns only: hour keys plus Close. Start is a read-only span. */
-type StationCallCol = StationHourKey | "close";
 type NotePopMode = "peek" | "edit";
 
 function allowHoverPeek(pointerType: string): boolean {
@@ -151,17 +149,27 @@ function CellInput({
             return;
           }
         }
-        if (e.key !== "Enter") return;
+        const nav =
+          e.key === "Enter" ||
+          e.key === "ArrowUp" ||
+          e.key === "ArrowDown" ||
+          e.key === "ArrowLeft" ||
+          e.key === "ArrowRight";
+        if (!nav) return;
         e.preventDefault();
         commit();
-        const nextStation = adjacentStationId(stationId, e.shiftKey ? -1 : 1);
-        if (!nextStation) {
-          (e.target as HTMLInputElement).blur();
+        const target = stationCallNavTarget(stationId, col, e.key, e.shiftKey);
+        if (!target) {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
           return;
         }
-        // Focus immediately while committedRef is still true so blur skips the
-        // redundant commit. Tab / arrows stay on the browser default.
-        focusStationCallCell(nextStation, col);
+        // Focus AFTER React applies setStore from commit(). Immediate focus
+        // (9892712) lost the next cell when the parent re-render ran — Keith
+        // still needed a second Enter. Blur still honors committedRef so the
+        // deferred focus does not double-commit.
+        requestAnimationFrame(() => {
+          focusStationCallCell(target.stationId, target.col);
+        });
       }}
     />
   );

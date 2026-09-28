@@ -1,6 +1,7 @@
 ﻿import { beforeEach, describe, expect, it } from "vitest";
 import {
   STATION_CALL_YARDS,
+  adjacentStationCallCol,
   adjacentStationId,
   applyStationCallTombstones,
   cleanStationDayRow,
@@ -24,6 +25,7 @@ import {
   setStationHour,
   setStationNote,
   startForStation,
+  stationCallNavTarget,
   type StationCallStore,
   type StationDayBoard,
 } from "./stationCalls";
@@ -143,6 +145,60 @@ describe("adjacentStationId", () => {
 
   it("returns null for an unknown station", () => {
     expect(adjacentStationId("not-a-yard", 1)).toBeNull();
+  });
+});
+
+describe("stationCallNavTarget / adjacentStationCallCol", () => {
+  const first = STATION_CALL_YARDS[0]!.id;
+  const second = STATION_CALL_YARDS[1]!.id;
+  const last = STATION_CALL_YARDS[STATION_CALL_YARDS.length - 1]!.id;
+
+  it("Enter once targets the next station same hour column", () => {
+    expect(stationCallNavTarget(first, "15", "Enter")).toEqual({
+      stationId: second,
+      col: "15",
+    });
+  });
+
+  it("Shift+Enter targets the previous station same column", () => {
+    expect(stationCallNavTarget(second, "15", "Enter", true)).toEqual({
+      stationId: first,
+      col: "15",
+    });
+  });
+
+  it("Enter on last row returns null (blur)", () => {
+    expect(stationCallNavTarget(last, "9", "Enter")).toBeNull();
+  });
+
+  it("ArrowDown / ArrowUp move rows; Left / Right move hour columns", () => {
+    expect(stationCallNavTarget(first, "9", "ArrowDown")).toEqual({
+      stationId: second,
+      col: "9",
+    });
+    expect(stationCallNavTarget(second, "9", "ArrowUp")).toEqual({
+      stationId: first,
+      col: "9",
+    });
+    expect(stationCallNavTarget(first, "9", "ArrowRight")).toEqual({
+      stationId: first,
+      col: "10",
+    });
+    expect(stationCallNavTarget(first, "10", "ArrowLeft")).toEqual({
+      stationId: first,
+      col: "9",
+    });
+  });
+
+  it("ArrowRight from 3pm goes to Close; ArrowLeft from 6am is null", () => {
+    expect(adjacentStationCallCol("15", 1)).toBe("close");
+    expect(stationCallNavTarget(first, "15", "ArrowRight")).toEqual({
+      stationId: first,
+      col: "close",
+    });
+    expect(adjacentStationCallCol("6", -1)).toBeNull();
+    expect(stationCallNavTarget(first, "6", "ArrowLeft")).toBeNull();
+    expect(adjacentStationCallCol("close", 1)).toBeNull();
   });
 });
 
