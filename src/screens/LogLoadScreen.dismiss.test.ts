@@ -45,4 +45,14 @@ describe("Log Load overlay dismisses on successful save", () => {
     expect(log).toMatch(/disabled=\{!formComplete\(form\)\}/);
     expect(log).toMatch(/onClick=\{\(\) => commit\(\)\}/);
   });
+
+  it("edit primary commit never gates on specialty opens", () => {
+    const start = edit.indexOf("const commit");
+    const end = edit.indexOf("if (changingTruck)", start);
+    const commit = edit.slice(start, end);
+    expect(commit).toMatch(/finishSave/);
+    expect(commit).not.toMatch(/opensFor/);
+    expect(commit).not.toMatch(/setSpecialtyWarn/);
+    expect(commit).not.toMatch(/forceSpecialty/);
+  });
 });

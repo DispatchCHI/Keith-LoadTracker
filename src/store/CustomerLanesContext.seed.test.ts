@@ -15,4 +15,15 @@ describe("CustomerLanesProvider merges seed upgrades on init", () => {
       init.indexOf("return seeded"),
     );
   });
+
+  it("re-seeds when lanes are empty even if seededAt or tombstones exist", () => {
+    const start = src.indexOf("const [store, setStore]");
+    const end = src.indexOf("const storeRef", start);
+    const init = src.slice(start, end);
+    // Never strand an empty store — that hid every Log Load pickup chip.
+    expect(init).not.toMatch(/return \{ lanes: \{\} \}/);
+    expect(init).toMatch(/mergeSeededLanes/);
+    expect(init).toMatch(/deletedCustomersRef\.current/);
+    expect(init).toMatch(/writeCustomerLanePersisted/);
+  });
 });

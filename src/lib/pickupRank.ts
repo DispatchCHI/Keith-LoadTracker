@@ -61,7 +61,8 @@ export function filterStationsByCustomerLanes(
   stations: readonly Station[],
   customerNames: readonly string[],
 ): Station[] {
-  if (!customerNames.length) return [];
+  // Empty lane book must not hide every pickup chip — Log Load would never complete.
+  if (!customerNames.length) return [...stations];
   return stations.filter((station) =>
     customerNames.some((name) => placesMatch(station.name, name)),
   );

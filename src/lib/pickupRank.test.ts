@@ -85,6 +85,12 @@ describe("filterStationsByCustomerLanes", () => {
       "Acme Hauling",
     ]);
   });
+
+  it("returns full station list when customerNames is empty (do not hide all pickups)", () => {
+    const filtered = filterStationsByCustomerLanes(STATIONS, []);
+    expect(filtered).toEqual([...STATIONS]);
+    expect(filtered.length).toBeGreaterThan(0);
+  });
 });
 
 

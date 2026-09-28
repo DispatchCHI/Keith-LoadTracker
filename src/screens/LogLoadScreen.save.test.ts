@@ -22,6 +22,17 @@ describe("Log Load primary Save for a complete draft", () => {
     expect(log).toMatch(/onClick=\{\(\) => commit\(\)\}/);
   });
 
+  it("primary commit never early-returns on specialty opens (save + close)", () => {
+    const start = log.indexOf("const commit");
+    const end = log.indexOf("if (step === \"truck\")", start);
+    const commit = log.slice(start, end);
+    expect(commit).toMatch(/finishSave/);
+    expect(commit).not.toMatch(/opensFor/);
+    expect(commit).not.toMatch(/setSpecialtyWarn/);
+    expect(commit).not.toMatch(/forceSpecialty/);
+    expect(commit).toMatch(/findNearDuplicate/);
+  });
+
   it("complete draft (truck + pickup + commodity + dest) enables Save without specialty warn", () => {
     const form: FormState = {
       truck: "6473",

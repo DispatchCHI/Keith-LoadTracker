@@ -54,6 +54,8 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     deletedCustomersRef.current = new Set(persisted.deletedCustomerNames);
     // Always merge catalog seed upgrades (e.g. Medill stub → real routes) so
     // Log Load chips/defaults work before the first cloud refresh.
+    // Empty lanes (even with seededAt / tombstones) must re-seed — otherwise
+    // offline Log Load has no customer chips and Save stays disabled.
     if (Object.keys(persisted.lanes).length) {
       const seeded = mergeSeededLanes(
         { lanes: persisted.lanes },
@@ -69,9 +71,6 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       }
       return seeded;
     }
-    if (persisted.seededAt || persisted.deletedCustomerNames.length) {
-      return { lanes: {} };
-    }
     const seeded = mergeSeededLanes(
       { lanes: {} },
       undefined,
@@ -81,7 +80,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       version: 1,
       lanes: seeded.lanes,
       seenRemoteIds: persisted.seenRemoteIds,
-      seededAt: new Date().toISOString(),
+      seededAt: persisted.seededAt ?? new Date().toISOString(),
       deletedCustomerNames: [...deletedCustomersRef.current],
     });
     return seeded;
