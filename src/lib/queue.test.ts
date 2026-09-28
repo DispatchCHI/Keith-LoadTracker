@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  dropConfirmedSyncedOps,
   dropImplicitDeletes,
   enqueueDelete,
   enqueueUpsert,
@@ -8,6 +9,7 @@ import {
   QUEUE_KEY,
   readQueue,
   removeFlushedOp,
+  takeFlushUpsertBatch,
   writeQueue,
   type QueueOp,
 } from "./queue";
@@ -148,5 +150,73 @@ describe("enqueueUpsert preserves in-flight op identity", () => {
     });
     expect(left).toEqual([]);
     expect(readQueue()).toEqual([]);
+  });
+});
+
+
+describe("dropConfirmedSyncedOps", () => {
+  it("drops upserts already on cloud at same or newer updatedAt", () => {
+    const ops: QueueOp[] = [
+      {
+        opId: "a",
+        kind: "upsert",
+        load: sampleLoad("load-a", "2026-09-28T12:00:00.000Z"),
+        queuedAt: "2026-09-28T12:00:00.000Z",
+      },
+      {
+        opId: "b",
+        kind: "upsert",
+        load: sampleLoad("load-b", "2026-09-28T13:00:00.000Z"),
+        queuedAt: "2026-09-28T13:00:00.000Z",
+      },
+      {
+        opId: "del",
+        kind: "delete",
+        loadId: "load-c",
+        queuedAt: "2026-09-28T13:00:00.000Z",
+        explicit: true,
+      },
+    ];
+    const remote = new Map([
+      ["load-a", "2026-09-28T12:00:00.000Z"], // same → drop
+      ["load-b", "2026-09-28T12:59:00.000Z"], // older → keep
+    ]);
+    const kept = dropConfirmedSyncedOps(ops, remote);
+    expect(kept.map((op) => op.opId)).toEqual(["b", "del"]);
+  });
+});
+
+describe("takeFlushUpsertBatch", () => {
+  it("batches contiguous head upserts and stops at delete", () => {
+    const ops: QueueOp[] = [
+      {
+        opId: "1",
+        kind: "upsert",
+        load: sampleLoad("a"),
+        queuedAt: "2026-09-28T12:00:00.000Z",
+      },
+      {
+        opId: "2",
+        kind: "upsert",
+        load: sampleLoad("b"),
+        queuedAt: "2026-09-28T12:00:00.000Z",
+      },
+      {
+        opId: "3",
+        kind: "delete",
+        loadId: "c",
+        queuedAt: "2026-09-28T12:00:00.000Z",
+        explicit: true,
+      },
+      {
+        opId: "4",
+        kind: "upsert",
+        load: sampleLoad("d"),
+        queuedAt: "2026-09-28T12:00:00.000Z",
+      },
+    ];
+    expect(takeFlushUpsertBatch(ops, 25).map((op) => op.opId)).toEqual(["1", "2"]);
+    expect(takeFlushUpsertBatch(ops, 1).map((op) => op.opId)).toEqual(["1"]);
+    expect(takeFlushUpsertBatch(ops.slice(2), 25)).toEqual([]);
   });
 });

@@ -153,3 +153,39 @@ export function removeFlushedOp(op: QueueOp): QueueOp[] {
   if (next.length !== ops.length) writeQueue(next);
   return next;
 }
+
+
+/**
+ * Drop upsert ops the remote already has at the same or newer updatedAt.
+ * Deletes are never dropped here — only explicit UI deletes flush deletes.
+ */
+export function dropConfirmedSyncedOps(
+  ops: QueueOp[],
+  remoteUpdatedAtById: Map<string, string>,
+): QueueOp[] {
+  return ops.filter((op) => {
+    if (op.kind !== "upsert") return true;
+    const remoteAt = remoteUpdatedAtById.get(op.load.id);
+    if (!remoteAt) return true;
+    // ISO timestamps compare lexicographically.
+    return op.load.updatedAt > remoteAt;
+  });
+}
+
+/**
+ * Take a contiguous run of upserts from the head for one batched HTTP upsert.
+ * Stops at the first delete so delete ordering stays correct.
+ */
+export function takeFlushUpsertBatch(
+  ops: QueueOp[],
+  maxBatch: number,
+): Extract<QueueOp, { kind: "upsert" }>[] {
+  if (maxBatch < 1 || !ops.length || ops[0].kind !== "upsert") return [];
+  const batch: Extract<QueueOp, { kind: "upsert" }>[] = [];
+  for (const op of ops) {
+    if (op.kind !== "upsert") break;
+    batch.push(op);
+    if (batch.length >= maxBatch) break;
+  }
+  return batch;
+}

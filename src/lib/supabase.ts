@@ -1,6 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isTauriRuntime } from "./layout";
-import { withCloudFetchSlot } from "./syncControl";
+import {
+  fetchWithCloudTimeout,
+  isAuthSupabaseUrl,
+  withCloudFetchSlot,
+} from "./syncControl";
 
 export function supabaseConfig(): { url: string; anonKey: string } | null {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -89,28 +93,52 @@ async function requestParts(
   return { url, method, headers, body };
 }
 
+function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+async function tauriCloudFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const parts = await requestParts(input, init);
+  const { invoke } = await import("@tauri-apps/api/core");
+  const result = await invoke<CloudFetchResult>("cloud_fetch", {
+    args: {
+      url: parts.url,
+      method: parts.method,
+      headers: Object.entries(parts.headers),
+      body: parts.body,
+    },
+  });
+  return new Response(base64ToBytes(result.body), {
+    status: result.status,
+    headers: result.headers,
+  });
+}
+
+async function rawSupabaseFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  if (!isTauriRuntime()) return fetch(input, init);
+  return tauriCloudFetch(input, init);
+}
+
 async function supabaseFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
-  return withCloudFetchSlot(async () => {
-    if (!isTauriRuntime()) return fetch(input, init);
-
-    const parts = await requestParts(input, init);
-    const { invoke } = await import("@tauri-apps/api/core");
-    const result = await invoke<CloudFetchResult>("cloud_fetch", {
-      args: {
-        url: parts.url,
-        method: parts.method,
-        headers: Object.entries(parts.headers),
-        body: parts.body,
-      },
-    });
-    return new Response(base64ToBytes(result.body), {
-      status: result.status,
-      headers: result.headers,
-    });
-  });
+  // Auth refresh is often nested under an in-flight data request. Taking a
+  // data slot here deadlocks both slots and freezes flush/refresh on Syncing.
+  if (isAuthSupabaseUrl(requestUrl(input))) {
+    return fetchWithCloudTimeout(rawSupabaseFetch, input, init);
+  }
+  return withCloudFetchSlot(() =>
+    fetchWithCloudTimeout(rawSupabaseFetch, input, init),
+  );
 }
 
 export function getSupabase(): SupabaseClient | null {

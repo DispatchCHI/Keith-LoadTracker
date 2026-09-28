@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  CLOUD_FETCH_SLOT_WAIT_MS,
   HUGE_QUEUE_THRESHOLD,
   _resetCloudFetchGateForTests,
   clearNetworkSyncBackoff,
   createSingleFlight,
   errorText,
+  fetchWithCloudTimeout,
   hugeQueueMessage,
+  isAuthSupabaseUrl,
   isNetworkSyncBackoffActive,
   isNetworkSyncError,
   noteNetworkSyncFailure,
@@ -94,5 +97,58 @@ describe("hugeQueueMessage", () => {
     expect(hugeQueueMessage(HUGE_QUEUE_THRESHOLD - 1)).toBeNull();
     expect(hugeQueueMessage(HUGE_QUEUE_THRESHOLD)).toMatch(/Large sync queue/);
     expect(errorText(new Error("x"))).toBe("x");
+  });
+});
+
+
+describe("isAuthSupabaseUrl", () => {
+  it("detects GoTrue paths that must bypass the data gate", () => {
+    expect(
+      isAuthSupabaseUrl("https://dwcwweublrsgcchkeydq.supabase.co/auth/v1/token?grant_type=refresh_token"),
+    ).toBe(true);
+    expect(
+      isAuthSupabaseUrl("https://dwcwweublrsgcchkeydq.supabase.co/rest/v1/loads"),
+    ).toBe(false);
+  });
+});
+
+describe("fetchWithCloudTimeout", () => {
+  it("aborts hung fetches so slots cannot stick forever", async () => {
+    vi.useFakeTimers();
+    const hung = () => new Promise<Response>(() => {});
+    const pending = fetchWithCloudTimeout(hung, "https://example.test", undefined, 1_000);
+    const assertion = expect(pending).rejects.toThrow(/timed out/i);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await assertion;
+    vi.useRealTimers();
+  });
+});
+
+describe("withCloudFetchSlot wait timeout", () => {
+  it("rejects waiters instead of hanging forever when slots are stuck", async () => {
+    vi.useFakeTimers();
+    const releases: Array<() => void> = [];
+    const holdSlot = () =>
+      withCloudFetchSlot(
+        () =>
+          new Promise<void>((resolve) => {
+            releases.push(resolve);
+          }),
+      );
+
+    const held = [holdSlot(), holdSlot()];
+    // Let both slots acquire before enqueueing a waiter.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(releases).toHaveLength(2);
+
+    const waiting = withCloudFetchSlot(async () => "ok");
+    const assertion = expect(waiting).rejects.toThrow(/slot wait timed out/i);
+    await vi.advanceTimersByTimeAsync(CLOUD_FETCH_SLOT_WAIT_MS);
+    await assertion;
+
+    for (const release of releases) release();
+    await Promise.allSettled(held);
+    vi.useRealTimers();
   });
 });

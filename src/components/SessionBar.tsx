@@ -35,7 +35,9 @@ export function SessionBar() {
           ? `Offline · ${queuedCount} queued`
           : "Offline"
         : syncStatus === "syncing"
-          ? "Syncing…"
+          ? queuedCount
+            ? `Syncing… · ${queuedCount} queued`
+            : "Syncing…"
           : syncStatus === "error"
             ? queuedCount
               ? `Sync error · ${queuedCount} queued${lastSyncError ? ` · ${lastSyncError}` : ""}`
@@ -78,10 +80,11 @@ export function SessionBar() {
           className="text-btn amber"
           onClick={() => {
             // Pending ops: flush only. Refresh/re-merge fights a large drain.
+            // Stay clickable while Syncing so a recovered/timed-out drain can
+            // be nudged — flushQueue single-flights overlapping clicks.
             if (needsDrain) void flushPendingQueue();
             else void pushAllLoadsToCloud();
           }}
-          disabled={syncStatus === "syncing"}
         >
           {pushLabel}
         </button>

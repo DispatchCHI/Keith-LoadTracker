@@ -35,6 +35,7 @@ import {
 import { loadsToCsv } from "../lib/commodity";
 import { addDays, chicagoToday } from "../lib/chicagoDate";
 import {
+  dropConfirmedSyncedOps,
   dropImplicitDeletes,
   enqueueDelete,
   enqueueUpsert,
@@ -43,13 +44,17 @@ import {
   QUEUE_KEY,
   readQueue,
   removeFlushedOp,
+  takeFlushUpsertBatch,
   warnNonExplicitRemoteDelete,
+  writeQueue,
+  type QueueOp,
 } from "../lib/queue";
 import { buildSeedLoads } from "../lib/seed";
 import { sortLoads } from "../lib/sortLoads";
 import { getSupabase, isCloudConfigured } from "../lib/supabase";
 import {
   FLUSH_OP_GAP_MS,
+  FLUSH_UPSERT_BATCH_SIZE,
   HUGE_QUEUE_THRESHOLD,
   MAX_FLUSH_ATTEMPTS_TRANSIENT,
   clearNetworkSyncBackoff,
@@ -244,7 +249,15 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
 
   const flushQueue = useCallback(async () => {
     const supabase = getSupabase();
-    if (!supabase || !session) return;
+    if (!supabase || !session) {
+      // Never leave the boot "syncing" forever when auth is missing.
+      applyQueueStatus(
+        readQueue().length,
+        true,
+        "Not signed in — cannot sync to cloud",
+      );
+      return;
+    }
     if (flushPromise.current) {
       const priorFailed = await flushPromise.current;
       if (priorFailed) return;
@@ -264,39 +277,88 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const pruneConfirmedSynced = async () => {
+      const ops = readQueue();
+      const upsertIds = ops
+        .filter((op): op is Extract<QueueOp, { kind: "upsert" }> => op.kind === "upsert")
+        .map((op) => op.load.id);
+      if (upsertIds.length < 20) return;
+      const remoteUpdatedAtById = new Map<string, string>();
+      const chunkSize = 100;
+      for (let i = 0; i < upsertIds.length; i += chunkSize) {
+        const chunk = upsertIds.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("loads")
+          .select("id, updated_at")
+          .in("id", chunk);
+        if (error) throw error;
+        for (const row of data ?? []) {
+          if (row?.id && typeof row.updated_at === "string") {
+            remoteUpdatedAtById.set(row.id, row.updated_at);
+          }
+        }
+      }
+      const kept = dropConfirmedSyncedOps(ops, remoteUpdatedAtById);
+      if (kept.length !== ops.length) {
+        writeQueue(kept);
+        setQueuedCount(kept.length);
+        console.info(
+          `[load-sync] dropped ${ops.length - kept.length} upsert(s) already on cloud`,
+        );
+      }
+    };
+
+    const upsertRows = async (batch: Extract<QueueOp, { kind: "upsert" }>[]) => {
+      const rows = batch.map((op) => loadToRow(op.load, user?.id ?? null));
+      let { error } = await supabase.from("loads").upsert(rows);
+      if (error && isMissingDriverNameColumn(error)) {
+        const fallback = rows.map(({ driver_name: _name, ...rest }) => rest);
+        const retry = await supabase.from("loads").upsert(fallback);
+        error = retry.error;
+      }
+      if (error) throw error;
+    };
+
     const run = async () => {
       flushing.current = true;
       setSyncStatus("syncing");
       let failed = false;
       try {
         dropImplicitDeletes();
+        // Huge stale queues are usually redundant re-upserts. Drop what cloud
+        // already has, then batch the rest — one HTTP call per chunk.
+        if (readQueue().length >= HUGE_QUEUE_THRESHOLD) {
+          await pruneConfirmedSynced();
+        }
         setQueuedCount(readQueue().length);
         for (;;) {
           const ops = readQueue();
           if (!ops.length) break;
-          const op = ops[0];
+          const batch = takeFlushUpsertBatch(ops, FLUSH_UPSERT_BATCH_SIZE);
           let attempts = 0;
           for (;;) {
             try {
-              if (op.kind === "upsert") {
-                const row = loadToRow(op.load, user?.id ?? null);
-                let { error } = await supabase.from("loads").upsert(row);
-                if (error && isMissingDriverNameColumn(error)) {
-                  const { driver_name: _name, ...fallback } = row;
-                  const retry = await supabase.from("loads").upsert(fallback);
-                  error = retry.error;
-                }
-                if (error) throw error;
+              if (batch.length) {
+                await upsertRows(batch);
               } else {
-                if (!isExplicitDeleteOp(op)) {
+                const op = ops[0];
+                if (op.kind === "upsert") {
+                  await upsertRows([op]);
+                  removeFlushedOp(op);
+                } else if (!isExplicitDeleteOp(op)) {
                   warnNonExplicitRemoteDelete(
                     op.loadId,
                     "flushQueue refused non-explicit loads DELETE",
                   );
-                  break;
+                  removeFlushedOp(op);
+                } else {
+                  const { error } = await supabase
+                    .from("loads")
+                    .delete()
+                    .eq("id", op.loadId);
+                  if (error) throw error;
+                  removeFlushedOp(op);
                 }
-                const { error } = await supabase.from("loads").delete().eq("id", op.loadId);
-                if (error) throw error;
               }
               break;
             } catch (error) {
@@ -312,9 +374,15 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
               await sleepMs(400 * attempts);
             }
           }
-          const rest = removeFlushedOp(op);
-          setQueuedCount(rest.length);
-          if (rest.length) await sleepMs(FLUSH_OP_GAP_MS);
+          if (batch.length) {
+            let rest: QueueOp[] = readQueue();
+            for (const op of batch) rest = removeFlushedOp(op);
+            setQueuedCount(rest.length);
+            if (rest.length) await sleepMs(FLUSH_OP_GAP_MS);
+          } else {
+            setQueuedCount(readQueue().length);
+            if (readQueue().length) await sleepMs(FLUSH_OP_GAP_MS);
+          }
         }
       } catch (error) {
         failed = true;
@@ -379,12 +447,28 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
 
   const refreshFromCloud = useCallback(async () => {
     if (refreshFlightRef.current) return refreshFlightRef.current;
-    if (isNetworkSyncBackoffActive()) return;
+    if (isNetworkSyncBackoffActive()) {
+      // Boot status is "syncing". Another table's Failed-to-fetch must not
+      // leave this device stuck on Syncing with Sync disabled forever.
+      const queued = readQueue().length;
+      const message =
+        hugeQueueMessage(queued) ??
+        "Cloud unreachable — backing off before retrying sync";
+      applyQueueStatus(queued, queued > 0, message);
+      return;
+    }
     // Do not refresh/re-merge while a large queue is mid-flush — merge would
     // re-touch pending upserts and historically fought the drain.
     if (flushing.current && readQueue().length >= HUGE_QUEUE_THRESHOLD) return;
     const supabase = getSupabase();
-    if (!supabase || !session) return;
+    if (!supabase || !session) {
+      applyQueueStatus(
+        readQueue().length,
+        true,
+        "Not signed in — cannot sync to cloud",
+      );
+      return;
+    }
 
     const runRefresh = async () => {
     const refreshStartedAt = new Date().toISOString();
@@ -483,7 +567,15 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
       if (toUpsert.length && !flushing.current) enqueueMissing(toUpsert);
       // Flush after refresh, but skip when network backoff is armed so we
       // do not immediately re-storm Failed-to-fetch.
-      if (!isNetworkSyncBackoffActive()) await flushQueue();
+      if (!isNetworkSyncBackoffActive()) {
+        await flushQueue();
+      } else {
+        const queued = readQueue().length;
+        const message =
+          hugeQueueMessage(queued) ??
+          "Cloud unreachable — backing off before retrying sync";
+        applyQueueStatus(queued, queued > 0, message);
+      }
     } catch (error) {
       if (isNetworkSyncError(error) || !navigator.onLine) {
         noteNetworkSyncFailure(error);
@@ -668,6 +760,9 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
   }, [cloud, flushQueue, refreshFromCloud]);
 
   const flushPendingQueue = useCallback(async () => {
+    // Explicit Sync now: clear a stale network backoff so the drain can start
+    // instead of bouncing off the 20s gate forever while the UI says Syncing.
+    clearNetworkSyncBackoff();
     await flushQueue();
   }, [flushQueue]);
 
