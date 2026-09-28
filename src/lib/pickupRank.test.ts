@@ -7,6 +7,10 @@ import {
   rankPickupStations,
   unmatchedLaneCustomers,
 } from "./pickupRank";
+import {
+  customersWithRealLanes,
+  seededCustomerLaneStore,
+} from "./customerLanes";
 
 function load(stationId: string, pickup: string) {
   return { stationId, pickup };
@@ -119,5 +123,15 @@ describe("rankPickupChoices", () => {
       "Melrose",
       "Quiet Yard",
     ]);
+  });
+});
+
+describe("Medill Log Load chip visibility", () => {
+  it("Medill appears when seeded with real lanes (not stub-only)", () => {
+    const store = seededCustomerLaneStore();
+    const laneCustomers = customersWithRealLanes(store);
+    const stations = filterStationsByCustomerLanes(STATIONS, laneCustomers);
+    expect(stations.some((s) => s.id === "medill")).toBe(true);
+    expect(laneCustomers.some((n) => n.toLowerCase() === "medill")).toBe(true);
   });
 });

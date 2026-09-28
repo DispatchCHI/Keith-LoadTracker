@@ -365,3 +365,59 @@ describe("cascade prefers Trash when current commodity is invalid", () => {
     expect(placesMatch(route.destination, "Winnebago")).toBe(true);
   });
 });
+
+describe("Medill seed lanes (Log Load regression)", () => {
+  it("is a real lane customer with station-catalog Trash and Yard dests", () => {
+    const store = seededCustomerLaneStore();
+    expect(customersWithRealLanes(store).some((n) => placesMatch(n, "Medill"))).toBe(
+      true,
+    );
+    expect(commoditiesForCustomer(store, "Medill", "2026-09-28").sort()).toEqual([
+      "Trash (MSW)",
+      "Yard Waste",
+    ]);
+    expect(
+      destinationsForCustomer(store, "Medill", "Trash (MSW)", "2026-09-28").sort(),
+    ).toEqual(["Newton County", "Pontiac"]);
+    expect(
+      destinationsForCustomer(store, "Medill", "Yard Waste", "2026-09-28").sort(),
+    ).toEqual(["Organix", "Willow Ranch"]);
+    // Recycle stays empty — do not invent catalog leftovers.
+    expect(
+      destinationsForCustomer(store, "Medill", "Recycle", "2026-09-28"),
+    ).toEqual([]);
+    const route = defaultCustomerLaneRoute(store, "Medill", "2026-09-28", [
+      { pickup: "Medill", commodity: "Trash (MSW)", destination: "Newton County" },
+      { pickup: "Medill", commodity: "Trash (MSW)", destination: "Newton County" },
+      { pickup: "Medill", commodity: "Trash (MSW)", destination: "Pontiac" },
+    ]);
+    expect(commoditiesMatch(route.commodity, "Trash (MSW)")).toBe(true);
+    expect(placesMatch(route.destination, "Newton County")).toBe(true);
+  });
+
+  it("mergeSeededLanes upgrades an old Medill stub store with real routes", () => {
+    let store: CustomerLaneStore = { lanes: {} };
+    store = upsertCustomerLane(store, {
+      customer: "Medill",
+      destination: "",
+      commodity: "Trash (MSW)",
+      effectiveDate: "2021-01-01",
+    }).store;
+    expect(customersWithRealLanes(store)).toEqual([]);
+    store = mergeSeededLanes(store);
+    expect(customersWithRealLanes(store).some((n) => placesMatch(n, "Medill"))).toBe(
+      true,
+    );
+    expect(
+      destinationsForCustomer(store, "Medill", "Trash (MSW)", "2026-09-28"),
+    ).toEqual(expect.arrayContaining(["Newton County", "Pontiac"]));
+  });
+
+  it("stub-only customers stay off the Log Load chip list (Custom path)", () => {
+    const store = seededCustomerLaneStore();
+    // LRS remains a stub in seed — Custom is how you log it until lanes exist.
+    expect(customersWithRealLanes(store).some((n) => placesMatch(n, "LRS"))).toBe(
+      false,
+    );
+  });
+});

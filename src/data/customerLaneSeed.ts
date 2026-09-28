@@ -37,6 +37,21 @@ function stub(customer: string): SeedLane {
   };
 }
 
+/** Known transfer-station routes (matches stations.ts). Null tiers = rates TBD. */
+function catalogRoute(
+  customer: string,
+  destination: string,
+  commodity: string = MSW,
+): SeedLane {
+  return {
+    customer,
+    destination,
+    commodity,
+    effectiveDate: CURRENT_CONTRACT_START,
+    tiers: null,
+  };
+}
+
 export const CUSTOMER_LANE_SEED: readonly SeedLane[] = [
   trash("Melrose", "DeKalb", [114.57, 116.55, 118.52, 120.5, 126.41]),
   trash("Melrose", "Rockford", [129.02, 131.23, 133.45, 135.67, 142.36]),
@@ -51,7 +66,13 @@ export const CUSTOMER_LANE_SEED: readonly SeedLane[] = [
   trash("Tri-State", "Prairie View", [94.28, 95.9, 97.53, 99.16, 104.03]),
   stub("LRS"),
   stub("Schererville"),
-  stub("Medill"),
+  // Medill must be a real lane customer so Log Load shows the chip after
+  // lane-strict pickup filtering. Destinations match stations.ts / live hauls
+  // (Newton County, Pontiac) — not invented catalog leftovers.
+  catalogRoute("Medill", "Pontiac"),
+  catalogRoute("Medill", "Newton County"),
+  catalogRoute("Medill", "Organix", "Yard Waste"),
+  catalogRoute("Medill", "Willow Ranch", "Yard Waste"),
   stub("Chicago Heights"),
   stub("Apollo"),
   stub("Calumet"),
