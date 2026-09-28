@@ -119,13 +119,9 @@ export function EditLoadScreen({
     onSaved(load.id, date);
 
     if (lane && routeChanged) {
-      const { specialtyId, chips } = lane;
-      const consumeDate = date;
-      setTimeout(() => {
-        void consumeOpens(consumeDate, specialtyId, chips, 1).catch((err) =>
-          console.warn("specialty consume after edit failed", err),
-        );
-      }, 0);
+      void consumeOpens(date, lane.specialtyId, lane.chips, 1).catch((err) =>
+        console.warn("specialty consume after edit failed", err),
+      );
     }
   };
 

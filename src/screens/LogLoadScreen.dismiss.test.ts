@@ -14,7 +14,6 @@ describe("Log Load overlay dismisses on successful save", () => {
     expect(finish).toMatch(/consumeOpens/);
     expect(finish.indexOf("onSaved(")).toBeLessThan(finish.indexOf("consumeOpens"));
     expect(finish).not.toMatch(/await\s+consumeOpens/);
-    expect(finish).toMatch(/setTimeout\(/);
   });
 
   it("finishSave is synchronous so dismiss is not gated on cloud I/O", () => {
@@ -22,33 +21,28 @@ describe("Log Load overlay dismisses on successful save", () => {
     expect(log).not.toMatch(/const finishSave = async/);
   });
 
-  it("App afterSave clears the log overlay with flushSync", () => {
-    expect(app).toMatch(/flushSync/);
+  it("App afterSave clears the log overlay (no flushSync specialty defer)", () => {
+    expect(app).not.toMatch(/flushSync/);
     const start = app.indexOf("const afterSave");
     const end = app.indexOf("function onTabChange", start);
     const after = app.slice(start, end);
     expect(after).toMatch(/setOverlay\(null\)/);
-    expect(after.indexOf("flushSync")).toBeLessThan(after.indexOf("setOverlay(null)"));
     expect(app).toMatch(/onSaved=\{afterSave\}/);
   });
 
-  it("edit path also dismisses before deferred specialty consume", () => {
+  it("edit path dismisses before specialty consume without awaiting", () => {
     const start = edit.indexOf("const finishSave");
     const end = edit.indexOf("const commit", start);
     const finish = edit.slice(start, end);
     expect(finish.indexOf("onSaved(")).toBeLessThan(finish.indexOf("consumeOpens"));
-    expect(finish).toMatch(/setTimeout\(/);
     expect(finish).not.toMatch(/await\s+consumeOpens/);
   });
 
-  it("Back / Cancel stay available; main Save footer stays mounted with warns", () => {
+  it("Back / Cancel and primary Save footer stay available with soft-warns", () => {
     expect(log).toMatch(/aria-label="Back"/);
     expect(log).toMatch(/onClick=\{onCancel\}/);
-    // Do not hide the Save footer when duplicate/specialty soft-warns show —
-    // that left Save looking disabled/stuck after the first click.
     expect(log).not.toMatch(/duplicate \|\| specialtyWarn \? null/);
-    expect(log).toMatch(/forceDuplicate: Boolean\(duplicate\)/);
-    expect(log).toMatch(/forceSpecialty: Boolean\(specialtyWarn\)/);
     expect(log).toMatch(/disabled=\{!formComplete\(form\)\}/);
+    expect(log).toMatch(/onClick=\{\(\) => commit\(\)\}/);
   });
 });

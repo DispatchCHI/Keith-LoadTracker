@@ -106,32 +106,21 @@ export function LogLoadScreen({
       });
     }
 
-    // Dismiss immediately — specialty cloud deletes / store writes must not keep
-    // the New Load overlay open (same class of bug as specialty await-before-dismiss,
-    // including ordinary Customers-lane Recycle/Yard loads that match the board).
+    // Dismiss immediately — specialty cloud deletes must not block the log screen.
     setDuplicate(null);
     setSpecialtyWarn(null);
     onSaved(lastId, targetDate);
 
-    try {
-      const lane = resolveSpecialtyBoardMatch(
-        form.stationId,
-        pickup,
-        destination,
-        form.commodity,
+    const lane = resolveSpecialtyBoardMatch(
+      form.stationId,
+      pickup,
+      destination,
+      form.commodity,
+    );
+    if (lane) {
+      void consumeOpens(targetDate, lane.specialtyId, lane.chips, qty).catch(
+        (err) => console.warn("specialty consume after save failed", err),
       );
-      if (!lane) return;
-      const { specialtyId, chips } = lane;
-      const date = targetDate;
-      const count = qty;
-      // Next macrotask so React can commit overlay unmount before specialty I/O.
-      setTimeout(() => {
-        void consumeOpens(date, specialtyId, chips, count).catch((err) =>
-          console.warn("specialty consume after save failed", err),
-        );
-      }, 0);
-    } catch (err) {
-      console.warn("specialty match after save failed", err);
     }
   };
 
@@ -296,9 +285,6 @@ export function LogLoadScreen({
         </div>
       ) : null}
 
-      {/* Always keep main Save available — warn dialogs are additive, not a
-          replacement. Hiding the footer made Save look disabled/stuck when a
-          duplicate or specialty soft-warn appeared after the first click. */}
       <div className="overlay-footer overlay-footer-stack">
         <QuantityStepper value={qty} onChange={setQuantity} />
         <div className="overlay-footer-actions">
@@ -309,12 +295,7 @@ export function LogLoadScreen({
             type="button"
             className="btn-primary grow"
             disabled={!formComplete(form)}
-            onClick={() =>
-              commit({
-                forceDuplicate: Boolean(duplicate),
-                forceSpecialty: Boolean(specialtyWarn),
-              })
-            }
+            onClick={() => commit()}
           >
             {qty === 1 ? "Save" : `Save ${qty} loads`}
           </button>

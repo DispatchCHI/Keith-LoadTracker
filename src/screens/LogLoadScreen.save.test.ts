@@ -9,19 +9,39 @@ import {
   seededCustomerLaneStore,
 } from "../lib/customerLanes";
 
-describe("Log Load Save stays available for a valid customer load", () => {
+describe("Log Load primary Save for a complete draft", () => {
   const log = readFileSync(new URL("./LogLoadScreen.tsx", import.meta.url), "utf8");
 
-  it("keeps the main Save footer mounted (warns are additive, not a replacement)", () => {
+  it("keeps primary Save mounted and only disabled by formComplete (no warn gate)", () => {
     expect(log).toMatch(/overlay-footer overlay-footer-stack/);
     expect(log).toMatch(/\? "Save" :/);
+    expect(log).toMatch(/disabled=\{!formComplete\(form\)\}/);
+    // Soft-warns must never remove/replace the primary Save footer.
     expect(log).not.toMatch(/duplicate \|\| specialtyWarn \? null/);
-    // Second click / Save while a soft-warn is up must force through.
-    expect(log).toMatch(/forceDuplicate: Boolean\(duplicate\)/);
-    expect(log).toMatch(/forceSpecialty: Boolean\(specialtyWarn\)/);
+    // Primary Save is the normal commit path — no warn-flow required to click.
+    expect(log).toMatch(/onClick=\{\(\) => commit\(\)\}/);
   });
 
-  it("Medill Trash→Newton County is complete and not a specialty soft-warn lane", () => {
+  it("complete draft (truck + pickup + commodity + dest) enables Save without specialty warn", () => {
+    const form: FormState = {
+      truck: "6473",
+      stationId: "medill",
+      pickup: "Medill",
+      commodity: "Trash (MSW)",
+      destination: "Newton County",
+    };
+    expect(formComplete(form)).toBe(true);
+    expect(
+      resolveSpecialtyBoardMatch(
+        form.stationId,
+        form.pickup,
+        form.destination,
+        form.commodity,
+      ),
+    ).toBeNull();
+  });
+
+  it("Medill seeded route is formComplete and not a specialty soft-warn lane", () => {
     const store = seededCustomerLaneStore();
     expect(customersWithRealLanes(store).some((n) => placesMatch(n, "Medill"))).toBe(
       true,
@@ -45,20 +65,6 @@ describe("Log Load Save stays available for a valid customer load", () => {
         form.destination,
         form.commodity,
       ),
-    ).toBeNull();
-  });
-
-  it("explicit Medill Trash→Newton County stays saveable without specialty warn", () => {
-    const form: FormState = {
-      truck: "6473",
-      stationId: "medill",
-      pickup: "Medill",
-      commodity: "Trash (MSW)",
-      destination: "Newton County",
-    };
-    expect(formComplete(form)).toBe(true);
-    expect(
-      resolveSpecialtyBoardMatch("medill", "Medill", "Newton County", "Trash (MSW)"),
     ).toBeNull();
   });
 });
