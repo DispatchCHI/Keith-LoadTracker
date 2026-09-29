@@ -18,7 +18,7 @@ import {
 } from "../lib/specialtyCustomNamesCloud";
 import { getSupabase } from "../lib/supabase";
 import {
-  addSpecialtySlot,
+  addSpecialtySlots,
   applySpecialtyTombstones,
   boardForDate,
   consumeSpecialtyOpensTracked,
@@ -36,6 +36,7 @@ import {
   sameSpecialtyDest,
   sameSpecialtyStation,
   specialtyDateKey,
+  specialtySlotHomeDate,
   uniqueSpecialtyChipLabels,
   upsertSpecialtyDestKeep,
   writeSpecialtyStore,
@@ -56,7 +57,11 @@ type SpecialtyRow = {
 type SpecialtyContextValue = {
   store: SpecialtyStore;
   boardOn: (date: string) => SpecialtySlot[];
-  addOpen: (date: string, stationId: string, destination: string) => Promise<void>;
+  addOpen: (
+    date: string,
+    stationId: string,
+    destination: string | readonly string[],
+  ) => Promise<void>;
   removeOpen: (
     date: string,
     stationId: string,
@@ -302,36 +307,52 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
   }, [cloud, syncCustomNames]);
 
   const addOpen = useCallback(
-    async (date: string, stationId: string, destination: string) => {
+    async (
+      date: string,
+      stationId: string,
+      destination: string | readonly string[],
+    ) => {
+      const destinations = (typeof destination === "string" ? [destination] : destination)
+        .map((label) => label.trim())
+        .filter((label) => label.length > 0);
+      if (!destinations.length) return;
+
       bumpEpoch();
-      const next = addSpecialtySlot(storeRef.current, date, stationId, destination);
-      const added = boardForDate(next, date).at(-1);
-      if (
-        added &&
-        destKeepsRef.current.some(
-          (k) =>
-            specialtyDateKey(k.date) === specialtyDateKey(date) &&
-            sameSpecialtyStation(k.stationId, stationId) &&
-            sameSpecialtyDest(k.destination, destination),
-        )
-      ) {
-        destKeepsRef.current = upsertSpecialtyDestKeep(
-          destKeepsRef.current,
-          destKeepAfterChange(next, date, stationId, destination),
-        );
+      const before = new Set(
+        Object.values(storeRef.current).flatMap((slots) => slots.map((slot) => slot.id)),
+      );
+      const next = addSpecialtySlots(storeRef.current, date, stationId, destinations);
+      const added = Object.values(next)
+        .flat()
+        .filter((slot) => !before.has(slot.id));
+      for (const dest of new Set(added.map((slot) => slot.destination))) {
+        if (
+          destKeepsRef.current.some(
+            (k) =>
+              specialtyDateKey(k.date) === specialtyDateKey(date) &&
+              sameSpecialtyStation(k.stationId, stationId) &&
+              sameSpecialtyDest(k.destination, dest),
+          )
+        ) {
+          destKeepsRef.current = upsertSpecialtyDestKeep(
+            destKeepsRef.current,
+            destKeepAfterChange(next, date, stationId, dest),
+          );
+        }
       }
       persistLocal(next);
-      if (cloud && added) {
+      if (cloud && added.length) {
         const supabase = getSupabase();
         if (supabase) {
-          const { error } = await supabase.from("specialty_opens").upsert({
-            id: added.id,
+          const rows = added.map((slot) => ({
+            id: slot.id,
             date: specialtyDateKey(date),
-            station_id: added.stationId,
-            destination: added.destination,
-            created_at: added.createdAt,
+            station_id: slot.stationId,
+            destination: slot.destination,
+            created_at: slot.createdAt,
             created_by: user?.id ?? null,
-          });
+          }));
+          const { error } = await supabase.from("specialty_opens").upsert(rows);
           if (error) console.warn("specialty insert failed", error.message);
         }
       }
@@ -363,27 +384,29 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
           }
         }
       }
+      if (!target) {
+        persistLocal(removeSpecialtySlot(storeRef.current, date, stationId, destination));
+        return;
+      }
+      const home =
+        specialtySlotHomeDate(storeRef.current, target.id) ?? specialtyDateKey(date);
       const next = removeSpecialtySlot(
         storeRef.current,
         date,
         stationId,
         destination,
       );
-      if (!target) {
-        persistLocal(next);
-        return;
-      }
       const dest = destination ?? target.destination;
       rememberDeleted([target.id]);
-      rememberDestKeep(destKeepAfterChange(next, date, stationId, dest));
+      rememberDestKeep(destKeepAfterChange(next, home, stationId, dest));
       persistLocal(next);
       if (cloud) {
         await cloudDeleteIds([target.id]);
         await cloudDeleteUnkept(
-          date,
+          home,
           stationId,
           dest,
-          remainingSpecialtySlotIds(next, date, stationId, dest),
+          remainingSpecialtySlotIds(next, home, stationId, dest),
         );
       }
     },
@@ -430,12 +453,20 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
       persistLocal(tracked.store);
       if (cloud && tracked.burnedIds.length) {
         await cloudDeleteIds(tracked.burnedIds);
-        for (const chip of chips) {
+        const touches = tracked.touches.length
+          ? tracked.touches
+          : chips.map((chip) => ({ date, stationId, destination: chip }));
+        for (const touch of touches) {
           await cloudDeleteUnkept(
-            date,
+            touch.date,
             stationId,
-            chip,
-            remainingSpecialtySlotIds(tracked.store, date, stationId, chip),
+            touch.destination,
+            remainingSpecialtySlotIds(
+              tracked.store,
+              touch.date,
+              stationId,
+              touch.destination,
+            ),
           );
         }
       }

@@ -114,6 +114,28 @@
   font-size: 13px;
 }
 
+.specialty-queue-label {
+  margin: 8px 2px 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.specialty-queue {
+  margin-top: 0;
+}
+
+.specialty-picker .qty-stepper {
+  margin-top: 8px;
+}
+
+.specialty-add-open:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .specialty-picker-actions {
   display: flex;
   flex-wrap: nowrap;
