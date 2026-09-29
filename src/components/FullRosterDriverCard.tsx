@@ -222,10 +222,13 @@ export function FullRosterDriverCard({
                 }, 400);
               }}
               onFocus={() => setTruckFocused(true)}
-              onBlur={() => {
+              onBlur={(event) => {
                 setTruckFocused(false);
                 if (saveTimer.current) clearTimeout(saveTimer.current);
-                void saveTruck();
+                // Read the input, not React state. Delete-then-tab can blur
+                // before the cleared value is committed, and the old unit
+                // would be saved back.
+                void saveTruck(event.currentTarget.value);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();

@@ -855,6 +855,72 @@ describe("assigned truck (not EMP #)", () => {
     expect(findAssignedTruckConflict(store, "418", other.entry!.id)?.name).toBe(
       "Christopher Oleson",
     );
+    expect(findAssignedTruckConflict(store, "0418", other.entry!.id)?.name).toBe(
+      "Christopher Oleson",
+    );
+  });
+
+  it("keeps a cleared truck when an older duplicate still has the unit", () => {
+    const created = "2026-09-01T00:00:00.000Z";
+    let store = addRosterEntry(
+      emptyDriverRosterStore(),
+      {
+        kind: "full",
+        yard: "burnham",
+        truckNumber: "185",
+        assignedTruck: "418",
+        name: "Christopher Oleson",
+      },
+      { id: "older", at: created, createdAt: created },
+    ).store;
+    store = addRosterEntry(
+      store,
+      {
+        kind: "full",
+        yard: "burnham",
+        truckNumber: "185",
+        assignedTruck: "418",
+        name: "Christopher Oleson",
+      },
+      { id: "newer", at: created, createdAt: created },
+    ).store;
+    store = updateRosterEntry(store, "newer", { assignedTruck: null }, "2026-09-02T00:00:00.000Z");
+    const collapsed = collapseDuplicateRosterEntries(store);
+    expect(collapsed.droppedIds).toContain("older");
+    expect(collapsed.store.entries.newer?.assignedTruck).toBeNull();
+  });
+
+  it("copies a unit onto an untouched duplicate instead of dropping it", () => {
+    const created = "2026-09-01T00:00:00.000Z";
+    let store = addRosterEntry(
+      emptyDriverRosterStore(),
+      {
+        kind: "full",
+        yard: "burnham",
+        truckNumber: "185",
+        assignedTruck: "418",
+        name: "Christopher Oleson",
+      },
+      { id: "older", at: created, createdAt: created },
+    ).store;
+    store = addRosterEntry(
+      store,
+      {
+        kind: "full",
+        yard: "burnham",
+        truckNumber: "185",
+        assignedTruck: null,
+        name: "Christopher Oleson",
+      },
+      {
+        id: "newer",
+        at: "2026-09-02T00:00:00.000Z",
+        createdAt: "2026-09-02T00:00:00.000Z",
+      },
+    ).store;
+    const collapsed = collapseDuplicateRosterEntries(store);
+    expect(collapsed.store.entries.newer?.assignedTruck).toBe("418");
+    expect(collapsed.droppedIds).toContain("older");
   });
 
   it("SQL keeps emp # on truck_number and adds assigned_truck", () => {
