@@ -7,7 +7,9 @@ import {
   SPECIALTY_STATIONS,
   filterSpecialtyStationsByLanes,
   addSpecialtySlot,
+  addSpecialtySlots,
   applySpecialtyTombstones,
+  boardForDate,
   consumeSpecialtyOpens,
   consumeSpecialtyOpensAny,
   consumeSpecialtyOpensTracked,
@@ -1534,6 +1536,126 @@ describe("specialty consume sticks through refresh/merge", () => {
   });
 });
 
+
+describe("specialty chips carry across days", () => {
+  const today = "2026-09-28";
+  const tomorrow = "2026-09-29";
+
+  it("shows yesterday's open chips on the next day without copying the row", () => {
+    const store = addSpecialtySlot({}, today, "melrose", "Hodgkins");
+    const id = store[today][0].id;
+    expect(store[tomorrow]).toBeUndefined();
+    expect(boardForDate(store, tomorrow).map((slot) => slot.id)).toEqual([id]);
+    expect(countSpecialtyOpens(store, tomorrow, "melrose", "Hodgkins")).toBe(1);
+    expect(countSpecialtyOpens(store, today, "melrose", "Hodgkins")).toBe(1);
+  });
+
+  it("does not show a chip on days before it was added", () => {
+    const store = addSpecialtySlot({}, tomorrow, "melrose", "RSI");
+    expect(countSpecialtyOpens(store, today, "melrose", "RSI")).toBe(0);
+    expect(boardForDate(store, today)).toEqual([]);
+    expect(removeSpecialtySlot(store, today, "melrose", "RSI")).toBe(store);
+  });
+
+  it("keeps carried chips until remove, and deletes the row from its stored day", () => {
+    let store = addSpecialtySlot({}, today, "melrose", "Hodgkins");
+    store = addSpecialtySlot(store, tomorrow, "melrose", "RSI");
+    store = removeSpecialtySlot(store, tomorrow, "melrose", "Hodgkins");
+    expect(countSpecialtyOpens(store, tomorrow, "melrose", "Hodgkins")).toBe(0);
+    expect(countSpecialtyOpens(store, today, "melrose", "Hodgkins")).toBe(0);
+    expect(store[today]).toBeUndefined();
+    expect(countSpecialtyOpens(store, tomorrow, "melrose", "RSI")).toBe(1);
+  });
+
+  it("dispatch on a later day burns a carried chip and pins the dest-keep to its stored day", () => {
+    let store = addSpecialtySlot({}, today, "melrose", "Hodgkins");
+    const carriedId = store[today][0].id;
+    store = addSpecialtySlot(store, tomorrow, "melrose", "RSI");
+    const tracked = consumeSpecialtyOpensTracked(
+      store,
+      tomorrow,
+      "melrose",
+      ["Hodgkins"],
+      1,
+    );
+    expect(tracked.burnedIds).toEqual([carriedId]);
+    expect(tracked.touches).toEqual([
+      { date: today, stationId: "melrose", destination: "Hodgkins" },
+    ]);
+    expect(countSpecialtyOpens(tracked.store, tomorrow, "melrose", "Hodgkins")).toBe(0);
+    expect(countSpecialtyOpens(tracked.store, tomorrow, "melrose", "RSI")).toBe(1);
+    expect(tracked.destKeeps.some((keep) => keep.date === today && keep.keepIds.length === 0)).toBe(
+      true,
+    );
+
+    const remote: SpecialtyStore = {
+      [today]: [
+        {
+          id: carriedId,
+          stationId: "melrose",
+          destination: "Hodgkins",
+          createdAt: "2026-09-28T12:00:00.000Z",
+        },
+        {
+          id: "alias-hodgkins",
+          stationId: "melrose",
+          destination: "Hodgkins",
+          createdAt: "2026-09-28T12:00:01.000Z",
+        },
+      ],
+      [tomorrow]: store[tomorrow].map((slot) => ({ ...slot })),
+    };
+    const refresh = reconcileSpecialtyCloud({
+      local: tracked.store,
+      remote,
+      deletedIds: tracked.burnedIds,
+      destKeeps: tracked.destKeeps,
+      seenRemoteIds: [carriedId, "alias-hodgkins", store[tomorrow][0].id],
+    });
+    expect(refresh.toDeleteRemote).toEqual(
+      expect.arrayContaining([carriedId, "alias-hodgkins"]),
+    );
+    expect(countSpecialtyOpens(refresh.next, tomorrow, "melrose", "Hodgkins")).toBe(0);
+    expect(countSpecialtyOpens(refresh.next, tomorrow, "melrose", "RSI")).toBe(1);
+    expect(refresh.toUpload).toEqual([]);
+  });
+
+  it("burns the newest matching chip first when the same dest is open on two days", () => {
+    let store = addSpecialtySlot({}, today, "batavia", "Hodgkins");
+    const olderId = store[today][0].id;
+    store = addSpecialtySlot(store, tomorrow, "batavia", "Hodgkins");
+    const newerId = store[tomorrow][0].id;
+    const tracked = consumeSpecialtyOpensTracked(store, tomorrow, "batavia", ["Hodgkins"], 1);
+    expect(tracked.burnedIds).toEqual([newerId]);
+    expect(boardForDate(tracked.store, tomorrow).map((slot) => slot.id)).toEqual([olderId]);
+    expect(tracked.touches.map((touch) => touch.date)).toEqual([tomorrow]);
+  });
+
+  it("a dest-keep for today does not treat yesterday's open chip as an extra", () => {
+    let store = addSpecialtySlot({}, today, "melrose", "Hodgkins");
+    const olderId = store[today][0].id;
+    store = addSpecialtySlot(store, tomorrow, "melrose", "Hodgkins");
+    const newerId = store[tomorrow][0].id;
+    const keep = destKeepAfterChange(store, tomorrow, "melrose", "Hodgkins");
+    expect(keep.keepIds).toEqual([newerId]);
+    expect(
+      unkeptSpecialtyIds(store, tomorrow, "melrose", "Hodgkins", keep.keepIds),
+    ).toEqual([]);
+    expect(countSpecialtyOpens(store, tomorrow, "melrose", "Hodgkins")).toBe(2);
+    const merged = applySpecialtyTombstones(store, [], [keep]);
+    expect(merged[today]?.map((slot) => slot.id)).toEqual([olderId]);
+    expect(countSpecialtyOpens(merged, tomorrow, "melrose", "Hodgkins")).toBe(2);
+  });
+
+  it("adds several chips in one call and carries the whole batch forward", () => {
+    const store = addSpecialtySlots({}, today, "elgin", ["Hodgkins", "Hodgkins", "RSI"]);
+    expect(store[today]).toHaveLength(3);
+    expect(countSpecialtyOpens(store, today, "elgin", "Hodgkins")).toBe(2);
+    expect(countSpecialtyOpens(store, tomorrow, "elgin", "Hodgkins")).toBe(2);
+    expect(countSpecialtyOpens(store, tomorrow, "elgin", "RSI")).toBe(1);
+    expect(store[tomorrow]).toBeUndefined();
+  });
+});
 
 describe("filterSpecialtyStationsByLanes", () => {
   it("keeps specialty cards that match WF/leachate customers", () => {

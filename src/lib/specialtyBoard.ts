@@ -1,8 +1,14 @@
-/** Walking-floor / specialty load board (day-scoped open slots). */
+/**
+ * Walking-floor / specialty load board.
+ * Rows live in `specialty_opens` under the day they were added. The board for a
+ * later day still shows those rows until a user removes them or a dispatch
+ * consumes them — nothing drops them just because the calendar rolled.
+ */
 
 import { destinationsFor } from "../data/stations";
 import { tallyLabel } from "./commodity";
 import { isValidISODate } from "./chicagoDate";
+import { batchCreatedAt } from "./quantity";
 import {
   CUSTOM_SPECIALTY_DEFAULT_NAMES,
   customSpecialtyLaneChips,
@@ -256,11 +262,23 @@ export type SpecialtyCloudReconcileResult = {
   toUpload: SpecialtyUpload[];
 };
 
+/** One station + chip on the calendar day the burned rows are actually stored. */
+export type SpecialtyBoardTouch = {
+  date: string;
+  stationId: string;
+  destination: string;
+};
+
 export type SpecialtyConsumeResult = {
   store: SpecialtyStore;
   burnedIds: string[];
   destKeeps: SpecialtyDestKeep[];
   burned: number;
+  /**
+   * Home dates of burned rows. Cloud unkept-deletes have to target these
+   * dates — a chip added yesterday is not stored under today's key.
+   */
+  touches: SpecialtyBoardTouch[];
 };
 
 function newId(): string {
@@ -404,8 +422,12 @@ export function writeSpecialtyStore(
   );
 }
 
+/**
+ * Chips still open while viewing `date`: rows stored on that day, plus earlier
+ * days that have not been removed or dispatched. Later days stay hidden.
+ */
 export function boardForDate(store: SpecialtyStore, date: string): SpecialtyDayBoard {
-  return slotsOnDate(store, date);
+  return slotsVisibleOnDate(store, date);
 }
 
 export function slotsForStation(
@@ -430,29 +452,46 @@ export function destSummary(
   );
 }
 
+/** Append one chip per destination label (repeats allowed) on `date`. */
+export function addSpecialtySlots(
+  store: SpecialtyStore,
+  date: string,
+  stationId: string,
+  destinations: readonly string[],
+): SpecialtyStore {
+  const labels = destinations.map((d) => d.trim()).filter((d) => d.length > 0);
+  if (!labels.length) return store;
+  const station = resolveSpecialtyStationId(stationId, stationId) ?? stationId;
+  const base = new Date().toISOString();
+  const added: SpecialtySlot[] = labels.map((destination, index) => ({
+    id: newId(),
+    stationId: station,
+    destination,
+    createdAt: batchCreatedAt(base, index),
+  }));
+  return writeDay(store, date, [...slotsOnDate(store, date), ...added]);
+}
+
 export function addSpecialtySlot(
   store: SpecialtyStore,
   date: string,
   stationId: string,
   destination: string,
 ): SpecialtyStore {
-  const slot: SpecialtySlot = {
-    id: newId(),
-    stationId: resolveSpecialtyStationId(stationId, stationId) ?? stationId,
-    destination: destination.trim(),
-    createdAt: new Date().toISOString(),
-  };
-  return writeDay(store, date, [...slotsOnDate(store, date), slot]);
+  return addSpecialtySlots(store, date, stationId, [destination]);
 }
 
-/** Remove one open slot: prefer matching destination, else most recent for station. */
+/**
+ * Remove one open chip visible on `date` (including a chip added on an earlier
+ * day). Newest match goes first. The row is deleted from its stored day.
+ */
 export function removeSpecialtySlot(
   store: SpecialtyStore,
   date: string,
   stationId: string,
   destination?: string,
 ): SpecialtyStore {
-  const board = [...slotsOnDate(store, date)];
+  const board = boardForDate(store, date);
   let idx = -1;
   if (destination) {
     for (let i = board.length - 1; i >= 0; i--) {
@@ -474,8 +513,7 @@ export function removeSpecialtySlot(
     }
   }
   if (idx < 0) return store;
-  board.splice(idx, 1);
-  return writeDay(store, date, board);
+  return omitSpecialtyIds(store, [board[idx].id]);
 }
 
 export function isSpecialtyStationId(stationId: string): boolean {
@@ -496,7 +534,7 @@ export function countSpecialtyOpens(
   ).length;
 }
 
-/** Newest-first ids for a station + destination on this calendar day. */
+/** Newest-first ids visible on this day, including chips carried from earlier days. */
 export function matchingSpecialtySlotIds(
   store: SpecialtyStore,
   date: string,
@@ -519,7 +557,10 @@ export function matchingSpecialtySlotIds(
   return ids;
 }
 
-/** All current slot ids for a station + destination on this calendar day. */
+/**
+ * Slot ids stored on this exact calendar day.
+ * Dest-keeps are per stored date — carried chips from other days are not extras.
+ */
 export function remainingSpecialtySlotIds(
   store: SpecialtyStore,
   date: string,
@@ -527,7 +568,7 @@ export function remainingSpecialtySlotIds(
   destination: string,
 ): string[] {
   if (!stationId || !specialtyDestKey(destination)) return [];
-  return boardForDate(store, date)
+  return slotsOnDate(store, date)
     .filter(
       (s) =>
         sameSpecialtyStation(s.stationId, stationId) &&
@@ -591,7 +632,7 @@ export function unkeptSpecialtyIds(
   keepIds: Iterable<string>,
 ): string[] {
   const keep = new Set(keepIds);
-  return boardForDate(store, date)
+  return slotsOnDate(store, date)
     .filter(
       (s) =>
         sameSpecialtyStation(s.stationId, stationId) &&
@@ -662,10 +703,11 @@ export function consumeSpecialtyOpensTracked(
   const labels = uniqueSpecialtyChipLabels(chips);
   let remaining = Math.max(0, Math.floor(count));
   if (!remaining || !labels.length) {
-    return { store, burnedIds: [], destKeeps, burned: 0 };
+    return { store, burnedIds: [], destKeeps, burned: 0, touches: [] };
   }
 
   const burnedIds: string[] = [];
+  const touches: SpecialtyBoardTouch[] = [];
   let next = store;
   let keeps = destKeeps;
   let burned = 0;
@@ -676,17 +718,24 @@ export function consumeSpecialtyOpensTracked(
     const burn = Math.min(have, remaining);
     if (burn <= 0) continue;
     const victims = matchingSpecialtySlotIds(next, date, stationId, chip, burn);
+    const homes = new Set<string>();
+    for (const id of victims) {
+      homes.add(specialtySlotHomeDate(next, id) ?? specialtyDateKey(date));
+    }
     next = consumeSpecialtyOpens(next, date, stationId, chip, burn);
     burnedIds.push(...victims);
-    keeps = upsertSpecialtyDestKeep(
-      keeps,
-      destKeepAfterChange(next, date, stationId, chip),
-    );
+    for (const home of homes) {
+      keeps = upsertSpecialtyDestKeep(
+        keeps,
+        destKeepAfterChange(next, home, stationId, chip),
+      );
+      touches.push({ date: home, stationId, destination: chip });
+    }
     remaining -= burn;
     burned += burn;
   }
 
-  return { store: next, burnedIds, destKeeps: keeps, burned };
+  return { store: next, burnedIds, destKeeps: keeps, burned, touches };
 }
 
 export function notifySpecialtyBoardChanged(): void {
@@ -971,6 +1020,42 @@ function slotsOnDate(store: SpecialtyStore, date: string): SpecialtySlot[] {
     }
   }
   return out;
+}
+
+function slotDayCountsOn(day: string, view: string): boolean {
+  const stored = specialtyDateKey(day);
+  const viewing = specialtyDateKey(view);
+  if (!isValidISODate(stored) || !isValidISODate(viewing)) return stored === viewing;
+  return stored <= viewing;
+}
+
+/** Earlier open rows first, then this day's own rows. Deduped by id. */
+function slotsVisibleOnDate(store: SpecialtyStore, date: string): SpecialtySlot[] {
+  const seen = new Set<string>();
+  const out: SpecialtySlot[] = [];
+  const days = Object.keys(store).sort((a, b) =>
+    specialtyDateKey(a).localeCompare(specialtyDateKey(b)),
+  );
+  for (const day of days) {
+    if (!slotDayCountsOn(day, date)) continue;
+    for (const slot of store[day] ?? []) {
+      if (seen.has(slot.id)) continue;
+      seen.add(slot.id);
+      out.push(slot);
+    }
+  }
+  return out;
+}
+
+/** Calendar day the row is stored under, not the day it is being viewed on. */
+export function specialtySlotHomeDate(store: SpecialtyStore, id: string): string | null {
+  const days = Object.keys(store).sort((a, b) =>
+    specialtyDateKey(a).localeCompare(specialtyDateKey(b)),
+  );
+  for (const day of days) {
+    if ((store[day] ?? []).some((slot) => slot.id === id)) return specialtyDateKey(day);
+  }
+  return null;
 }
 
 function writeDay(
