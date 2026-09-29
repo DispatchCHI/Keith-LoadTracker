@@ -538,16 +538,16 @@ export function applyFullRosterDelete(
 }
 
 /**
- * Emp # is the only person-level Gone↔roster identity match.
+ * Emp # is the only person-level Gone↔roster match.
  *
  * Never match on name (or name+yard). Re-hires / new Full Roster adds often share
  * a name with a stale Gone row and intentionally have no emp # yet — name+yard
  * fallback still deleted David Perez on Rockford after phone save → hydrate
- * (6eae7c7). Conflicting or missing emp #s never match.
+ * (6eae7c7). Conflicting or missing emp #s never prune.
  *
- * Matching alone does NOT decide prune — see goneShouldStripRosterEntry.
- * Rehire may share emp # with Gone history; active Full Roster wins and Gone
- * stays as a record. Terminate still removes the hire by id immediately.
+ * Buddy Johnson bounce-back is covered by equal emp # (31147) plus UUID
+ * tombstones. Name-only Gone rows without emp # do not strip active hires;
+ * terminate already removes the hire by id.
  */
 export function goneMatchesActiveRoster(
   gone: Pick<DriverGoneEntry, "employeeNumber" | "name" | "yard">,
@@ -559,44 +559,9 @@ export function goneMatchesActiveRoster(
 }
 
 /**
- * Whether a Gone row should delete an emp#-matched Full/Sat roster row.
- *
- * Active wins, Gone stays as history:
- * - Rehire / deliberate Full add after archive (roster created or updated at or
- *   after Gone.createdAt, or hireDate after terminationDate) is kept.
- * - Stale bounce-back (Buddy Johnson cloud Full row older than Gone archive)
- *   is stripped. Use Gone.createdAt (stable) — not updatedAt — so note edits
- *   on Gone never re-delete a living rehire.
- */
-export function goneShouldStripRosterEntry(
-  gone: Pick<
-    DriverGoneEntry,
-    "employeeNumber" | "name" | "yard" | "createdAt" | "terminationDate"
-  >,
-  roster: Pick<
-    DriverRosterEntry,
-    "truckNumber" | "name" | "yard" | "hireDate" | "createdAt" | "updatedAt"
-  >,
-): boolean {
-  if (!goneMatchesActiveRoster(gone, roster)) return false;
-  const term = parseGoneDate(gone.terminationDate);
-  const hire = typeof roster.hireDate === "string" && roster.hireDate ? roster.hireDate : null;
-  if (term && hire && hire > term) return false;
-  const rosterStamp =
-    roster.updatedAt >= roster.createdAt ? roster.updatedAt : roster.createdAt;
-  const goneStamp = gone.createdAt;
-  if (!goneStamp) return true;
-  // Roster at/after archive moment ⇒ rehire; keep Full, leave Gone alone.
-  if (rosterStamp >= goneStamp) return false;
-  return true;
-}
-
-/**
- * Drop Full + Sat rows for anyone archived on Gone whose archive is newer than
- * the roster row. ID-only tombstones miss re-upserts under a new UUID (Buddy
- * Johnson bounce-back). Rehires that share emp # with Gone history are kept;
- * Gone is not cleared. Callers must persist removed ids as roster tombstones
- * and cloud-DELETE them.
+ * Drop Full + Sat rows for anyone already archived on Gone.
+ * ID-only tombstones miss re-upserts under a new UUID (Buddy Johnson bounce-back).
+ * Callers must persist removed ids as roster tombstones and cloud-DELETE them.
  */
 export function stripRosterEntriesMatchingGone(
   roster: DriverRosterStore,
@@ -607,7 +572,7 @@ export function stripRosterEntriesMatchingGone(
   const removed: DriverRosterEntry[] = [];
   const entries: Record<string, DriverRosterEntry> = {};
   for (const [id, entry] of Object.entries(roster.entries)) {
-    if (gonePeople.some((person) => goneShouldStripRosterEntry(person, entry))) {
+    if (gonePeople.some((person) => goneMatchesActiveRoster(person, entry))) {
       removed.push(entry);
       continue;
     }
