@@ -6,8 +6,11 @@ import {
 } from "../data/stations";
 import {
   cascadeCustomerLaneRoute,
+  commoditiesForCustomer,
   customersWithRealLanes,
   defaultCustomerLaneRoute,
+  destinationsForCustomer,
+  laneDestinationsMatch,
   placesMatch,
   type CustomerLaneStore,
   type LaneRouteLoad,
@@ -137,13 +140,53 @@ export function destinationAfterCommoditySelect(opts: {
   );
   if (
     opts.currentDestination.trim() &&
-    dests.some(
-      (d) =>
-        placesMatch(d, opts.currentDestination) ||
-        d === opts.currentDestination,
-    )
+    dests.some((d) => laneDestinationsMatch(d, opts.currentDestination))
   ) {
     return opts.currentDestination.trim();
   }
   return dests[0] ?? "";
+}
+
+/** Commodity chips for Log Load. A Customers-board pickup uses its lanes only. */
+export function commodityChipsForLogLoad(opts: {
+  laneBookPickup: string | null;
+  store: CustomerLaneStore;
+  asOf: string;
+  catalogCommodities: readonly string[];
+}): string[] {
+  if (opts.laneBookPickup) {
+    return commoditiesForCustomer(opts.store, opts.laneBookPickup, opts.asOf).filter(
+      (item) => item.trim() && !isWalkingFloorName(item),
+    );
+  }
+  return opts.catalogCommodities.filter(
+    (item) => item.trim() && !isWalkingFloorName(item),
+  );
+}
+
+/**
+ * Destination chips for the selected commodity.
+ * Customers-board pickups list only lanes for that pickup+commodity.
+ * Catalog destinations are the fallback when the pickup has no lane book.
+ */
+export function destinationChipsForLogLoad(opts: {
+  laneBookPickup: string | null;
+  commodity: string;
+  store: CustomerLaneStore;
+  asOf: string;
+  catalogDestinations: readonly string[];
+}): string[] {
+  const commodity = opts.commodity.trim();
+  if (!commodity || isWalkingFloorName(commodity)) return [];
+  if (opts.laneBookPickup) {
+    return destinationsForCustomer(
+      opts.store,
+      opts.laneBookPickup,
+      commodity,
+      opts.asOf,
+    );
+  }
+  return opts.catalogDestinations.filter(
+    (item) => item.trim() && item !== "Other..." && !isWalkingFloorName(item),
+  );
 }

@@ -7,6 +7,7 @@ import {
   defaultCustomerLaneRoute,
   destinationsForCustomer,
   mergeSeededLanes,
+  laneDestinationsMatch,
   placesMatch,
   rateForLoad,
   removeCustomerByName,
@@ -24,6 +25,15 @@ describe("place matching", () => {
     expect(placesMatch("Melrose Trash Loads", "Melrose")).toBe(true);
     expect(placesMatch("Hooker Street", "Hooker")).toBe(true);
     expect(placesMatch("Rockford", "DeKalb")).toBe(false);
+  });
+
+  it("does not treat DeKalb as Dekalb Sanitary", () => {
+    expect(placesMatch("DeKalb", "Dekalb Sanitary")).toBe(true);
+    expect(laneDestinationsMatch("DeKalb", "Dekalb")).toBe(true);
+    expect(laneDestinationsMatch("DeKalb", "dekalb")).toBe(true);
+    expect(laneDestinationsMatch("Dekalb San", "Dekalb Sanitary")).toBe(true);
+    expect(laneDestinationsMatch("DeKalb", "Dekalb Sanitary")).toBe(false);
+    expect(laneDestinationsMatch("Dekalb", "Rochelle WWTP")).toBe(false);
   });
 
   it("buckets Trash (MSW) together", () => {
