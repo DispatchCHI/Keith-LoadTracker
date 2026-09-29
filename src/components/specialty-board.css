@@ -1,5 +1,5 @@
 .specialty-extra-label {
-  margin: 12px 2px 8px;
+  margin: 10px 2px 6px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
@@ -13,35 +13,31 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .specialty-extra-list .specialty-row,
-.specialty-extra-list .specialty-row.is-custom {
-  min-width: 0;
-  overflow: visible;
-  grid-column: auto;
-}
+.specialty-extra-list .specialty-row.is-custom,
 .specialty-extra-list .specialty-row.is-picking {
   min-width: 0;
-  overflow: visible;
-  /* Keep card in its grid cell so neighbors don't reflow away */
+  max-width: 100%;
+  overflow: hidden;
   grid-column: auto;
-  z-index: 3;
+  z-index: auto;
 }
 
 .specialty-extra-main {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
+  gap: 6px;
 }
 
 .specialty-extra-controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .specialty-extra-controls .specialty-count {
@@ -63,39 +59,43 @@
   margin-top: 0;
   width: 100%;
   min-width: 0;
-  min-height: 40px;
-  height: 40px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  font-size: 13px;
+  min-height: 28px;
+  height: 28px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 650;
   line-height: 1.2;
 }
 
 .specialty-extra-picker {
   min-width: 0;
-  overflow: visible;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .specialty-type-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .specialty-type-chip {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   white-space: nowrap;
-  min-height: 36px;
+  min-height: 22px;
   height: auto;
-  padding: 8px 12px;
-  border-radius: 14px;
+  padding: 2px 8px;
+  border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--surface-2, #ede9e4);
   color: var(--text);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 650;
   cursor: pointer;
+  max-width: 100%;
 }
 
 .specialty-type-chip.is-selected {
@@ -105,30 +105,42 @@
 }
 
 .specialty-extra-list .text-input.specialty-dest-input {
-  margin-top: 8px;
+  margin-top: 6px;
   width: 100%;
-  min-height: 40px;
-  height: 40px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  font-size: 13px;
-}
-
-.specialty-queue-label {
-  margin: 8px 2px 4px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  min-width: 0;
+  min-height: 28px;
+  height: 28px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
 }
 
 .specialty-queue {
-  margin-top: 0;
+  margin-top: 4px;
 }
 
 .specialty-picker .qty-stepper {
-  margin-top: 8px;
+  margin-top: 6px;
+  max-width: 100%;
+  min-height: 0;
+  padding: 4px 6px 4px 8px;
+  border-radius: 10px;
+  gap: 6px;
+}
+
+.specialty-picker .qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.specialty-picker .qty-value {
+  font-size: 16px;
+}
+
+.specialty-picker .qty-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
 }
 
 .specialty-add-open:disabled {
@@ -138,48 +150,71 @@
 
 .specialty-picker-actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  margin-top: 8px;
+  gap: 2px 8px;
+  margin-top: 6px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .specialty-picker-actions .text-btn,
 .specialty-add-open {
   white-space: nowrap;
-  min-height: 40px;
-  padding: 8px 12px;
+  min-height: 24px;
+  height: auto;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.2;
+  max-width: 100%;
 }
 
 .specialty-add-open {
   border: 1px solid var(--amber);
-  border-radius: 14px;
+  border-radius: 8px;
 }
-
 
 .specialty-list {
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
   align-items: start;
-  gap: 8px;
+  gap: 6px;
 }
+
+.specialty-row,
 .specialty-row.is-picking {
-  /* Stay in-cell — full-row span was shoving Hodgkins/GraysLake/Liberty off-screen */
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   grid-column: auto;
-  overflow: visible;
-  z-index: 3;
+  z-index: auto;
 }
+
 .specialty-picker {
-  margin-top: 8px;
-  padding: 8px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: var(--panel, #fff);
+  margin-top: 6px;
+  padding: 6px 0 0;
+  border: 0;
+  border-radius: 0;
+  border-top: 1px dashed var(--line);
+  background: transparent;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
+
+.specialty-picker .chip-row {
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .specialty-picker .chip {
-  min-height: 36px;
+  min-height: 22px;
   height: auto;
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 650;
   line-height: 1.2;
+  border-radius: 999px;
   white-space: normal;
+  max-width: 100%;
 }

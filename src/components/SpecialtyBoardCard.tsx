@@ -20,7 +20,6 @@ import {
   destSummary,
   slotsForStation,
   specialtyChipsFromCustomerLanes,
-  specialtyDestHint,
   specialtyDestinationsFor,
   type SpecialtyDayBoard,
   type SpecialtyStation,
@@ -61,7 +60,6 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
           <span className="specialty-toggle-meta">
             {totalOpen} open · walking-floor · leachate · {formatHeaderDate(date)}
             {cloud ? " · synced" : " · this device only"}
-            {open ? "" : " · tap to expand"}
           </span>
         </span>
         <ChevronDown
@@ -73,10 +71,6 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
 
       {open ? (
         <div className="specialty-body">
-          <p className="specialty-hint">
-            Walking-floor + leachate tallies · + queues several chips · open loads stay until
-            −, a chip tap, or dispatch
-          </p>
           <ul className="specialty-list">
             {regularStations.map((station) => (
               <StationRow
@@ -214,14 +208,9 @@ function StationRow({
       ) : null}
 
       {picking && custom ? (
-        <CustomSpecialtyPicker
-          stationId={station.id as CustomSpecialtyId}
-          onCancel={onCancelPicker}
-          onAdd={onAdd}
-        />
+        <CustomSpecialtyPicker onCancel={onCancelPicker} onAdd={onAdd} />
       ) : picking ? (
         <SpecialtyDestQueue
-          hint={specialtyDestHint(station.id)}
           destChips={destChips}
           onCancel={onCancelPicker}
           onAdd={onAdd}
@@ -251,7 +240,7 @@ function StepperButtons({
         disabled={count === 0}
         onClick={onRemove}
       >
-        <Minus size={16} strokeWidth={2.6} />
+        <Minus size={14} strokeWidth={2.6} />
       </button>
       <button
         type="button"
@@ -259,7 +248,7 @@ function StepperButtons({
         aria-label={`Add specialty loads at ${label}`}
         onClick={onAdd}
       >
-        <Plus size={16} strokeWidth={2.6} />
+        <Plus size={14} strokeWidth={2.6} />
       </button>
     </>
   );
@@ -316,12 +305,10 @@ function queueEntries(queued: readonly string[]): { dest: string; count: number 
 }
 
 function SpecialtyDestQueue({
-  hint,
   destChips,
   onCancel,
   onAdd,
 }: {
-  hint: string;
   destChips: readonly string[];
   onCancel: () => void;
   onAdd: (destinations: readonly string[]) => void;
@@ -352,8 +339,6 @@ function SpecialtyDestQueue({
 
   return (
     <div className="specialty-picker">
-      <p className="field-hint tight">{hint}</p>
-      <p className="field-hint tight">Tap a chip to queue it. Tap again for another.</p>
       <div className="chip-row">
         {destChips.map((dest) => {
           const count = entries.find((row) => row.dest === dest)?.count ?? 0;
@@ -368,9 +353,7 @@ function SpecialtyDestQueue({
         })}
       </div>
       {entries.length > 0 ? (
-        <>
-          <p className="specialty-queue-label">Queued · tap to take one off</p>
-          <div className="specialty-dests specialty-queue">
+        <div className="specialty-dests specialty-queue">
             {entries.map((row) => (
               <button
                 key={row.dest}
@@ -383,10 +366,9 @@ function SpecialtyDestQueue({
                 {row.count > 1 ? ` x${row.count}` : ""}
               </button>
             ))}
-          </div>
-        </>
+        </div>
       ) : null}
-      <div className="vac-add-actions specialty-picker-actions">
+      <div className="specialty-picker-actions">
         <button
           type="button"
           className="text-btn amber specialty-add-open"
@@ -404,11 +386,9 @@ function SpecialtyDestQueue({
 }
 
 function CustomSpecialtyPicker({
-  stationId,
   onCancel,
   onAdd,
 }: {
-  stationId: CustomSpecialtyId;
   onCancel: () => void;
   onAdd: (chips: readonly string[]) => void;
 }) {
@@ -427,7 +407,6 @@ function CustomSpecialtyPicker({
         setQty(1);
       }}
     >
-      <p className="field-hint tight">{specialtyDestHint(stationId)}</p>
       <div className="specialty-type-row">
         {CUSTOM_SPECIALTY_LOAD_TYPES.map((item) => (
           <button
@@ -449,7 +428,7 @@ function CustomSpecialtyPicker({
         aria-label="Custom delivery destination"
       />
       <QuantityStepper value={qty} onChange={setQty} />
-      <div className="vac-add-actions specialty-picker-actions">
+      <div className="specialty-picker-actions">
         <button type="submit" className="text-btn amber specialty-add-open">
           {addLabel}
         </button>
