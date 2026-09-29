@@ -168,8 +168,11 @@ describe("station call single poller", () => {
     expect(card).toMatch(/setStationHour\(\s*readStationCallStore\(\)/);
     expect(card).toMatch(/setStationClose\(\s*readStationCallStore\(\)/);
     expect(card).toContain("if (!committedRef.current) commit()");
-    // Enter focuses the next row immediately (no rAF) so blur still sees committedRef.
-    expect(card).toContain("focusStationCallCell(nextStation, col)");
-    expect(card).not.toMatch(/requestAnimationFrame\(\s*\(\)\s*=>\s*\{\s*focusStationCallCell/);
+    // Focus AFTER setStore settles (rAF). Sync focus during keydown stole the
+    // next cell on re-render — Keith needed a second Enter (fixed in 3d14119).
+    expect(card).toMatch(
+      /requestAnimationFrame\(\s*\(\)\s*=>\s*\{[\s\S]*?focusStationCallCell\(target\.stationId,\s*target\.col\)/,
+    );
+    expect(card).not.toContain("focusStationCallCell(nextStation, col)");
   });
 });
