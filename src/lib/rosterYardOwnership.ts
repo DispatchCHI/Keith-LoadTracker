@@ -1,4 +1,5 @@
 import {
+  cleanAssignedTruck,
   cleanDriverName,
   cleanTruckNumber,
   type DriverRosterEntry,
@@ -31,9 +32,11 @@ function betterHome(
   const pinned = homeYardForDriver(candidate);
   if (pinned && candidate.yard === pinned && keep.yard !== pinned) return candidate;
   if (pinned && keep.yard === pinned && candidate.yard !== pinned) return keep;
+  if (candidate.updatedAt !== keep.updatedAt) {
+    return candidate.updatedAt > keep.updatedAt ? candidate : keep;
+  }
   if (candidate.assignedTruck && !keep.assignedTruck) return candidate;
   if (keep.assignedTruck && !candidate.assignedTruck) return keep;
-  if (candidate.updatedAt > keep.updatedAt) return candidate;
   return keep;
 }
 
@@ -72,10 +75,12 @@ export function enforceOneYardPerDriver(store: DriverRosterStore): YardOwnership
     const aHome = homeYardForDriver(a) === a.yard ? 1 : 0;
     const bHome = homeYardForDriver(b) === b.yard ? 1 : 0;
     if (aHome !== bHome) return bHome - aHome;
+    const byTime = b.updatedAt.localeCompare(a.updatedAt);
+    if (byTime !== 0) return byTime;
     if (Boolean(a.assignedTruck) !== Boolean(b.assignedTruck)) {
       return a.assignedTruck ? -1 : 1;
     }
-    return b.updatedAt.localeCompare(a.updatedAt);
+    return a.id.localeCompare(b.id);
   });
   for (const row of ranked) {
     const name = rosterNameKey(row.name);
@@ -105,6 +110,25 @@ export function enforceOneYardPerDriver(store: DriverRosterStore): YardOwnership
     if (home.yard === row.yard) continue;
     removed.push(row);
     delete entries[row.id];
+  }
+
+  // An untouched duplicate may take over the yard and would otherwise drop
+  // the unit. A row edited after create (a truck clear) keeps its blank.
+  for (const row of removed) {
+    if (row.kind !== "full") continue;
+    const truck = cleanAssignedTruck(row.assignedTruck);
+    if (!truck) continue;
+    const emp = empKey(row);
+    const name = rosterNameKey(row.name);
+    const keeper = Object.values(entries).find((keep) => {
+      if (keep.kind !== "full") return false;
+      if (emp && empKey(keep) === emp) return true;
+      if (name && rosterNameKey(keep.name) === name) return true;
+      return false;
+    });
+    if (!keeper || cleanAssignedTruck(keeper.assignedTruck)) continue;
+    if (keeper.updatedAt !== keeper.createdAt) continue;
+    entries[keeper.id] = { ...keeper, assignedTruck: truck };
   }
 
   return { store: { entries }, removed };

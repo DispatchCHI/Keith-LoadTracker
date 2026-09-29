@@ -216,6 +216,17 @@ export function cleanAssignedTruck(raw: unknown): string | null {
   return cleaned || null;
 }
 
+/**
+ * Identity for “one truck, one driver.” Numeric units ignore leading zeros
+ * (`0418` and `418` are the same truck). Broker codes stay as sanitized.
+ */
+export function assignedTruckKey(raw: unknown): string | null {
+  const cleaned = cleanAssignedTruck(raw);
+  if (!cleaned) return null;
+  if (/^\d+$/.test(cleaned)) return cleaned.replace(/^0+(?=\d)/, "") || "0";
+  return cleaned;
+}
+
 export function cleanDriverName(raw: unknown): string {
   if (typeof raw !== "string") return "";
   return raw.replace(/\s+/g, " ").trim();
@@ -509,12 +520,31 @@ function preferRosterDuplicate(a: DriverRosterEntry, b: DriverRosterEntry): Driv
   const bEmp = Boolean(cleanTruckNumber(b.truckNumber));
   if (aEmp !== bEmp) return aEmp ? a : b;
   if (Boolean(a.hireDate) !== Boolean(b.hireDate)) return a.hireDate ? a : b;
+  // A newer edit wins, including a truck clear. "Has a truck" is only a
+  // tie-break so a blank duplicate does not beat an untouched unit.
+  if (a.updatedAt !== b.updatedAt) return a.updatedAt >= b.updatedAt ? a : b;
   if (Boolean(a.assignedTruck) !== Boolean(b.assignedTruck)) {
     return a.assignedTruck ? a : b;
   }
-  if (a.updatedAt !== b.updatedAt) return a.updatedAt >= b.updatedAt ? a : b;
   if (a.createdAt !== b.createdAt) return a.createdAt <= b.createdAt ? a : b;
   return a.id <= b.id ? a : b;
+}
+
+/**
+ * A brand-new duplicate (never edited) should inherit the unit already on
+ * this emp. A row edited after create — a clear or a reassignment — keeps
+ * its own truck, including a blank.
+ */
+function keepTruckOnUntouchedBlank(
+  winner: DriverRosterEntry,
+  loser: DriverRosterEntry,
+): DriverRosterEntry {
+  if (winner.kind !== "full") return winner;
+  if (cleanAssignedTruck(winner.assignedTruck)) return winner;
+  const truck = cleanAssignedTruck(loser.assignedTruck);
+  if (!truck) return winner;
+  if (winner.updatedAt !== winner.createdAt) return winner;
+  return { ...winner, assignedTruck: truck };
 }
 
 /**
@@ -547,8 +577,9 @@ export function collapseDuplicateRosterEntries(store: DriverRosterStore): {
         continue;
       }
       const winner = preferRosterDuplicate(existing, entry);
-      droppedIds.push(winner.id === existing.id ? entry.id : existing.id);
-      byEmp.set(emp, winner);
+      const loser = winner.id === existing.id ? entry : existing;
+      droppedIds.push(loser.id);
+      byEmp.set(emp, keepTruckOnUntouchedBlank(winner, loser));
     }
     const namesHeld = new Set(
       [...byEmp.values()].map((entry) => normalizeRosterPersonName(entry.name)),
@@ -571,8 +602,9 @@ export function collapseDuplicateRosterEntries(store: DriverRosterStore): {
         continue;
       }
       const winner = preferRosterDuplicate(existing, entry);
-      droppedIds.push(winner.id === existing.id ? entry.id : existing.id);
-      byName.set(name, winner);
+      const loser = winner.id === existing.id ? entry : existing;
+      droppedIds.push(loser.id);
+      byName.set(name, keepTruckOnUntouchedBlank(winner, loser));
     }
     for (const entry of [...byEmp.values(), ...byName.values()]) {
       keep.set(entry.id, entry);
@@ -1110,12 +1142,11 @@ export function fullRosterDriversForTruck(
   store: DriverRosterStore,
   truck: string,
 ): DriverRosterEntry[] {
-  const needle = cleanAssignedTruck(truck);
+  const needle = assignedTruckKey(truck);
   if (!needle) return [];
   return Object.values(store.entries)
     .filter(
-      (entry) =>
-        entry.kind === "full" && cleanAssignedTruck(entry.assignedTruck) === needle,
+      (entry) => entry.kind === "full" && assignedTruckKey(entry.assignedTruck) === needle,
     )
     .sort((a, b) => {
       const yard = a.yard.localeCompare(b.yard);
@@ -1134,12 +1165,12 @@ export function findAssignedTruckConflict(
   truck: string | null,
   excludeId?: string,
 ): DriverRosterEntry | null {
-  const needle = cleanAssignedTruck(truck);
+  const needle = assignedTruckKey(truck);
   if (!needle) return null;
   for (const entry of Object.values(store.entries)) {
     if (entry.kind !== "full") continue;
     if (entry.id === excludeId) continue;
-    if (cleanAssignedTruck(entry.assignedTruck) === needle) return entry;
+    if (assignedTruckKey(entry.assignedTruck) === needle) return entry;
   }
   return null;
 }

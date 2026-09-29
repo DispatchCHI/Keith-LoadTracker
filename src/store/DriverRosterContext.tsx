@@ -45,7 +45,7 @@ import {
   type DriverRosterYard,
   type DriverTabGroup,
 } from "../lib/driverRoster";
-import { assignedTrucksNeedingUpload, preserveAssignedTrucks, preserveTruckNumbers } from "../lib/rosterAssignedTruck";
+import { preserveTruckNumbers, syncAssignedTrucks } from "../lib/rosterAssignedTruck";
 import {
   applyKnownHireDates,
   hireDatesNeedingUpload,
@@ -133,7 +133,8 @@ function entryToRow(entry: DriverRosterEntry, userId: string | null) {
     kind: entry.kind,
     yard: entry.yard,
     truck_number: entry.truckNumber,
-    assigned_truck: entry.assignedTruck,
+    // JSON null clears the column. Omitting the key would leave the old unit.
+    assigned_truck: entry.assignedTruck ?? null,
     name: entry.name,
     status: entry.status,
     hire_date: entry.hireDate,
@@ -206,9 +207,13 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     ];
   }, []);
 
-  const pullRemote = useCallback(async (): Promise<DriverRosterStore | null> => {
+  const pullRemote = useCallback(async (): Promise<{
+    store: DriverRosterStore;
+    assignedTruckKnown: boolean;
+  } | null> => {
     const supabase = getSupabase();
     if (!supabase || !session) return null;
+    let assignedTruckKnown = false;
     const page = await fetchAllPaged<EntryRow>(async (from, to) => {
       const selects = [
         "id, kind, yard, truck_number, assigned_truck, name, status, hire_date, phone, sort_order, for_date, created_at, updated_at",
@@ -224,6 +229,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
           .order("id", { ascending: true })
           .range(from, to);
         if (!result.error) {
+          assignedTruckKnown = columns.includes("assigned_truck");
           return { data: (result.data as unknown as EntryRow[] | null) ?? null, error: result.error };
         }
         lastError = result.error;
@@ -240,13 +246,14 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       console.warn("driver_roster_entries pull failed", pagedErrorMessage(page.error));
       return null;
     }
-    return rowsToStore(page.data);
+    return { store: rowsToStore(page.data), assignedTruckKnown };
   }, [session]);
 
   const cloudDeleteEntries = useCallback(async (ids: string[]) => {
     if (!ids.length) return;
     const supabase = getSupabase();
     if (!supabase) return;
+    // Explicit × and Sat Reset are the only paths that may DELETE a cloud roster row.
     const { error } = await supabase.from("driver_roster_entries").delete().in("id", ids);
     if (error) console.warn("driver roster delete failed", error.message);
   }, []);
@@ -340,10 +347,11 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       return;
     }
     const epoch = epochRef.current;
-    const remote = await pullRemote();
+    const pulled = await pullRemote();
     if (epoch !== epochRef.current) return;
 
-    if (remote) {
+    if (pulled) {
+      const remote = pulled.store;
       const prior = storeRef.current;
       const result = reconcileDriverRosterCloud({
         local: prior,
@@ -352,17 +360,21 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         seenRemoteEntryIds: seenRef.current,
       });
       if (epoch !== epochRef.current) return;
+      const truckSync = syncAssignedTrucks({
+        local: prior,
+        remote,
+        reconciled: result.next,
+        assignedTruckKnown: pulled.assignedTruckKnown,
+      });
       const next = preservePhones(
         prior,
-        preserveHireDates(
-          prior,
-          preserveTruckNumbers(prior, preserveAssignedTrucks(prior, result.next)),
-        ),
+        preserveHireDates(prior, preserveTruckNumbers(prior, truckSync.store)),
       );
-      const toUpload = [...result.toUploadEntries];
-      for (const row of assignedTrucksNeedingUpload(next, remote)) {
-        if (!toUpload.some((item) => item.id === row.id)) toUpload.push(row);
-      }
+      const uploadIds = new Set(result.toUploadEntries.map((row) => row.id));
+      for (const row of truckSync.toUpload) uploadIds.add(row.id);
+      const toUpload = [...uploadIds]
+        .map((id) => next.entries[id])
+        .filter((row): row is DriverRosterEntry => Boolean(row));
       for (const row of hireDatesNeedingUpload(next, remote)) {
         if (!toUpload.some((item) => item.id === row.id)) toUpload.push(row);
       }
