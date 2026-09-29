@@ -28,7 +28,6 @@ import {
 } from "../lib/driverGone";
 import { getSupabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
-import { useDriverRoster } from "./DriverRosterContext";
 
 type EntryRow = {
   id: string;
@@ -105,7 +104,6 @@ function persistSnapshot(next: DriverGonePersisted): DriverGoneStore {
 
 export function DriverGoneProvider({ children }: { children: ReactNode }) {
   const { configured, session, user } = useAuth();
-  const { pruneTerminatedDrivers } = useDriverRoster();
   const cloud = configured && !!session;
   const [store, setStore] = useState<DriverGoneStore>(() => {
     const persisted = readDriverGonePersisted();
@@ -157,8 +155,6 @@ export function DriverGoneProvider({ children }: { children: ReactNode }) {
     return rowsToStore(page.data);
   }, [session]);
 
-  // Scoped deletes only — the only path that may DELETE a cloud Gone row is
-  // explicit UI × via .delete().in("id", ids).
   const cloudDeleteEntries = useCallback(async (ids: string[]) => {
     if (!ids.length) return;
     const supabase = getSupabase();
@@ -187,7 +183,6 @@ export function DriverGoneProvider({ children }: { children: ReactNode }) {
   const refreshInner = useCallback(async () => {
     if (!cloud) {
       persistLocal(storeRef.current);
-      await pruneTerminatedDrivers(storeRef.current);
       await seedIfEmpty();
       return;
     }
@@ -219,13 +214,10 @@ export function DriverGoneProvider({ children }: { children: ReactNode }) {
       deletedRef.current = new Set(result.deletedEntryIds);
       seenRef.current = new Set(result.seenRemoteEntryIds);
       persistLocal(result.next);
-      await pruneTerminatedDrivers(result.next);
-    } else {
-      await pruneTerminatedDrivers(storeRef.current);
     }
 
     await seedIfEmpty();
-  }, [cloud, cloudDeleteEntries, cloudUpsert, persistLocal, pruneTerminatedDrivers, pullRemote, seedIfEmpty]);
+  }, [cloud, cloudDeleteEntries, cloudUpsert, persistLocal, pullRemote, seedIfEmpty]);
 
   const refresh = useCallback(() => {
     const run = refreshTailRef.current.then(refreshInner, refreshInner);
@@ -261,11 +253,9 @@ export function DriverGoneProvider({ children }: { children: ReactNode }) {
       if (!result.entry) return null;
       persistLocal(result.store);
       if (cloud) await cloudUpsert([result.entry]);
-      // Keep Full/Sat clear even if the hire row comes back under a new id.
-      await pruneTerminatedDrivers(result.store);
       return result.entry;
     },
-    [cloud, cloudUpsert, persistLocal, pruneTerminatedDrivers],
+    [cloud, cloudUpsert, persistLocal],
   );
 
   const updateGone = useCallback(
