@@ -1,6 +1,7 @@
 /** Customer lanes + 5-year contract rate books. Local persist + Supabase. */
 
 import { CUSTOMER_LANE_SEED } from "../data/customerLaneSeed";
+import { canonicalDestination } from "../data/stations";
 import { isValidISODate } from "./chicagoDate";
 import { commodityRankLabel, tallyLabel } from "./commodity";
 
@@ -135,6 +136,21 @@ export function placesMatch(a: string, b: string): boolean {
   if (ka === kb) return true;
   if (ka.startsWith(kb) || kb.startsWith(ka)) return ka.length >= 3 && kb.length >= 3;
   return false;
+}
+
+/**
+ * Same destination for chip highlight and lane cascade.
+ * Case, aliases (Dekalb San / Dekalb Sanitary), and normalized equivalents
+ * match. A shorter name is not a longer one: DeKalb is not Dekalb Sanitary.
+ */
+export function laneDestinationsMatch(a: string, b: string): boolean {
+  const left = canonicalDestination(a);
+  const right = canonicalDestination(b);
+  if (!left.trim() || !right.trim()) return false;
+  if (left === right) return true;
+  const ka = normalizePlaceName(left);
+  const kb = normalizePlaceName(right);
+  return Boolean(ka && ka === kb);
 }
 
 export function laneCommodityKey(raw: string): string {
@@ -645,7 +661,7 @@ export function defaultCustomerLaneRoute(
     const hit = pairs.find(
       (pair) =>
         commoditiesSameChip(pair.commodity, commodity) &&
-        placesMatch(pair.destination, destination),
+        laneDestinationsMatch(pair.destination, destination),
     );
     if (!hit) continue;
     const key = `${commodityChipKey(hit.commodity)}|${normalizePlaceName(hit.destination)}`;
@@ -689,8 +705,6 @@ export function cascadeCustomerLaneRoute(
   const nextCommodity = pickPreferredCommodity(commodities, commodity);
   const destinations = destinationsForCustomer(store, customer, nextCommodity, asOf);
   if (!destinations.length) return { commodity: nextCommodity, destination: "" };
-  const nextDest = destinations.some((d) => placesMatch(d, destination))
-    ? destinations.find((d) => placesMatch(d, destination)) ?? destinations[0]
-    : destinations[0];
-  return { commodity: nextCommodity, destination: nextDest };
+  const kept = destinations.find((d) => laneDestinationsMatch(d, destination));
+  return { commodity: nextCommodity, destination: kept ?? destinations[0] };
 }

@@ -8,7 +8,6 @@ import {
   destinationsFor,
   getStation,
   resolveStationId,
-  sameDestination,
 } from "../data/stations";
 import { pickupLabel } from "../lib/cascade";
 import { chicagoToday } from "../lib/chicagoDate";
@@ -25,13 +24,14 @@ import {
   unmatchedLaneCustomers,
 } from "../lib/pickupRank";
 import {
-  commoditiesForCustomer,
   customersWithRealLanes,
-  destinationsForCustomer,
+  laneDestinationsMatch,
   placesMatch,
 } from "../lib/customerLanes";
 import {
+  commodityChipsForLogLoad,
   destinationAfterCommoditySelect,
+  destinationChipsForLogLoad,
   routeForPickupSelect,
 } from "../lib/logLoadRoute";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
@@ -168,26 +168,30 @@ export function LoadForm({
   );
   const commodities = useMemo(() => {
     if (!pickupName) return [];
-    const fromLanes = laneBookPickup
-      ? commoditiesForCustomer(customerLanes, laneBookPickup, today)
-      : [];
-    return uniqueNames([...fromLanes, ...catalogCommodities]);
+    return uniqueNames(
+      commodityChipsForLogLoad({
+        laneBookPickup,
+        store: customerLanes,
+        asOf: today,
+        catalogCommodities,
+      }),
+    );
   }, [catalogCommodities, customerLanes, laneBookPickup, pickupName, today]);
   const destinations = useMemo(() => {
     if (!value.commodity.trim()) return [];
-    const fromLanes = laneBookPickup
-      ? destinationsForCustomer(
-          customerLanes,
-          laneBookPickup,
-          value.commodity,
-          today,
-        )
-      : [];
     const catalog = destinationsFor(
       catalogStationId === CUSTOM_ID ? value.stationId : catalogStationId,
       value.commodity,
     );
-    return uniqueNames([...fromLanes, ...catalog]);
+    return uniqueNames(
+      destinationChipsForLogLoad({
+        laneBookPickup,
+        commodity: value.commodity,
+        store: customerLanes,
+        asOf: today,
+        catalogDestinations: catalog,
+      }),
+    );
   }, [
     catalogStationId,
     customerLanes,
@@ -260,10 +264,8 @@ export function LoadForm({
     Boolean(original?.destination) &&
     original!.destination !== value.destination &&
     original!.destination !== "" &&
-    !destinations.some(
-      (item) =>
-        placesMatch(item, original!.destination) ||
-        sameDestination(item, original!.destination),
+    !destinations.some((item) =>
+      laneDestinationsMatch(item, original!.destination),
     );
   return (
     <div className="form-stack">
@@ -460,10 +462,7 @@ export function LoadForm({
               <Chip
                 key={item}
                 label={item}
-                selected={
-                  placesMatch(value.destination, item) ||
-                  sameDestination(value.destination, item)
-                }
+                selected={laneDestinationsMatch(value.destination, item)}
                 muted={!pickupName || !value.commodity.trim()}
                 onClick={() =>
                   pickupName &&
