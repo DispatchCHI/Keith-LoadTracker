@@ -24,12 +24,14 @@ import {
 import { parseGoneSheetCsv } from "./driverGoneSheet";
 import {
   addRosterEntry,
+  DRIVER_ROSTER_YARDS,
   emptyDriverRosterStore,
   entriesForRoster,
   fullRosterTally,
   matchingSatEntriesForPerson,
   removeHiredAndMatchingSat,
   rosterEntryCount,
+  type DriverRosterYard,
 } from "./driverRoster";
 
 const GONE_FIXTURE = `"Emp #","Name","Phone","Email","Hire date","Termination date","Notes"
@@ -491,14 +493,14 @@ describe("Gone people stay off Full Roster (Buddy Johnson bounce-back)", () => {
   it("matches Buddy Johnson by emp # 31147 even under a new roster UUID", () => {
     expect(
       goneMatchesActiveRoster(
-        { employeeNumber: "31147", name: "Buddy Johnson" },
-        { truckNumber: "31147", name: "Buddy Johnson" },
+        { employeeNumber: "31147", name: "Buddy Johnson", yard: "rockford" },
+        { truckNumber: "31147", name: "Buddy Johnson", yard: "rockford" },
       ),
     ).toBe(true);
     expect(
       goneMatchesActiveRoster(
-        { employeeNumber: "31147", name: "Buddy Johnson" },
-        { truckNumber: "99999", name: "Buddy Johnson" },
+        { employeeNumber: "31147", name: "Buddy Johnson", yard: "rockford" },
+        { truckNumber: "99999", name: "Buddy Johnson", yard: "rockford" },
       ),
     ).toBe(false);
   });
@@ -578,5 +580,169 @@ describe("Gone people stay off Full Roster (Buddy Johnson bounce-back)", () => {
     expect(entriesForRoster(stripped.store, "full", "rockford")[0].name).toBe(
       "Christopher Oleson",
     );
+  });
+});
+
+describe("Gone prune must not eat active/new drivers (name-match regression)", () => {
+  it("does not strip active David Perez when Gone has same name with emp # and hire has no emp #", () => {
+    // Regression: 47a2547 fell back to name when either side lacked emp #.
+    expect(
+      goneMatchesActiveRoster(
+        { employeeNumber: "40001", name: "David Perez", yard: "rockford" },
+        { truckNumber: null, name: "David Perez", yard: "rockford" },
+      ),
+    ).toBe(false);
+    expect(
+      goneMatchesActiveRoster(
+        { employeeNumber: "40001", name: "David Perez", yard: "rockford" },
+        { truckNumber: "51234", name: "David Perez", yard: "rockford" },
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps a brand-new Full Roster add (name only) when an unrelated Gone shares the name", () => {
+    let roster = emptyDriverRosterStore();
+    for (const yard of DRIVER_ROSTER_YARDS) {
+      roster = addRosterEntry(roster, {
+        kind: "full",
+        yard,
+        truckNumber: null,
+        name: "Alex Rivera",
+      }).store;
+    }
+    const gone = addGoneEntry(emptyDriverGoneStore(), {
+      employeeNumber: "28888",
+      name: "Alex Rivera",
+      terminationDate: "2026-01-15",
+      yard: "burnham",
+    }).store;
+    const stripped = stripRosterEntriesMatchingGone(roster, gone);
+    expect(stripped.removed).toEqual([]);
+    for (const yard of DRIVER_ROSTER_YARDS) {
+      expect(rosterEntryCount(stripped.store, "full", yard)).toBe(1);
+      expect(entriesForRoster(stripped.store, "full", yard)[0].name).toBe("Alex Rivera");
+    }
+  });
+
+  it("keeps active hires on every yard when Gone has a same-name terminated person with emp #", () => {
+    let roster = emptyDriverRosterStore();
+    const activeByYard: Record<DriverRosterYard, string> = {
+      burnham: "1001",
+      rockford: "1002",
+      pontiac: "1003",
+      arc: "1004",
+      zion: "1005",
+    };
+    for (const yard of DRIVER_ROSTER_YARDS) {
+      roster = addRosterEntry(roster, {
+        kind: "full",
+        yard,
+        truckNumber: activeByYard[yard],
+        name: "David Perez",
+      }).store;
+    }
+    // Terminated David Perez elsewhere — must not wipe every yard's David Perez.
+    const gone = addGoneEntry(emptyDriverGoneStore(), {
+      employeeNumber: "39990",
+      name: "David Perez",
+      terminationDate: "2025-11-01",
+      yard: "rockford",
+    }).store;
+    const stripped = stripRosterEntriesMatchingGone(roster, gone);
+    expect(stripped.removed).toEqual([]);
+    for (const yard of DRIVER_ROSTER_YARDS) {
+      expect(rosterEntryCount(stripped.store, "full", yard)).toBe(1);
+      expect(entriesForRoster(stripped.store, "full", yard)[0]).toMatchObject({
+        name: "David Perez",
+        truckNumber: activeByYard[yard],
+      });
+    }
+  });
+
+  it("still prunes Buddy Johnson by emp # on every yard (terminated stays Gone)", () => {
+    let roster = emptyDriverRosterStore();
+    for (const yard of DRIVER_ROSTER_YARDS) {
+      roster = addRosterEntry(roster, {
+        kind: "full",
+        yard,
+        truckNumber: "31147",
+        name: "Buddy Johnson",
+      }).store;
+      roster = addRosterEntry(roster, {
+        kind: "sat",
+        yard,
+        truckNumber: "31147",
+        name: "Buddy Johnson",
+      }).store;
+      // Unrelated active hire on same yard must survive.
+      roster = addRosterEntry(roster, {
+        kind: "full",
+        yard,
+        truckNumber: `9${yard.length}01`,
+        name: `Keep ${yard}`,
+      }).store;
+    }
+    const gone = addGoneEntry(emptyDriverGoneStore(), {
+      employeeNumber: "31147",
+      name: "Buddy Johnson",
+      terminationDate: "2026-08-01",
+      notes: "Term, failed to report accident. intoxicated on the job.",
+      yard: "rockford",
+    }).store;
+    const stripped = stripRosterEntriesMatchingGone(roster, gone);
+    for (const yard of DRIVER_ROSTER_YARDS) {
+      expect(
+        Object.values(stripped.store.entries).some(
+          (row) =>
+            row.yard === yard &&
+            (row.truckNumber === "31147" || /buddy johnson/i.test(row.name)),
+        ),
+      ).toBe(false);
+      expect(rosterEntryCount(stripped.store, "full", yard)).toBe(1);
+      expect(entriesForRoster(stripped.store, "full", yard)[0].name).toBe(`Keep ${yard}`);
+    }
+  });
+
+  it("name-only Gone fallback requires same yard; other yards keep the hire", () => {
+    // Neither side has emp #: only same-yard exact name may prune.
+    let roster = emptyDriverRosterStore();
+    for (const yard of DRIVER_ROSTER_YARDS) {
+      roster = addRosterEntry(roster, {
+        kind: "full",
+        yard,
+        truckNumber: null,
+        name: "No Emp Driver",
+      }).store;
+    }
+    const gone = addGoneEntry(emptyDriverGoneStore(), {
+      employeeNumber: null,
+      name: "No Emp Driver",
+      terminationDate: "2026-06-01",
+      yard: "pontiac",
+    }).store;
+    const stripped = stripRosterEntriesMatchingGone(roster, gone);
+    expect(rosterEntryCount(stripped.store, "full", "pontiac")).toBe(0);
+    for (const yard of DRIVER_ROSTER_YARDS) {
+      if (yard === "pontiac") continue;
+      expect(rosterEntryCount(stripped.store, "full", yard)).toBe(1);
+    }
+  });
+
+  it("does not prune by name alone when Gone has no emp # and no yard", () => {
+    const roster = addRosterEntry(emptyDriverRosterStore(), {
+      kind: "full",
+      yard: "zion",
+      truckNumber: null,
+      name: "Ambiguous Name",
+    }).store;
+    const gone = addGoneEntry(emptyDriverGoneStore(), {
+      employeeNumber: null,
+      name: "Ambiguous Name",
+      terminationDate: "2026-03-01",
+      yard: null,
+    }).store;
+    const stripped = stripRosterEntriesMatchingGone(roster, gone);
+    expect(stripped.removed).toEqual([]);
+    expect(rosterEntryCount(stripped.store, "full", "zion")).toBe(1);
   });
 });

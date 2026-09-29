@@ -538,27 +538,35 @@ export function applyFullRosterDelete(
 }
 
 /**
- * Emp # match wins. When either side lacks emp #, fall back to normalized name
- * (trainer `-T` ignored). Conflicting emp #s never match on name alone.
+ * Emp # is authoritative. If either side has an emp #, only equal emp #s match —
+ * never fall back to name (that ate new Full Roster adds and active drivers like
+ * David Perez when a Gone row shared the name but the hire had no / different emp #).
+ * Name fallback only when BOTH lack emp #: exact normalized name (trainer `-T`
+ * ignored) AND same yard when Gone knows the yard.
  */
+function normalizeGoneMatchName(name: string): string {
+  return cleanDriverName(name)
+    .toLowerCase()
+    .replace(/\s*-\s*t\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function goneMatchesActiveRoster(
-  gone: Pick<DriverGoneEntry, "employeeNumber" | "name">,
-  roster: Pick<DriverRosterEntry, "truckNumber" | "name">,
+  gone: Pick<DriverGoneEntry, "employeeNumber" | "name" | "yard">,
+  roster: Pick<DriverRosterEntry, "truckNumber" | "name" | "yard">,
 ): boolean {
   const goneEmp = cleanEmployeeNumber(gone.employeeNumber);
   const rosterEmp = cleanTruckNumber(roster.truckNumber);
-  if (goneEmp && rosterEmp) return goneEmp === rosterEmp;
-  const goneName = cleanDriverName(gone.name)
-    .toLowerCase()
-    .replace(/\s*-\s*t\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  const rosterName = cleanDriverName(roster.name)
-    .toLowerCase()
-    .replace(/\s*-\s*t\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return Boolean(goneName) && goneName === rosterName;
+  if (goneEmp || rosterEmp) {
+    return Boolean(goneEmp && rosterEmp && goneEmp === rosterEmp);
+  }
+  const goneName = normalizeGoneMatchName(gone.name);
+  const rosterName = normalizeGoneMatchName(roster.name);
+  if (!goneName || goneName !== rosterName) return false;
+  if (gone.yard) return gone.yard === roster.yard;
+  // Gone yard unknown and no emp #: too ambiguous — do not prune by name alone.
+  return false;
 }
 
 /**
