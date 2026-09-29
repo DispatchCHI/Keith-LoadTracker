@@ -538,35 +538,24 @@ export function applyFullRosterDelete(
 }
 
 /**
- * Emp # is authoritative. If either side has an emp #, only equal emp #s match —
- * never fall back to name (that ate new Full Roster adds and active drivers like
- * David Perez when a Gone row shared the name but the hire had no / different emp #).
- * Name fallback only when BOTH lack emp #: exact normalized name (trainer `-T`
- * ignored) AND same yard when Gone knows the yard.
+ * Emp # is the only person-level Gone↔roster match.
+ *
+ * Never match on name (or name+yard). Re-hires / new Full Roster adds often share
+ * a name with a stale Gone row and intentionally have no emp # yet — name+yard
+ * fallback still deleted David Perez on Rockford after phone save → hydrate
+ * (6eae7c7). Conflicting or missing emp #s never prune.
+ *
+ * Buddy Johnson bounce-back is covered by equal emp # (31147) plus UUID
+ * tombstones. Name-only Gone rows without emp # do not strip active hires;
+ * terminate already removes the hire by id.
  */
-function normalizeGoneMatchName(name: string): string {
-  return cleanDriverName(name)
-    .toLowerCase()
-    .replace(/\s*-\s*t\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 export function goneMatchesActiveRoster(
   gone: Pick<DriverGoneEntry, "employeeNumber" | "name" | "yard">,
   roster: Pick<DriverRosterEntry, "truckNumber" | "name" | "yard">,
 ): boolean {
   const goneEmp = cleanEmployeeNumber(gone.employeeNumber);
   const rosterEmp = cleanTruckNumber(roster.truckNumber);
-  if (goneEmp || rosterEmp) {
-    return Boolean(goneEmp && rosterEmp && goneEmp === rosterEmp);
-  }
-  const goneName = normalizeGoneMatchName(gone.name);
-  const rosterName = normalizeGoneMatchName(roster.name);
-  if (!goneName || goneName !== rosterName) return false;
-  if (gone.yard) return gone.yard === roster.yard;
-  // Gone yard unknown and no emp #: too ambiguous — do not prune by name alone.
-  return false;
+  return Boolean(goneEmp && rosterEmp && goneEmp === rosterEmp);
 }
 
 /**
