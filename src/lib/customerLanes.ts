@@ -403,6 +403,48 @@ export function removeCustomerLane(
   return { store: { lanes }, removed };
 }
 
+export type RenameCustomerStatus = "ok" | "unchanged" | "missing" | "collision" | "empty";
+
+/**
+ * Change the display name on every lane for this customer.
+ * Lane ids, destinations, commodities, contract dates, and tier rates stay put.
+ * Does not tombstone the old name — a rename is not a delete, and seed rows
+ * keep their ids so they are not re-inserted under the previous name.
+ */
+export function renameCustomerLanes(
+  store: CustomerLaneStore,
+  fromName: string,
+  toName: string,
+  at?: string,
+): { store: CustomerLaneStore; lanes: CustomerLane[]; status: RenameCustomerStatus } {
+  const from = cleanPlaceName(fromName);
+  const to = cleanPlaceName(toName);
+  if (!from || !to) return { store, lanes: [], status: "empty" };
+
+  const matches = Object.values(store.lanes).filter((lane) => placesMatch(lane.customer, from));
+  if (!matches.length) return { store, lanes: [], status: "missing" };
+
+  const collides = Object.values(store.lanes).some(
+    (lane) => placesMatch(lane.customer, to) && !placesMatch(lane.customer, from),
+  );
+  if (collides) return { store, lanes: [], status: "collision" };
+
+  if (matches.every((lane) => lane.customer === to)) {
+    return { store, lanes: [], status: "unchanged" };
+  }
+
+  const stamp = nowIso(at);
+  const lanes = { ...store.lanes };
+  const updated: CustomerLane[] = [];
+  for (const lane of matches) {
+    if (lane.customer === to) continue;
+    const next: CustomerLane = { ...lane, customer: to, updatedAt: stamp };
+    lanes[lane.id] = next;
+    updated.push(next);
+  }
+  return { store: { lanes }, lanes: updated, status: "ok" };
+}
+
 export function removeCustomerByName(
   store: CustomerLaneStore,
   customerName: string,

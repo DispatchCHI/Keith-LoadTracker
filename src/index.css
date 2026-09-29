@@ -4443,6 +4443,41 @@ body.app-ready .splash {
   gap: 8px;
 }
 
+.cust-form .text-input {
+  margin-top: 0;
+}
+
+.vac-year-row.cust-logo-row .day-chip {
+  gap: 8px;
+  height: auto;
+  padding: 6px 12px 6px 6px;
+}
+
+.cust-logo-mark {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.cust-logo-none {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px dashed currentColor;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.cust-body .cust-form {
+  background: var(--bg);
+}
+
 
 
 

@@ -20,6 +20,7 @@ import {
   readCustomerLanePersisted,
   removeCustomerByName,
   removeCustomerLane,
+  renameCustomerLanes,
   rowToCustomerLane,
   upsertCustomerLane,
   writeCustomerLanePersisted,
@@ -28,6 +29,7 @@ import {
   type CustomerLanePersisted,
   type CustomerLaneRow,
   type CustomerLaneStore,
+  type RenameCustomerStatus,
 } from "../lib/customerLanes";
 import { getSupabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
@@ -38,6 +40,7 @@ type CustomerLanesContextValue = {
   saveLane: (input: CustomerLaneInput) => Promise<CustomerLane | null>;
   deleteLane: (id: string) => Promise<void>;
   deleteCustomer: (name: string) => Promise<void>;
+  renameCustomer: (fromName: string, toName: string) => RenameCustomerStatus;
   refresh: () => Promise<void>;
 };
 
@@ -250,9 +253,24 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     [cloud, cloudDelete, persistLocal],
   );
 
+  const renameCustomer = useCallback(
+    (fromName: string, toName: string): RenameCustomerStatus => {
+      const result = renameCustomerLanes(storeRef.current, fromName, toName);
+      if (result.status !== "ok") return result.status;
+      const key = normalizePlaceName(toName);
+      if (key && deletedCustomersRef.current.has(key)) {
+        deletedCustomersRef.current.delete(key);
+      }
+      persistLocal(result.store);
+      if (cloud && result.lanes.length) void cloudUpsert(result.lanes);
+      return "ok";
+    },
+    [cloud, cloudUpsert, persistLocal],
+  );
+
   const value = useMemo<CustomerLanesContextValue>(
-    () => ({ store, cloud, saveLane, deleteLane, deleteCustomer, refresh }),
-    [store, cloud, saveLane, deleteLane, deleteCustomer, refresh],
+    () => ({ store, cloud, saveLane, deleteLane, deleteCustomer, renameCustomer, refresh }),
+    [store, cloud, saveLane, deleteLane, deleteCustomer, renameCustomer, refresh],
   );
 
   return (
