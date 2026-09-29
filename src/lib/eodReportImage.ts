@@ -44,10 +44,19 @@ export const EOD_IMAGE_LAYOUT = {
   gridInnerPad: 8,
   /**
    * Compact End-of-day commodity/stat bubbles (right of hour grid).
-   * Dense chips — small pad/font so five stacked cards fit beside the grid.
+   * Content-width chips (not full stats-column stretch); stacked tight column.
    */
   cardsH: 40,
   cardGap: 5,
+  /** Inner horizontal pad inside each EOD stat chip. */
+  statCardPadX: 12,
+  /** Gap between label and count inside a chip (not stretched). */
+  statCardInnerGap: 14,
+  /**
+   * Cap chip width (~half the old full stats column ~616px) so label/number
+   * sit close with no huge empty middle.
+   */
+  statCardMaxW: 300,
   /** How many EOD stat cards are drawn (TRASH/LEACHATE/WALKING-FLOOR/LOADS/SUBS). */
   cardCount: 5,
   tableHeaderH: 24,
@@ -340,6 +349,31 @@ function drawHourGrid(
   });
 }
 
+/** Label font for EOD summary chips (TRASH / LEACHATE / …). */
+const STAT_LABEL_FONT = "700 11px ui-sans-serif, system-ui, sans-serif";
+/** Value font for EOD summary chips. */
+const STAT_VALUE_FONT = "700 20px ui-sans-serif, system-ui, sans-serif";
+
+/**
+ * Content-width for one EOD stat chip (label + gap + count + pad), capped by
+ * statCardMaxW and the available column width.
+ */
+export function measureStatCardWidth(
+  ctx: CanvasRenderingContext2D,
+  label: string,
+  count: number | string,
+  columnW: number,
+): number {
+  const L = EOD_IMAGE_LAYOUT;
+  ctx.font = STAT_LABEL_FONT;
+  const labelW = ctx.measureText(label).width;
+  ctx.font = STAT_VALUE_FONT;
+  const countW = ctx.measureText(String(count)).width;
+  const content =
+    L.statCardPadX + labelW + L.statCardInnerGap + countW + L.statCardPadX;
+  return Math.min(Math.ceil(content), L.statCardMaxW, Math.max(1, columnW));
+}
+
 function drawStatCards(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -351,24 +385,30 @@ function drawStatCards(
   const L = EOD_IMAGE_LAYOUT;
   const cards = endOfDayCards(eod);
   const gap = L.cardGap;
-  // Vertical stack fills the tall column beside the hour grid.
+  // Uniform chip width from the widest card so the stack is a tight column
+  // (not stretched across the full stats band — that left a huge empty middle).
+  let chipW = 0;
+  for (const item of cards) {
+    chipW = Math.max(chipW, measureStatCardWidth(ctx, item.label, item.count, w));
+  }
+  chipW = Math.min(chipW, L.statCardMaxW, w);
   cards.forEach((item, i) => {
     const cy = y + i * (h + gap);
     ctx.fillStyle = item.emphasis ? "#fef3f2" : "#ffffff";
     ctx.strokeStyle = item.emphasis ? "#fecaca" : "#e5e7eb";
     ctx.lineWidth = 1;
-    roundRect(ctx, x, cy, w, h, 8);
+    roundRect(ctx, x, cy, chipW, h, 8);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "#6b7280";
-    ctx.font = "700 10px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = STAT_LABEL_FONT;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(item.label, x + 10, cy + h / 2);
+    ctx.fillText(item.label, x + L.statCardPadX, cy + h / 2);
     ctx.fillStyle = "#111827";
-    ctx.font = "700 18px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = STAT_VALUE_FONT;
     ctx.textAlign = "right";
-    ctx.fillText(String(item.count), x + w - 10, cy + h / 2);
+    ctx.fillText(String(item.count), x + chipW - L.statCardPadX, cy + h / 2);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   });

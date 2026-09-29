@@ -8,6 +8,7 @@ import {
   landfillColumnCount,
   landfillColumnWidth,
   measureEodReportLayout,
+  measureStatCardWidth,
   stationTableCardWidth,
   stationTableContentWidth,
   statsColumnWidth,
@@ -78,6 +79,30 @@ describe("EOD_IMAGE_LAYOUT", () => {
       EOD_IMAGE_LAYOUT.cardCount * EOD_IMAGE_LAYOUT.cardsH +
         (EOD_IMAGE_LAYOUT.cardCount - 1) * EOD_IMAGE_LAYOUT.cardGap,
     );
+  });
+
+  it("keeps End-of-day summary chips compact (content-width, not full stats column)", () => {
+    const statsW = statsColumnWidth();
+    // Cap at ~half the wide stats band so label/number sit close (no empty middle).
+    expect(EOD_IMAGE_LAYOUT.statCardMaxW).toBeLessThanOrEqual(Math.ceil(statsW / 2) + 2);
+    expect(EOD_IMAGE_LAYOUT.statCardMaxW).toBeLessThanOrEqual(300);
+    expect(EOD_IMAGE_LAYOUT.statCardMaxW).toBeGreaterThanOrEqual(160);
+    expect(EOD_IMAGE_LAYOUT.statCardPadX).toBeLessThanOrEqual(14);
+    expect(EOD_IMAGE_LAYOUT.statCardInnerGap).toBeLessThanOrEqual(18);
+
+    // jsdom Canvas measureText is stubby; assert the cap path with a fixed wide measure.
+    const fakeCtx = {
+      font: "",
+      measureText(s: string) {
+        // Approximate: ~0.55em per char for bold UI sans (enough to exercise content math).
+        const px = this.font.includes("20px") ? 12 : 7;
+        return { width: String(s).length * px };
+      },
+    } as unknown as CanvasRenderingContext2D;
+    const chipW = measureStatCardWidth(fakeCtx, "WALKING-FLOOR", 999, statsW);
+    expect(chipW).toBeLessThanOrEqual(EOD_IMAGE_LAYOUT.statCardMaxW);
+    expect(chipW).toBeLessThan(statsW * 0.55);
+    expect(chipW).toBeGreaterThan(100);
   });
 
   it("places station totals and landfills in side-by-side columns", () => {
