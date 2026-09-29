@@ -6,15 +6,20 @@ import {
 } from "../data/customerLaneSeed";
 import {
   LANE_COMMODITIES,
+  cleanPlaceName,
   customerNames,
   currentLanesByCustomer,
   isLaneStub,
   lanesForCustomer,
+  placesMatch,
   type CustomerLane,
 } from "../lib/customerLanes";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import {
   BRAND_COMPANY_OPTIONS,
+  assignCustomerBrand,
+  brandCompanyIdForCustomer,
+  brandForCompanyId,
   brandForCustomer,
   setCustomerBrandOverride,
   type BrandCompanyId,
@@ -47,7 +52,7 @@ type LaneFormState = {
 };
 
 export function CustomersScreen() {
-  const { store, saveLane, deleteLane, deleteCustomer } = useCustomerLanes();
+  const { store, saveLane, deleteLane, deleteCustomer, renameCustomer } = useCustomerLanes();
   const today = chicagoToday();
   const [filter, setFilter] = useState<string>("all");
   const [addingCustomer, setAddingCustomer] = useState(false);
@@ -56,6 +61,10 @@ export function CustomersScreen() {
   const [openCustomer, setOpenCustomer] = useState<string | null>(null);
   const [laneForm, setLaneForm] = useState<LaneFormState | null>(null);
   const [confirmDeleteCustomer, setConfirmDeleteCustomer] = useState<string | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editBrand, setEditBrand] = useState<BrandCompanyId>("none");
+  const [editError, setEditError] = useState("");
 
   const names = useMemo(() => customerNames(store), [store]);
   const current = useMemo(() => currentLanesByCustomer(store, today), [store, today]);
@@ -92,6 +101,50 @@ export function CustomersScreen() {
       tier5: moneyField(laneForm.t5),
     });
     if (saved) setLaneForm(null);
+  };
+
+  const startEditCustomer = (name: string) => {
+    setOpenCustomer(name);
+    setEditingCustomer(name);
+    setEditName(name);
+    setEditBrand(brandCompanyIdForCustomer(name));
+    setEditError("");
+  };
+
+  const cancelEditCustomer = () => {
+    setEditingCustomer(null);
+    setEditName("");
+    setEditBrand("none");
+    setEditError("");
+  };
+
+  const saveCustomerEdit = () => {
+    if (!editingCustomer) return;
+    const nextName = cleanPlaceName(editName);
+    if (!nextName) {
+      setEditError("Enter a customer name.");
+      return;
+    }
+    const status = renameCustomer(editingCustomer, nextName);
+    if (status === "collision") {
+      setEditError("A customer with that name is already on the board.");
+      return;
+    }
+    if (status === "missing") {
+      cancelEditCustomer();
+      setOpenCustomer((open) => (open === editingCustomer ? null : open));
+      return;
+    }
+    if (status === "empty") {
+      setEditError("Enter a customer name.");
+      return;
+    }
+    assignCustomerBrand(editingCustomer, nextName, editBrand);
+    setOpenCustomer(nextName);
+    setLaneForm((form) =>
+      form && placesMatch(form.customer, editingCustomer) ? { ...form, customer: nextName } : form,
+    );
+    cancelEditCustomer();
   };
 
   return (
@@ -138,10 +191,10 @@ export function CustomersScreen() {
 
       {addingCustomer ? (
         <form
-          className="drv-add-form"
+          className="cust-form"
           onSubmit={(event) => {
             event.preventDefault();
-            const name = newCustomer.trim();
+            const name = cleanPlaceName(newCustomer);
             if (!name) return;
             setCustomerBrandOverride(name, newCustomerBrand);
             void saveLane({
@@ -156,30 +209,13 @@ export function CustomersScreen() {
             setOpenCustomer(name);
           }}
         >
-          <input
-            className="text-input"
-            value={newCustomer}
-            onChange={(event) => setNewCustomer(event.target.value)}
-            placeholder="Customer name"
-            autoComplete="off"
+          <h2>Add customer</h2>
+          <CustomerIdentityFields
+            name={newCustomer}
+            onName={setNewCustomer}
+            brand={newCustomerBrand}
+            onBrand={setNewCustomerBrand}
           />
-          <label className="drv-pay-field">
-            <span>Company logo</span>
-            <select
-              className="text-input"
-              value={newCustomerBrand}
-              onChange={(event) =>
-                setNewCustomerBrand(event.target.value as BrandCompanyId)
-              }
-              aria-label="Company logo"
-            >
-              {BRAND_COMPANY_OPTIONS.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
           <div className="vac-add-actions">
             <button type="submit" className="text-btn amber">
               Add
@@ -253,15 +289,54 @@ export function CustomersScreen() {
               </header>
               {open ? (
                 <div className="cust-body">
-                  <div className="vac-add-actions">
-                    <button
-                      type="button"
-                      className="text-btn danger"
-                      onClick={() => setConfirmDeleteCustomer(name)}
+                  {editingCustomer === name ? (
+                    <form
+                      className="cust-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        saveCustomerEdit();
+                      }}
                     >
-                      Delete customer
-                    </button>
-                  </div>
+                      <h2>Edit customer</h2>
+                      <CustomerIdentityFields
+                        name={editName}
+                        onName={(value) => {
+                          setEditName(value);
+                          if (editError) setEditError("");
+                        }}
+                        brand={editBrand}
+                        onBrand={setEditBrand}
+                        autoFocus
+                      />
+                      {editError ? <p className="drv-add-error">{editError}</p> : null}
+                      <div className="vac-add-actions">
+                        <button type="submit" className="text-btn amber">
+                          Save
+                        </button>
+                        <button type="button" className="text-btn" onClick={cancelEditCustomer}>
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : null}
+                  {editingCustomer === name ? null : (
+                    <div className="vac-add-actions">
+                      <button
+                        type="button"
+                        className="text-btn"
+                        onClick={() => startEditCustomer(name)}
+                      >
+                        Edit customer
+                      </button>
+                      <button
+                        type="button"
+                        className="text-btn danger"
+                        onClick={() => setConfirmDeleteCustomer(name)}
+                      >
+                        Delete customer
+                      </button>
+                    </div>
+                  )}
                   {laneForm && laneForm.customer === name ? (
                     <LaneForm laneForm={laneForm} setLaneForm={setLaneForm} onSave={saveForm} />
                   ) : null}
@@ -349,6 +424,64 @@ export function CustomersScreen() {
         </ConfirmOverlay>
       ) : null}
     </section>
+  );
+}
+
+function CustomerIdentityFields({
+  name,
+  onName,
+  brand,
+  onBrand,
+  autoFocus = false,
+}: {
+  name: string;
+  onName: (value: string) => void;
+  brand: BrandCompanyId;
+  onBrand: (value: BrandCompanyId) => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <>
+      <label className="drv-pay-field">
+        <span>Customer name</span>
+        <input
+          className="text-input"
+          value={name}
+          onChange={(event) => onName(event.target.value)}
+          placeholder="Customer name"
+          autoComplete="off"
+          autoFocus={autoFocus}
+        />
+      </label>
+      <div className="drv-pay-field">
+        <span>Company logo</span>
+        <div className="vac-year-row cust-logo-row" role="radiogroup" aria-label="Company logo">
+          {BRAND_COMPANY_OPTIONS.map((opt) => {
+            const mark = brandForCompanyId(opt.id);
+            const active = brand === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={active ? "day-chip day-chip-active" : "day-chip"}
+                onClick={() => onBrand(opt.id)}
+              >
+                {mark ? (
+                  <img className="cust-logo-mark" src={mark.src} alt="" />
+                ) : (
+                  <span className="cust-logo-none" aria-hidden="true">
+                    —
+                  </span>
+                )}
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
   );
 }
 

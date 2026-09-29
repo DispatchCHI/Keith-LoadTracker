@@ -24,8 +24,8 @@ export const LRS: CustomerBrand = {
   alt: "LRS Services",
 };
 
-/** Company choices when adding a custom customer. */
-export type BrandCompanyId = "waste-management" | "republic" | "lrs" | "none";
+/** Company choices when adding or editing a customer. */
+export type BrandCompanyId = "waste-management" | "republic" | "lrs" | "tri-state" | "none";
 
 export const BRAND_COMPANY_OPTIONS: ReadonlyArray<{
   id: BrandCompanyId;
@@ -34,6 +34,7 @@ export const BRAND_COMPANY_OPTIONS: ReadonlyArray<{
   { id: "waste-management", label: "Waste Management" },
   { id: "republic", label: "Republic Services" },
   { id: "lrs", label: "LRS Services" },
+  { id: "tri-state", label: "Tri-State" },
   { id: "none", label: "None" },
 ];
 
@@ -41,7 +42,14 @@ const BRAND_BY_COMPANY: Record<Exclude<BrandCompanyId, "none">, CustomerBrand> =
   "waste-management": WASTE_MANAGEMENT,
   republic: REPUBLIC,
   lrs: LRS,
+  "tri-state": TRI_STATE,
 };
+
+const BRAND_COMPANY_IDS = new Set<BrandCompanyId>(BRAND_COMPANY_OPTIONS.map((opt) => opt.id));
+
+function isBrandCompanyId(value: unknown): value is BrandCompanyId {
+  return typeof value === "string" && BRAND_COMPANY_IDS.has(value as BrandCompanyId);
+}
 
 /** localStorage map: lowercase customer name → BrandCompanyId */
 export const CUSTOMER_BRAND_OVERRIDES_KEY =
@@ -80,7 +88,7 @@ const CUSTOMER_BRANDS: Record<string, CustomerBrand> = Object.fromEntries(
 );
 
 function normalizeCustomerKey(name: string): string {
-  return name.trim().toLowerCase();
+  return name.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
 function readOverrides(): Record<string, BrandCompanyId> {
@@ -91,14 +99,7 @@ function readOverrides(): Record<string, BrandCompanyId> {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
     const out: Record<string, BrandCompanyId> = {};
     for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (
-        value === "waste-management" ||
-        value === "republic" ||
-        value === "lrs" ||
-        value === "none"
-      ) {
-        out[normalizeCustomerKey(key)] = value;
-      }
+      if (isBrandCompanyId(value)) out[normalizeCustomerKey(key)] = value;
     }
     return out;
   } catch {
@@ -129,6 +130,37 @@ export function setCustomerBrandOverride(
     next[key] = company;
   }
   writeOverrides(next);
+}
+
+/**
+ * Point the logo at `toName` and drop the override stored under `fromName`
+ * when the display name changed. Same persistence as add-customer.
+ */
+export function assignCustomerBrand(
+  fromName: string,
+  toName: string,
+  company: BrandCompanyId,
+): void {
+  const to = toName.replace(/\s+/g, " ").trim();
+  if (!to) return;
+  const fromKey = normalizeCustomerKey(fromName);
+  const toKey = normalizeCustomerKey(to);
+  if (fromKey && fromKey !== toKey) clearCustomerBrandOverride(fromName);
+  setCustomerBrandOverride(to, company);
+}
+
+/** Company id currently shown for a customer, including static map hits. */
+export function brandCompanyIdForCustomer(name: string): BrandCompanyId {
+  const key = normalizeCustomerKey(name);
+  if (!key) return "none";
+  const overrides = readOverrides();
+  if (Object.prototype.hasOwnProperty.call(overrides, key)) return overrides[key]!;
+  const brand = CUSTOMER_BRANDS[key];
+  if (!brand) return "none";
+  const hit = (Object.entries(BRAND_BY_COMPANY) as [BrandCompanyId, CustomerBrand][]).find(
+    ([, mark]) => mark.src === brand.src,
+  );
+  return hit?.[0] ?? "none";
 }
 
 /** Drop a persisted brand override so static map (or none) applies again. */

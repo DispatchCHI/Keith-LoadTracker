@@ -11,6 +11,7 @@ import {
   placesMatch,
   rateForLoad,
   removeCustomerByName,
+  renameCustomerLanes,
   seededCustomerLaneStore,
   customersWithRealLanes,
   customersWithSpecialtyLanes,
@@ -77,6 +78,67 @@ describe("seeded rate book", () => {
     expect(names).toContain("LRS");
     expect(names).toContain("Ford");
     expect(names).toContain("Melrose");
+  });
+});
+
+describe("renameCustomerLanes", () => {
+  it("renames the customer and keeps lane ids, dests, and rates", () => {
+    const store = seededCustomerLaneStore();
+    const before = Object.values(store.lanes).filter((lane) => lane.customer === "Melrose");
+    expect(before.length).toBeGreaterThan(1);
+    const sample = before.find((lane) => lane.destination === "DeKalb" && lane.tier1 != null);
+    expect(sample).toBeTruthy();
+    const renamed = renameCustomerLanes(store, "melrose", "Melrose Yard", "2026-09-29T00:00:00.000Z");
+    expect(renamed.status).toBe("ok");
+    const after = Object.values(renamed.store.lanes).filter((lane) => lane.customer === "Melrose Yard");
+    expect(after.map((lane) => lane.id).sort()).toEqual(before.map((lane) => lane.id).sort());
+    const kept = after.find((lane) => lane.id === sample!.id);
+    expect(kept?.destination).toBe(sample!.destination);
+    expect(kept?.commodity).toBe(sample!.commodity);
+    expect(kept?.effectiveDate).toBe(sample!.effectiveDate);
+    expect(kept?.tier1).toBe(sample!.tier1);
+    expect(kept?.tier5).toBe(sample!.tier5);
+    expect(kept?.updatedAt).toBe("2026-09-29T00:00:00.000Z");
+    expect(Object.values(renamed.store.lanes).some((lane) => lane.customer === "Melrose")).toBe(false);
+    expect(Object.values(renamed.store.lanes).some((lane) => lane.customer === "Batavia")).toBe(true);
+  });
+
+  it("does not resurrect the old name from seed after a rename", () => {
+    const store = seededCustomerLaneStore();
+    const beforeIds = Object.values(store.lanes)
+      .filter((lane) => lane.customer === "Melrose")
+      .map((lane) => lane.id);
+    const renamed = renameCustomerLanes(store, "Melrose", "Melrose Yard");
+    const merged = mergeSeededLanes(renamed.store);
+    expect(Object.values(merged.lanes).some((lane) => lane.customer === "Melrose")).toBe(false);
+    expect(
+      Object.values(merged.lanes)
+        .filter((lane) => lane.customer === "Melrose Yard")
+        .map((lane) => lane.id)
+        .sort(),
+    ).toEqual([...beforeIds].sort());
+  });
+
+  it("refuses a name that already belongs to a different customer", () => {
+    const store = seededCustomerLaneStore();
+    const result = renameCustomerLanes(store, "Melrose", "Batavia");
+    expect(result.status).toBe("collision");
+    expect(result.store).toBe(store);
+    expect(result.lanes).toEqual([]);
+  });
+
+  it("leaves lanes alone when the display name is unchanged", () => {
+    const store = seededCustomerLaneStore();
+    const result = renameCustomerLanes(store, "Melrose", "Melrose");
+    expect(result.status).toBe("unchanged");
+    expect(result.lanes).toEqual([]);
+    expect(result.store).toBe(store);
+  });
+
+  it("is empty for a blank name and missing for an unknown customer", () => {
+    const store = seededCustomerLaneStore();
+    expect(renameCustomerLanes(store, "Melrose", "   ").status).toBe("empty");
+    expect(renameCustomerLanes(store, "No Such Yard", "Other Yard").status).toBe("missing");
   });
 });
 

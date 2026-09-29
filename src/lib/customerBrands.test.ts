@@ -5,6 +5,8 @@ import {
   REPUBLIC,
   TRI_STATE,
   WASTE_MANAGEMENT,
+  assignCustomerBrand,
+  brandCompanyIdForCustomer,
   brandForCustomer,
   clearCustomerBrandOverride,
   setCustomerBrandOverride,
@@ -63,6 +65,37 @@ describe("brandForCustomer", () => {
     const raw = localStorage.getItem(CUSTOMER_BRAND_OVERRIDES_KEY);
     expect(raw).toContain("new yard");
     expect(raw).toContain("republic");
+  });
+});
+
+describe("brandCompanyIdForCustomer", () => {
+  it("reads the static map and a persisted override", () => {
+    expect(brandCompanyIdForCustomer("Apollo")).toBe("republic");
+    expect(brandCompanyIdForCustomer("Batavia")).toBe("waste-management");
+    expect(brandCompanyIdForCustomer("Tri-State")).toBe("tri-state");
+    expect(brandCompanyIdForCustomer("LRS")).toBe("lrs");
+    expect(brandCompanyIdForCustomer("Acme Hauling")).toBe("none");
+    setCustomerBrandOverride("Apollo", "lrs");
+    expect(brandCompanyIdForCustomer("Apollo")).toBe("lrs");
+  });
+});
+
+describe("assignCustomerBrand", () => {
+  it("moves the logo onto the new name and drops the old key", () => {
+    setCustomerBrandOverride("New Yard", "waste-management");
+    assignCustomerBrand("New Yard", "North Yard", "republic");
+    expect(brandForCustomer("North Yard")).toEqual(REPUBLIC);
+    expect(brandForCustomer("New Yard")).toBeNull();
+    const raw = localStorage.getItem(CUSTOMER_BRAND_OVERRIDES_KEY) ?? "";
+    expect(raw).toContain("north yard");
+    expect(raw).not.toContain("new yard");
+  });
+
+  it("keeps a corrected logo on the same name", () => {
+    assignCustomerBrand("New Yard", "New Yard", "lrs");
+    expect(brandCompanyIdForCustomer("New Yard")).toBe("lrs");
+    assignCustomerBrand("New Yard", "  New   Yard ", "republic");
+    expect(brandForCustomer("New Yard")).toEqual(REPUBLIC);
   });
 });
 
