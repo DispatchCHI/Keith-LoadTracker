@@ -15,9 +15,11 @@ import {
   goneYearOf,
   mergeImportedGoneRows,
   parseGoneDate,
+  goneMatchesActiveRoster,
   reconcileDriverGoneCloud,
   removeGoneEntriesForPerson,
   scrubPrivacyFromNotes,
+  stripRosterEntriesMatchingGone,
 } from "./driverGone";
 import { parseGoneSheetCsv } from "./driverGoneSheet";
 import {
@@ -482,5 +484,99 @@ describe("Gone duplicate people", () => {
     expect(goneEntryCount(result.next)).toBe(1);
     expect(result.next.entries[bId]?.notes).toContain("No rehire");
     expect(result.toDeleteRemoteEntries).toContain(a.entry!.id);
+  });
+});
+
+describe("Gone people stay off Full Roster (Buddy Johnson bounce-back)", () => {
+  it("matches Buddy Johnson by emp # 31147 even under a new roster UUID", () => {
+    expect(
+      goneMatchesActiveRoster(
+        { employeeNumber: "31147", name: "Buddy Johnson" },
+        { truckNumber: "31147", name: "Buddy Johnson" },
+      ),
+    ).toBe(true);
+    expect(
+      goneMatchesActiveRoster(
+        { employeeNumber: "31147", name: "Buddy Johnson" },
+        { truckNumber: "99999", name: "Buddy Johnson" },
+      ),
+    ).toBe(false);
+  });
+
+  it("strips Rockford Full + Sat when Gone has Buddy, including a re-upserted id", () => {
+    let roster = emptyDriverRosterStore();
+    const full = addRosterEntry(roster, {
+      kind: "full",
+      yard: "rockford",
+      truckNumber: "31147",
+      name: "Buddy Johnson",
+    });
+    roster = full.store;
+    const sat = addRosterEntry(roster, {
+      kind: "sat",
+      yard: "rockford",
+      truckNumber: "31147",
+      name: "Buddy Johnson",
+    });
+    roster = sat.store;
+    // Simulate bounce-back under a brand-new Full id after terminate.
+    const rebound = addRosterEntry(roster, {
+      kind: "full",
+      yard: "rockford",
+      truckNumber: "31147",
+      name: "Buddy Johnson",
+    });
+    // collapse would normally dedupe; force both ids present like a bad merge.
+    roster = {
+      entries: {
+        ...sat.store.entries,
+        "buddy-rebound-uuid": {
+          ...rebound.entry!,
+          id: "buddy-rebound-uuid",
+        },
+      },
+    };
+
+    const gone = addGoneEntry(emptyDriverGoneStore(), {
+      employeeNumber: "31147",
+      name: "Buddy Johnson",
+      terminationDate: "2026-08-01",
+      notes: "Term, failed to report accident. intoxicated on the job.",
+      yard: "rockford",
+    }).store;
+
+    const stripped = stripRosterEntriesMatchingGone(roster, gone);
+    expect(stripped.removed.length).toBeGreaterThanOrEqual(2);
+    expect(
+      Object.values(stripped.store.entries).some(
+        (row) => row.truckNumber === "31147" || /buddy johnson/i.test(row.name),
+      ),
+    ).toBe(false);
+    expect(stripped.removed.some((row) => row.id === "buddy-rebound-uuid")).toBe(true);
+  });
+
+  it("does not strip unrelated Rockford hires when pruning Buddy", () => {
+    let roster = addRosterEntry(emptyDriverRosterStore(), {
+      kind: "full",
+      yard: "rockford",
+      truckNumber: "185",
+      name: "Christopher Oleson",
+    }).store;
+    roster = addRosterEntry(roster, {
+      kind: "full",
+      yard: "rockford",
+      truckNumber: "31147",
+      name: "Buddy Johnson",
+    }).store;
+    const gone = addGoneEntry(emptyDriverGoneStore(), {
+      employeeNumber: "31147",
+      name: "Buddy Johnson",
+      terminationDate: "2026-08-01",
+    }).store;
+    const stripped = stripRosterEntriesMatchingGone(roster, gone);
+    expect(rosterEntryCount(stripped.store, "full", "rockford")).toBe(1);
+    expect(entriesForRoster(stripped.store, "full", "rockford")[0].name).toBe(
+      "Christopher Oleson",
+    );
   });
 });

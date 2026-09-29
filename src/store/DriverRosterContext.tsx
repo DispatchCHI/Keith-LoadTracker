@@ -45,6 +45,11 @@ import {
   type DriverRosterYard,
   type DriverTabGroup,
 } from "../lib/driverRoster";
+import {
+  readDriverGonePersisted,
+  stripRosterEntriesMatchingGone,
+  type DriverGoneStore,
+} from "../lib/driverGone";
 import { assignedTrucksNeedingUpload, preserveAssignedTrucks, preserveTruckNumbers } from "../lib/rosterAssignedTruck";
 import {
   applyKnownHireDates,
@@ -95,6 +100,8 @@ type DriverRosterContextValue = {
   ) => Promise<void>;
   removeDriver: (id: string) => Promise<void>;
   removeHiredAndSat: (id: string) => Promise<void>;
+  /** Drop Full/Sat rows for people archived on Gone (person match, not id-only). */
+  pruneTerminatedDrivers: (gone: DriverGoneStore) => Promise<number>;
   moveDriver: (id: string, delta: -1 | 1) => Promise<void>;
   setSatDate: (forDate: string | null) => Promise<void>;
   resetSatToFullRoster: () => Promise<void>;
@@ -243,6 +250,8 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     return rowsToStore(page.data);
   }, [session]);
 
+  // Scoped deletes only — the only paths that may DELETE a cloud roster row
+  // are explicit UI × / Reset / Gone-person prune, all via .delete().in("id", ids).
   const cloudDeleteEntries = useCallback(async (ids: string[]) => {
     if (!ids.length) return;
     const supabase = getSupabase();
@@ -335,7 +344,12 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
   const refreshInner = useCallback(async () => {
     if (!cloud) {
       const stamped = applyKnownHireDates(storeRef.current);
-      persistLocal(stamped.store);
+      const goneSnap = readDriverGonePersisted();
+      const pruned = stripRosterEntriesMatchingGone(stamped.store, {
+        entries: goneSnap.entries,
+      });
+      for (const row of pruned.removed) deletedRef.current.add(row.id);
+      persistLocal(pruned.store);
       await seedIfEmpty();
       return;
     }
@@ -352,14 +366,25 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         seenRemoteEntryIds: seenRef.current,
       });
       if (epoch !== epochRef.current) return;
-      const next = preservePhones(
+      let next = preservePhones(
         prior,
         preserveHireDates(
           prior,
           preserveTruckNumbers(prior, preserveAssignedTrucks(prior, result.next)),
         ),
       );
-      const toUpload = [...result.toUploadEntries];
+      // Person-level Gone prune BEFORE upsert — id tombstones alone miss Buddy
+      // Johnson when another device still holds a Full row and re-uploads it.
+      const goneSnap = readDriverGonePersisted();
+      const pruned = stripRosterEntriesMatchingGone(next, {
+        entries: goneSnap.entries,
+      });
+      const prunedIds = new Set(pruned.removed.map((row) => row.id));
+      if (pruned.removed.length) {
+        next = pruned.store;
+        for (const row of pruned.removed) deletedRef.current.add(row.id);
+      }
+      const toUpload = result.toUploadEntries.filter((row) => !prunedIds.has(row.id));
       for (const row of assignedTrucksNeedingUpload(next, remote)) {
         if (!toUpload.some((item) => item.id === row.id)) toUpload.push(row);
       }
@@ -378,10 +403,19 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         }
       }
       if (epoch !== epochRef.current) return;
-      deletedRef.current = new Set(result.deletedEntryIds);
+      deletedRef.current = new Set([
+        ...result.deletedEntryIds,
+        ...prunedIds,
+      ]);
       seenRef.current = new Set(result.seenRemoteEntryIds);
-      if (result.toDeleteRemoteEntries.length) {
-        await cloudDeleteEntries(result.toDeleteRemoteEntries);
+      const remoteDeletes = [
+        ...result.toDeleteRemoteEntries,
+        ...pruned.removed
+          .map((row) => row.id)
+          .filter((id) => Boolean(remote.entries[id])),
+      ];
+      if (remoteDeletes.length) {
+        await cloudDeleteEntries([...new Set(remoteDeletes)]);
       }
       const removed = persistLocal(next);
       if (removed.length) await cloudDeleteEntries(removed.map((row) => row.id));
@@ -390,10 +424,22 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     await seedIfEmpty();
     await seedEmptySatFromFull();
     const stamped = applyKnownHireDates(storeRef.current);
-    if (stamped.updated.length) {
-      persistLocal(stamped.store);
-      if (cloud) await cloudUpsert(stamped.updated);
+    // Final Gone prune (covers failed remote pull + Sat seed copies).
+    const goneAfter = readDriverGonePersisted();
+    const prunedAfter = stripRosterEntriesMatchingGone(stamped.store, {
+      entries: goneAfter.entries,
+    });
+    for (const row of prunedAfter.removed) deletedRef.current.add(row.id);
+    if (prunedAfter.removed.length || stamped.updated.length) {
+      persistLocal(prunedAfter.store);
     }
+    if (prunedAfter.removed.length && cloud) {
+      await cloudDeleteEntries(prunedAfter.removed.map((row) => row.id));
+    }
+    const stillUpdated = stamped.updated.filter(
+      (row) => prunedAfter.store.entries[row.id],
+    );
+    if (stillUpdated.length && cloud) await cloudUpsert(stillUpdated);
   }, [cloud, cloudDeleteEntries, cloudUpsert, persistLocal, pullRemote, seedEmptySatFromFull, seedIfEmpty]);
 
   const refresh = useCallback(() => {
@@ -512,6 +558,22 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     [cloud, cloudDeleteEntries, persistLocal],
   );
 
+  const pruneTerminatedDrivers = useCallback(
+    async (gone: DriverGoneStore) => {
+      epochRef.current += 1;
+      const pruned = stripRosterEntriesMatchingGone(storeRef.current, gone);
+      if (!pruned.removed.length) return 0;
+      for (const entry of pruned.removed) {
+        deletedRef.current.add(entry.id);
+        if (entry.kind === "sat") satInitializedRef.current.add(entry.yard);
+      }
+      persistLocal(pruned.store);
+      if (cloud) await cloudDeleteEntries(pruned.removed.map((entry) => entry.id));
+      return pruned.removed.length;
+    },
+    [cloud, cloudDeleteEntries, persistLocal],
+  );
+
   const moveDriver = useCallback(
     async (id: string, delta: -1 | 1) => {
       epochRef.current += 1;
@@ -611,6 +673,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       setDriverProfile,
       removeDriver,
       removeHiredAndSat,
+      pruneTerminatedDrivers,
       moveDriver,
       setSatDate,
       resetSatToFullRoster,
@@ -631,6 +694,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       setDriverProfile,
       removeDriver,
       removeHiredAndSat,
+      pruneTerminatedDrivers,
       moveDriver,
       setSatDate,
       resetSatToFullRoster,
