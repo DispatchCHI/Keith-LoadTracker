@@ -157,6 +157,24 @@ export function logEntrySubtracts(row: Pick<CallOffLogEntry, "reason">): boolean
   return isFullDayOff(row.reason);
 }
 
+export type CallOffLogDayFilter = "upcoming" | "today" | "yesterday" | "all";
+
+/** Same Chicago-day window the Call Offs page uses. `cutoff` is the oldest end date kept (today − 30). */
+export function callOffLogRowVisible(
+  row: Pick<CallOffLogEntry, "start" | "end">,
+  filter: CallOffLogDayFilter,
+  today: string,
+  yesterday: string,
+  cutoff: string,
+): boolean {
+  const last = row.end ?? row.start;
+  if (last < cutoff) return false;
+  if (filter === "today") return row.start <= today && last >= today;
+  if (filter === "yesterday") return row.start <= yesterday && last >= yesterday;
+  if (filter === "upcoming") return last >= today;
+  return true;
+}
+
 export function formatSheetStyleDate(iso: string): string {
   if (!isValidISODate(iso)) return iso;
   const [y, m, d] = iso.split("-");

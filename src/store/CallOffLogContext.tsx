@@ -20,12 +20,14 @@ import {
   readCallOffLogPersisted,
   reconcileCallOffLogCloud,
   removeCallOffLogEntry,
+  sortCallOffLog,
   updateCallOffLogEntry,
   writeCallOffLogPersisted,
   type CallOffLogEntry,
   type CallOffLogPersisted,
 } from "../lib/callOffLog";
-import type { CallOffRow } from "../lib/driverAvailability";
+import type { CallOffRow, ManualCallOff } from "../lib/driverAvailability";
+import { manualMirrorId, mirrorEntryFromManual } from "../lib/todayCallOffSync";
 import { getSupabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
@@ -57,6 +59,13 @@ type CallOffLogContextValue = {
     patch: Partial<Pick<CallOffLogEntry, "name" | "start" | "end" | "reason">>,
   ) => Promise<void>;
   removeRow: (id: string) => Promise<void>;
+  /** Insert or update the Today-manual mirror row for one Chicago day. */
+  upsertMirror: (date: string, off: ManualCallOff) => Promise<void>;
+  /** Tombstone and delete these call-off log ids (Today remove / Call Offs remove). */
+  removeLogIds: (ids: string[]) => Promise<void>;
+  /** Forget a mirror tombstone so the same driver can be added again that day. */
+  clearDeletedId: (id: string) => void;
+  deletedIds: () => string[];
 };
 
 const CallOffLogContext = createContext<CallOffLogContextValue | null>(null);
@@ -282,6 +291,62 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
     [cloud, cloudDelete, persistLocal],
   );
 
+  const upsertMirror = useCallback(
+    async (date: string, off: ManualCallOff) => {
+      const id = manualMirrorId(date, off.name);
+      const existing = rowsRef.current.find((row) => row.id === id) ?? null;
+      const entry = mirrorEntryFromManual(date, off, new Date().toISOString(), existing);
+      if (!entry) return;
+      if (
+        existing &&
+        existing.name === entry.name &&
+        existing.start === entry.start &&
+        existing.end === entry.end &&
+        existing.reason === entry.reason
+      ) {
+        if (deletedRef.current.has(id)) {
+          deletedRef.current.delete(id);
+          persistLocal(rowsRef.current);
+        }
+        return;
+      }
+      epochRef.current += 1;
+      deletedRef.current.delete(id);
+      const next = existing
+        ? sortCallOffLog(rowsRef.current.map((row) => (row.id === id ? entry : row)))
+        : sortCallOffLog([...rowsRef.current, entry]);
+      persistLocal(next);
+      if (cloud) await cloudUpsert([entry]);
+    },
+    [cloud, cloudUpsert, persistLocal],
+  );
+
+  const removeLogIds = useCallback(
+    async (ids: string[]) => {
+      const unique = [...new Set(ids)].filter((id) =>
+        rowsRef.current.some((row) => row.id === id),
+      );
+      if (!unique.length) return;
+      epochRef.current += 1;
+      for (const id of unique) deletedRef.current.add(id);
+      const drop = new Set(unique);
+      persistLocal(rowsRef.current.filter((row) => !drop.has(row.id)));
+      if (cloud) await cloudDelete(unique);
+    },
+    [cloud, cloudDelete, persistLocal],
+  );
+
+  const clearDeletedId = useCallback(
+    (id: string) => {
+      if (!deletedRef.current.has(id)) return;
+      deletedRef.current.delete(id);
+      persistLocal(rowsRef.current);
+    },
+    [persistLocal],
+  );
+
+  const deletedIds = useCallback(() => [...deletedRef.current], []);
+
   const value = useMemo<CallOffLogContextValue>(
     () => ({
       rows,
@@ -293,8 +358,25 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
       addRow,
       editRow,
       removeRow,
+      upsertMirror,
+      removeLogIds,
+      clearDeletedId,
+      deletedIds,
     }),
-    [rows, cloud, error, refresh, loadSheet, addRow, editRow, removeRow],
+    [
+      rows,
+      cloud,
+      error,
+      refresh,
+      loadSheet,
+      addRow,
+      editRow,
+      removeRow,
+      upsertMirror,
+      removeLogIds,
+      clearDeletedId,
+      deletedIds,
+    ],
   );
 
   return <CallOffLogContext.Provider value={value}>{children}</CallOffLogContext.Provider>;

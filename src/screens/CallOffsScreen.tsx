@@ -5,6 +5,7 @@ import { addDays, chicagoToday, previousWorkingDay } from "../lib/chicagoDate";
 import {
   CALL_OFF_REASON_PRESETS,
   formatSheetStyleDate,
+  callOffLogRowVisible,
   kindForLogEntry,
   logEntrySubtracts,
   type CallOffLogEntry,
@@ -97,19 +98,14 @@ export function CallOffsScreen() {
 
   const cutoff = addDays(today, -30);
   const activeRows = useMemo(
-    () => rows.filter((row) => (row.end ?? row.start) >= cutoff),
-    [rows, cutoff],
+    () => rows.filter((row) => callOffLogRowVisible(row, "all", today, yesterday, cutoff)),
+    [rows, cutoff, today, yesterday],
   );
 
-  const visible = useMemo(() => {
-    return activeRows.filter((row) => {
-      const last = row.end ?? row.start;
-      if (filter === "today") return row.start <= today && last >= today;
-      if (filter === "yesterday") return row.start <= yesterday && last >= yesterday;
-      if (filter === "upcoming") return last >= today;
-      return true;
-    });
-  }, [activeRows, filter, today, yesterday]);
+  const visible = useMemo(
+    () => rows.filter((row) => callOffLogRowVisible(row, filter, today, yesterday, cutoff)),
+    [rows, filter, today, yesterday, cutoff],
+  );
 
   const todayCount = rows.filter((row) => {
     const last = row.end ?? row.start;

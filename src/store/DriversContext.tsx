@@ -56,6 +56,11 @@ import {
   removeManualOff as dropManualOff,
   type ManualOffsStore,
 } from "../lib/manualCallOffs";
+import {
+  logIdsRemovedWithManual,
+  manualMirrorId,
+  reconcileTodayCallOffs,
+} from "../lib/todayCallOffSync";
 import { useAuth } from "./AuthContext";
 
 export type DriversStatus = "loading" | "live" | "cached" | "error";
@@ -89,7 +94,14 @@ export function DriversProvider({ children }: { children: ReactNode }) {
   const { configured, session } = useAuth();
   const { store: rosterStore } = useDriverRoster();
   const { store: vacationStore } = useVacation();
-  const { offs } = useCallOffLog();
+  const {
+    offs,
+    rows: logRows,
+    upsertMirror,
+    removeLogIds,
+    clearDeletedId,
+    deletedIds,
+  } = useCallOffLog();
   const [status, setStatus] = useState<DriversStatus>("loading");
   const [error, setError] = useState<string | null>(null);
   const [baseAvailable, setBase] = useState<number | null>(null);
@@ -108,6 +120,10 @@ export function DriversProvider({ children }: { children: ReactNode }) {
   );
   const deletedRef = useRef<string[]>(initialManuals.manualOffsDeleted);
   const seenRef = useRef<string[]>(initialManuals.manualOffsSeen);
+  const manualsRef = useRef(manualOffs);
+  manualsRef.current = manualOffs;
+  const logRowsRef = useRef(logRows);
+  logRowsRef.current = logRows;
   const todayRef = useRef(chicagoToday());
   const rosterRef = useRef(rosterStore);
   rosterRef.current = rosterStore;
@@ -132,6 +148,7 @@ export function DriversProvider({ children }: { children: ReactNode }) {
     ) => {
       deletedRef.current = deleted;
       seenRef.current = seen;
+      manualsRef.current = next;
       writeManualOffs(next, deleted, seen);
       setManualOffs(next);
     },
@@ -407,56 +424,117 @@ export function DriversProvider({ children }: { children: ReactNode }) {
           .map((row) => callOffNameKey(row.name)),
       );
       const { store: next, added } = insertManualOff(
-        manualOffs,
+        manualsRef.current,
         date,
         name,
         kind,
         occupied,
       );
       if (!added) return false;
+      clearDeletedId(manualMirrorId(date, added.name));
       const addKey = deletedManualKey(date, added.name);
       const nextDeleted = deletedRef.current.filter((key) => key !== addKey);
       const nextSeen = seenRef.current.filter((key) => key !== addKey);
       persistManuals(next, nextDeleted, nextSeen);
       recomputeDayFrom(date, next);
+      const mirrored = upsertMirror(date, added);
       if (configured && session) {
         const written = await upsertRemoteManualOff(date, added);
         if (!written.ok && written.error) {
           setError(written.error);
         }
       }
+      await mirrored;
       return true;
     },
     [
       callOffsOn,
+      clearDeletedId,
       configured,
-      manualOffs,
       persistManuals,
       recomputeDayFrom,
       session,
+      upsertMirror,
     ],
   );
 
   const removeManualOff = useCallback(
     async (date: string, name: string): Promise<boolean> => {
-      const { store: next, removed } = dropManualOff(manualOffs, date, name);
-      if (!removed) return false;
-      const tombstone = deletedManualKey(date, removed.name);
-      const nextDeleted = deletedRef.current.includes(tombstone)
-        ? deletedRef.current
-        : [...deletedRef.current, tombstone];
-      persistManuals(next, nextDeleted);
-      recomputeDayFrom(date, next);
-      if (configured && session) {
+      const { store: next, removed } = dropManualOff(manualsRef.current, date, name);
+      const logIds = logIdsRemovedWithManual(logRowsRef.current, date, name);
+      if (!removed && !logIds.length) return false;
+      if (removed) {
+        const tombstone = deletedManualKey(date, removed.name);
+        const nextDeleted = deletedRef.current.includes(tombstone)
+          ? deletedRef.current
+          : [...deletedRef.current, tombstone];
+        persistManuals(next, nextDeleted);
+        recomputeDayFrom(date, next);
+      }
+      const logWrite = removeLogIds(logIds);
+      if (removed && configured && session) {
         const written = await deleteRemoteManualOff(date, removed.name);
         if (!written.ok && written.error) {
           setError(written.error);
         }
       }
+      await logWrite;
       return true;
     },
-    [configured, manualOffs, persistManuals, recomputeDayFrom, session],
+    [configured, persistManuals, recomputeDayFrom, removeLogIds, session],
   );
+
+  useEffect(() => {
+    const beforeManuals = manualsRef.current;
+    const previousDeleted = deletedRef.current;
+    const result = reconcileTodayCallOffs({
+      manuals: beforeManuals,
+      rows: logRows,
+      deletedIds: deletedIds(),
+      manualDeletedKeys: previousDeleted,
+    });
+    if (result.changed) {
+      const previousKeys = new Set(previousDeleted);
+      persistManuals(result.manuals, result.manualDeletedKeys);
+      const dates = new Set<string>([
+        ...Object.keys(beforeManuals),
+        ...Object.keys(result.manuals),
+      ]);
+      for (const date of dates) {
+        const left = beforeManuals[date] ?? [];
+        const right = result.manuals[date] ?? [];
+        if (JSON.stringify(left) !== JSON.stringify(right)) {
+          recomputeDayFrom(date, result.manuals);
+        }
+      }
+      if (configured && session) {
+        for (const key of result.manualDeletedKeys) {
+          if (previousKeys.has(key)) continue;
+          const split = key.indexOf("|");
+          if (split <= 0) continue;
+          void deleteRemoteManualOff(key.slice(0, split), key.slice(split + 1)).then((written) => {
+            if (!written.ok && written.error) setError(written.error);
+          });
+        }
+        for (const upsert of result.remoteUpserts) {
+          void upsertRemoteManualOff(upsert.date, upsert.off).then((written) => {
+            if (!written.ok && written.error) setError(written.error);
+          });
+        }
+      }
+    }
+    for (const upsert of result.logUpserts) {
+      void upsertMirror(upsert.date, upsert.off);
+    }
+  }, [
+    configured,
+    deletedIds,
+    logRows,
+    persistManuals,
+    recomputeDayFrom,
+    session,
+    upsertMirror,
+  ]);
 
   const value = useMemo<DriversContextValue>(
     () => ({
