@@ -242,6 +242,14 @@ describe("Today notes chrome", () => {
     expect(today).toContain("Notes");
     expect(popup).toContain("markNotesRead(date)");
     expect(css).toContain("day-notes-unread-pulse");
+    expect(css).toMatch(/day-notes-unread-pulse\s+1\.[5-9]\d*s\s+ease-in-out\s+infinite/);
+    const keyframes = css.slice(
+      css.indexOf("@keyframes day-notes-unread-pulse"),
+      css.indexOf("@media (prefers-reduced-motion"),
+    );
+    expect(keyframes).toContain("scale(1.08)");
+    expect(keyframes).toContain("opacity: 0.55");
+    expect(keyframes).toContain("box-shadow:");
     expect(css).toContain("prefers-reduced-motion");
     expect(css).toContain("#dc2626");
   });
