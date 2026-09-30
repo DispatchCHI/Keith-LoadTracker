@@ -26,52 +26,86 @@ const COLS: { key: "start" | StationHourKey | "close"; label: string }[] = [
   { key: "close", label: "Close" },
 ];
 
-/** Shared spacing for the EOD PNG — kept tight so the canvas hugs content. */
+const SANS = "ui-sans-serif, system-ui, sans-serif";
+
+/**
+ * Canvas type scale for the EOD PNG.
+ * Email clients fit this ~1480px-wide image to the message column, so these
+ * sizes are a clear step up from the previous 11–26px set — large enough to
+ * stay readable after that shrink, without restretching the stat/landfill chips.
+ */
+export const EOD_IMAGE_TYPE = {
+  title: 40,
+  subtitle: 22,
+  section: 24,
+  hourHeader: 18,
+  hourCell: 26,
+  statLabel: 16,
+  statValue: 32,
+  tableHeader: 18,
+  tableCell: 26,
+  landfill: 20,
+  landfillCaption: 13,
+  footer: 18,
+} as const;
+
+function canvasFont(weight: 500 | 600 | 700, px: number): string {
+  return `${weight} ${px}px ${SANS}`;
+}
+
+/** Shared spacing for the EOD PNG — row boxes track the type scale; chips stay compact. */
 export const EOD_IMAGE_LAYOUT = {
   pad: 16,
   width: 1480,
-  titleH: 52,
-  sectionTitleH: 22,
+  titleH: 80,
+  sectionTitleH: 32,
   sectionGap: 10,
   /** Gap between left/right columns in the two side-by-side bands. */
   colGap: 12,
-  hourColW: 56,
-  nameColW: 132,
-  gridHeaderH: 26,
-  gridRowH: 26,
+  hourColW: 62,
+  nameColW: 176,
+  gridHeaderH: 34,
+  gridRowH: 40,
   gridCardPad: 12,
   /** Inner horizontal pad inside the hour-grid card. */
   gridInnerPad: 8,
   /**
    * Compact End-of-day commodity/stat bubbles (right of hour grid).
-   * Content-width chips (not full stats-column stretch); stacked tight column.
+   * Taller only enough for the larger figure; still content-width chips
+   * stacked in a tight column (not stretched across the stats band).
    */
-  cardsH: 40,
+  cardsH: 48,
   cardGap: 5,
   /** Inner horizontal pad inside each EOD stat chip. */
   statCardPadX: 12,
   /** Gap between label and count inside a chip (not stretched). */
   statCardInnerGap: 14,
   /**
-   * Cap chip width (~half the old full stats column ~616px) so label/number
-   * sit close with no huge empty middle.
+   * Cap chip width so label/number sit close. Wider than the old 300px cap
+   * is unnecessary — content at the new type scale is ~240px.
    */
-  statCardMaxW: 300,
+  statCardMaxW: 248,
   /** How many EOD stat cards are drawn (TRASH/LEACHATE/WALKING-FLOOR/LOADS/SUBS). */
   cardCount: 5,
-  tableHeaderH: 24,
-  tableRowH: 24,
+  tableHeaderH: 34,
+  tableRowH: 40,
   tableCardPad: 10,
   /** Station totals: fixed dense cols (not % of full canvas). */
-  tableNameW: 148,
-  tableNumW: 72,
+  tableNameW: 176,
+  tableNumW: 80,
   /** Extra pad around station table content inside its card. */
   tableInnerPad: 10,
-  /** Landfill cards: fixed width + packed columns in the right column. */
-  lfCardW: 280,
-  lfRowH: 42,
+  /**
+   * Landfill cards: fixed width, 3-up in the right column.
+   * Slightly wider than the prior 280px so 20px destination names still fit;
+   * the stack gap inside each row is tighter (see drawLandfills).
+   */
+  lfCardW: 328,
+  /** Trailing band for "12 / 34" and the MSW / TOTAL caption. */
+  lfCountBand: 104,
+  lfRowH: 50,
   lfGap: 8,
-  footerH: 28,
+  footerH: 32,
 } as const;
 
 /** Intrinsic content width of the hour grid (name + Start/hours/Close). */
@@ -251,20 +285,20 @@ export function buildEodReportPng(opts: {
 
   let y = L.pad;
   ctx.fillStyle = "#111827";
-  ctx.font = "700 26px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText("END OF DAY LOAD COUNT", L.pad, y + 24);
-  ctx.font = "500 15px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = canvasFont(700, EOD_IMAGE_TYPE.title);
+  ctx.fillText("END OF DAY LOAD COUNT", L.pad, y + 40);
+  ctx.font = canvasFont(500, EOD_IMAGE_TYPE.subtitle);
   ctx.fillStyle = "#6b7280";
-  ctx.fillText(`${formatHeaderDate(opts.date)}  ·  Keith's Load Tracker`, L.pad, y + 42);
+  ctx.fillText(`${formatHeaderDate(opts.date)}  ·  Keith's Load Tracker`, L.pad, y + 68);
   y += L.titleH;
 
   // Top band: hour grid (left) + End-of-day stat bubbles (right) — fills upper-right.
   const gridCardW = hourGridCardWidth();
   const statsX = L.pad + gridCardW + L.colGap;
   ctx.fillStyle = "#111827";
-  ctx.font = "700 15px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText("Load Count By Hour", L.pad, y + 14);
-  ctx.fillText("End of day", statsX, y + 14);
+  ctx.font = canvasFont(700, EOD_IMAGE_TYPE.section);
+  ctx.fillText("Load Count By Hour", L.pad, y + 24);
+  ctx.fillText("End of day", statsX, y + 24);
   y += L.sectionTitleH;
   const topBodyY = y;
   card(L.pad, topBodyY, gridCardW, gridH + L.gridCardPad);
@@ -290,13 +324,13 @@ export function buildEodReportPng(opts: {
   card(L.pad, y, tableCardW, tableH + L.tableCardPad);
   drawStationTable(ctx, L.pad + L.tableInnerPad, y + 6, eod, L.tableHeaderH, L.tableRowH);
   ctx.fillStyle = "#111827";
-  ctx.font = "700 15px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText(`Landfill  ·  ${landfills.length} groups`, lfX, y + 14);
+  ctx.font = canvasFont(700, EOD_IMAGE_TYPE.section);
+  ctx.fillText(`Landfill  ·  ${landfills.length} groups`, lfX, y + 24);
   drawLandfills(ctx, lfX, y + L.sectionTitleH, lfColW, landfills, L.lfRowH, L.lfGap);
 
   ctx.fillStyle = "#9ca3af";
-  ctx.font = "500 12px ui-sans-serif, system-ui, sans-serif";
-  ctx.fillText("For informational purposes only", L.pad, height - L.pad + 2);
+  ctx.font = canvasFont(500, EOD_IMAGE_TYPE.footer);
+  ctx.fillText("For informational purposes only", L.pad, height - L.pad - 4);
 
   return canvas.toDataURL("image/png");
 }
@@ -314,7 +348,7 @@ function drawHourGrid(
   rowH: number,
   headerH: number,
 ) {
-  ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = canvasFont(600, EOD_IMAGE_TYPE.hourHeader);
   ctx.fillStyle = "#6b7280";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -329,9 +363,9 @@ function drawHourGrid(
       ctx.fillRect(x, ry, nameColW + COLS.length * hourColW, rowH);
     }
     ctx.fillStyle = "#111827";
-    ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = canvasFont(600, EOD_IMAGE_TYPE.hourCell);
     ctx.textBaseline = "middle";
-    ctx.fillText(yard.label, x + 6, ry + rowH / 2);
+    ctx.fillText(yard.label, x + 8, ry + rowH / 2);
     COLS.forEach((col, i) => {
       const value =
         col.key === "start"
@@ -341,7 +375,7 @@ function drawHourGrid(
             : hourCell(board, yard.id, col.key);
       const cx = x + nameColW + i * hourColW + hourColW / 2;
       ctx.textAlign = "center";
-      ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
+      ctx.font = canvasFont(600, EOD_IMAGE_TYPE.hourCell);
       ctx.fillStyle = isZeroish(value) ? "#dc2626" : "#111827";
       ctx.fillText(value, cx, ry + rowH / 2);
       ctx.textAlign = "left";
@@ -350,9 +384,9 @@ function drawHourGrid(
 }
 
 /** Label font for EOD summary chips (TRASH / LEACHATE / …). */
-const STAT_LABEL_FONT = "700 11px ui-sans-serif, system-ui, sans-serif";
+const STAT_LABEL_FONT = canvasFont(700, EOD_IMAGE_TYPE.statLabel);
 /** Value font for EOD summary chips. */
-const STAT_VALUE_FONT = "700 20px ui-sans-serif, system-ui, sans-serif";
+const STAT_VALUE_FONT = canvasFont(700, EOD_IMAGE_TYPE.statValue);
 
 /**
  * Content-width for one EOD stat chip (label + gap + count + pad), capped by
@@ -429,18 +463,19 @@ function drawStationTable(
     { label: "MSW", align: "right" as const, width: L.tableNumW },
     { label: "CLOSED", align: "right" as const, width: L.tableNumW },
   ];
-  ctx.font = "700 12px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = canvasFont(700, EOD_IMAGE_TYPE.tableHeader);
   ctx.fillStyle = "#6b7280";
+  ctx.textBaseline = "middle";
   let cx = x;
   cols.forEach((col) => {
     ctx.textAlign = col.align;
-    ctx.fillText(col.label, col.align === "left" ? cx : cx + col.width, y + headerH / 2 + 2);
+    ctx.fillText(col.label, col.align === "left" ? cx : cx + col.width, y + headerH / 2);
     cx += col.width;
   });
   eod.stations.forEach((row, i) => {
     const ry = y + headerH + i * rowH + rowH / 2;
     ctx.fillStyle = "#111827";
-    ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = canvasFont(600, EOD_IMAGE_TYPE.tableCell);
     let px = x;
     const values = [row.label, String(row.pickedUp), String(row.msw), row.left ?? "\u2014"];
     cols.forEach((col, ci) => {
@@ -450,6 +485,7 @@ function drawStationTable(
     });
   });
   ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
 }
 
 function drawLandfills(
@@ -465,15 +501,19 @@ function drawLandfills(
   const cw = L.lfCardW;
   const cols = landfillColumnCount(w);
   const list = rows.length ? rows : [{ key: "none", label: "No destinations logged", count: 0, trashCount: 0 }];
-  /** Name + counts sit close: counts right-aligned in a narrow trailing band, not card far edge of a stretched half-width cell. */
-  const countBand = 78;
-  const nameMax = cw - 24 - countBand - 8;
+  /** Name + counts sit close: counts right-aligned in a narrow trailing band, not the far edge of a stretched half-width cell. */
+  const countBand = L.lfCountBand;
+  const inset = 10;
+  const nameMax = cw - inset - countBand - 8;
+  const namePx = EOD_IMAGE_TYPE.landfill;
+  const capPx = EOD_IMAGE_TYPE.landfillCaption;
   list.forEach((row, i) => {
     const c = i % cols;
     const r = Math.floor(i / cols);
     const cx = x + c * (cw + gap);
     const cy = y + r * rowH;
-    const cardH = rowH - 6;
+    // 4px stack gap (was 6) so the taller type doesn't loosen the grouping.
+    const cardH = rowH - 4;
     ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = "#e5e7eb";
     ctx.lineWidth = 1;
@@ -481,16 +521,22 @@ function drawLandfills(
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "#111827";
-    ctx.font = "700 14px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = canvasFont(700, namePx);
     ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
     const label = truncateLabel(ctx, row.label, nameMax);
-    ctx.fillText(label, cx + 12, cy + 22);
-    const countRight = cx + cw - 12;
+    const lineGap = 3;
+    const block = namePx + lineGap + capPx;
+    const top = Math.max(2, (cardH - block) / 2);
+    const nameBaseline = top + Math.round(namePx * 0.78);
+    const capBaseline = top + namePx + lineGap + Math.round(capPx * 0.78);
+    ctx.fillText(label, cx + inset, cy + nameBaseline);
+    const countRight = cx + cw - inset;
     ctx.textAlign = "right";
-    ctx.fillText(`${row.trashCount} / ${row.count}`, countRight, cy + 18);
+    ctx.fillText(`${row.trashCount} / ${row.count}`, countRight, cy + nameBaseline);
     ctx.fillStyle = "#9ca3af";
-    ctx.font = "600 10px ui-sans-serif, system-ui, sans-serif";
-    ctx.fillText("MSW / TOTAL", countRight, cy + 30);
+    ctx.font = canvasFont(600, capPx);
+    ctx.fillText("MSW / TOTAL", countRight, cy + capBaseline);
     ctx.textAlign = "left";
   });
 }

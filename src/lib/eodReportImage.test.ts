@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EOD_IMAGE_LAYOUT,
+  EOD_IMAGE_TYPE,
   eodCardsBlockHeight,
   eodContentWidth,
   hourGridCardWidth,
@@ -31,13 +32,42 @@ function legacyHeight(yards: number, stations: number, landfills: number): numbe
 }
 
 describe("EOD_IMAGE_LAYOUT", () => {
-  it("keeps padding and row heights denser than the old generous values", () => {
+  it("scales every EOD canvas font up for email readability", () => {
+    expect(EOD_IMAGE_TYPE).toEqual({
+      title: 40,
+      subtitle: 22,
+      section: 24,
+      hourHeader: 18,
+      hourCell: 26,
+      statLabel: 16,
+      statValue: 32,
+      tableHeader: 18,
+      tableCell: 26,
+      landfill: 20,
+      landfillCaption: 13,
+      footer: 18,
+    });
+    // Previous step was 26/15/15/12/13/11/20/12/13/14/10/12. This is a clear jump.
+    expect(EOD_IMAGE_TYPE.title).toBeGreaterThan(26);
+    expect(EOD_IMAGE_TYPE.hourCell).toBeGreaterThan(13);
+    expect(EOD_IMAGE_TYPE.statValue).toBeGreaterThan(20);
+    expect(EOD_IMAGE_TYPE.landfill).toBeGreaterThan(14);
+    expect(EOD_IMAGE_TYPE.footer).toBeGreaterThan(12);
+  });
+
+  it("gives each row enough box for the larger type without opening the chips back up", () => {
     expect(EOD_IMAGE_LAYOUT.pad).toBeLessThanOrEqual(18);
-    expect(EOD_IMAGE_LAYOUT.gridRowH).toBeLessThanOrEqual(26);
-    expect(EOD_IMAGE_LAYOUT.tableRowH).toBeLessThanOrEqual(24);
-    expect(EOD_IMAGE_LAYOUT.cardsH).toBeLessThanOrEqual(44);
+    expect(EOD_IMAGE_LAYOUT.gridRowH).toBeGreaterThanOrEqual(EOD_IMAGE_TYPE.hourCell + 12);
+    expect(EOD_IMAGE_LAYOUT.gridRowH).toBeLessThanOrEqual(44);
+    expect(EOD_IMAGE_LAYOUT.tableRowH).toBeGreaterThanOrEqual(EOD_IMAGE_TYPE.tableCell + 12);
+    expect(EOD_IMAGE_LAYOUT.tableRowH).toBeLessThanOrEqual(44);
+    expect(EOD_IMAGE_LAYOUT.cardsH).toBeGreaterThanOrEqual(EOD_IMAGE_TYPE.statValue + 12);
+    expect(EOD_IMAGE_LAYOUT.cardsH).toBeLessThanOrEqual(56);
     expect(EOD_IMAGE_LAYOUT.cardGap).toBeLessThanOrEqual(5);
-    expect(EOD_IMAGE_LAYOUT.lfRowH).toBeLessThanOrEqual(46);
+    expect(EOD_IMAGE_LAYOUT.lfRowH).toBeGreaterThanOrEqual(
+      EOD_IMAGE_TYPE.landfill + EOD_IMAGE_TYPE.landfillCaption + 14,
+    );
+    expect(EOD_IMAGE_LAYOUT.lfRowH).toBeLessThanOrEqual(54);
     expect(EOD_IMAGE_LAYOUT.footerH).toBeLessThanOrEqual(32);
     expect(EOD_IMAGE_LAYOUT.sectionGap).toBeLessThanOrEqual(12);
   });
@@ -59,7 +89,11 @@ describe("EOD_IMAGE_LAYOUT", () => {
     expect(EOD_IMAGE_LAYOUT.lfCardW).toBeGreaterThanOrEqual(220);
     const lfColW = landfillColumnWidth();
     const cols = landfillColumnCount(lfColW);
-    expect(cols).toBeGreaterThanOrEqual(2);
+    // Three-up keeps the grouping symmetrical beside the station table.
+    expect(cols).toBe(3);
+    const used =
+      cols * EOD_IMAGE_LAYOUT.lfCardW + (cols - 1) * EOD_IMAGE_LAYOUT.lfGap;
+    expect(used).toBeLessThanOrEqual(lfColW);
     // Fixed cards must not stretch to half-canvas width.
     const half = (eodContentWidth() - EOD_IMAGE_LAYOUT.lfGap) / 2;
     expect(EOD_IMAGE_LAYOUT.lfCardW).toBeLessThan(half * 0.75);
@@ -94,9 +128,9 @@ describe("EOD_IMAGE_LAYOUT", () => {
     const fakeCtx = {
       font: "",
       measureText(s: string) {
-        // Approximate: ~0.55em per char for bold UI sans (enough to exercise content math).
-        const px = this.font.includes("20px") ? 12 : 7;
-        return { width: String(s).length * px };
+        const px = Number(/(\d+)px/.exec(this.font)?.[1] ?? 16);
+        // Approximate bold UI sans (~0.62em) so the cap path sees real content width.
+        return { width: String(s).length * px * 0.62 };
       },
     } as unknown as CanvasRenderingContext2D;
     const chipW = measureStatCardWidth(fakeCtx, "WALKING-FLOOR", 999, statsW);
@@ -125,8 +159,9 @@ describe("measureEodReportLayout", () => {
       landfillCount: landfills,
     });
     const old = legacyHeight(yards, stations, landfills);
-    expect(layout.height).toBeLessThan(old);
-    expect(layout.height).toBeLessThan(old - 150);
+    // Larger type spends the old side-by-side savings. Still not a blank poster.
+    expect(layout.height).toBeGreaterThan(800);
+    expect(layout.height).toBeLessThan(old + 400);
     expect(layout.width).toBe(EOD_IMAGE_LAYOUT.width);
     const lfCols = landfillColumnCount(layout.lfColW);
     expect(layout.lfRows).toBe(Math.ceil(4 / lfCols));
