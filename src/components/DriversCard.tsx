@@ -12,7 +12,9 @@ import {
   type CallOffKind,
 } from "../lib/driverAvailability";
 import { vacationNamesOnDateAllYards } from "../lib/rosterVacation";
+import { canRemoveTodayCallOff } from "../lib/todayCallOffSync";
 import { DriverNameInput } from "./DriverNameInput";
+import { useCallOffLog } from "../store/CallOffLogContext";
 import { useDrivers } from "../store/DriversContext";
 import { useVacation } from "../store/VacationContext";
 import "./drivers-card.css";
@@ -70,9 +72,11 @@ export function DriversCard({
     ytdAverage,
     ootNames,
     callOffsOn,
+    manualOffs,
     addManualOff,
     removeManualOff,
   } = useDrivers();
+  const { rows: callOffLogRows } = useCallOffLog();
   const vacation = useVacation();
   const vacationNames = useMemo(
     () => vacationNamesOnDateAllYards(vacation.store, viewed),
@@ -338,7 +342,12 @@ export function DriversCard({
                   className={`oot-chip calloff-chip calloff-chip-${entry.kind}`}
                 >
                   <span>{entry.name}</span>
-                  {entry.source === "manual" ? (
+                  {canRemoveTodayCallOff({
+                    name: entry.name,
+                    date: viewed,
+                    manuals: manualOffs[viewed],
+                    rows: callOffLogRows,
+                  }) ? (
                     <button
                       type="button"
                       className="calloff-remove"
