@@ -89,14 +89,25 @@ describe("EOD_IMAGE_LAYOUT", () => {
     expect(EOD_IMAGE_LAYOUT.lfCardW).toBeGreaterThanOrEqual(220);
     const lfColW = landfillColumnWidth();
     const cols = landfillColumnCount(lfColW);
-    // Three-up keeps the grouping symmetrical beside the station table.
-    expect(cols).toBe(3);
+    // Two-up stacks destinations under Newton / Prairie View (no sparse third column).
+    expect(cols).toBe(2);
+    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(2);
     const used =
       cols * EOD_IMAGE_LAYOUT.lfCardW + (cols - 1) * EOD_IMAGE_LAYOUT.lfGap;
     expect(used).toBeLessThanOrEqual(lfColW);
     // Fixed cards must not stretch to half-canvas width.
     const half = (eodContentWidth() - EOD_IMAGE_LAYOUT.lfGap) / 2;
     expect(EOD_IMAGE_LAYOUT.lfCardW).toBeLessThan(half * 0.75);
+  });
+
+  it("gives the hour grid more horizontal room after the font bump", () => {
+    // Reclaim space from the right band; keep large type, widen hour cells.
+    expect(EOD_IMAGE_LAYOUT.width).toBe(1600);
+    expect(EOD_IMAGE_LAYOUT.hourColW).toBeGreaterThanOrEqual(72);
+    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(2);
+    expect(landfillColumnCount()).toBe(2);
+    // Stats chips stay content-width; band still usable beside the wider grid.
+    expect(statsColumnWidth()).toBeGreaterThanOrEqual(280);
   });
 
   it("places hour grid and EOD stats in side-by-side columns (no blank upper-right)", () => {
@@ -144,7 +155,7 @@ describe("EOD_IMAGE_LAYOUT", () => {
     const lfW = landfillColumnWidth();
     expect(tableW + EOD_IMAGE_LAYOUT.colGap + lfW).toBe(eodContentWidth());
     expect(lfW).toBeGreaterThan(tableW);
-    expect(landfillColumnCount(lfW)).toBeGreaterThanOrEqual(2);
+    expect(landfillColumnCount(lfW)).toBe(2);
   });
 });
 
