@@ -459,7 +459,8 @@ button.day-notes-btn.day-notes-read {
 }
 
 button.day-notes-btn.day-notes-unread {
-  animation: day-notes-unread-pulse 3.2s ease-in-out infinite;
+  animation: day-notes-unread-pulse 1.8s ease-in-out infinite;
+  transform-origin: center;
 }
 
 button.day-notes-btn.day-notes-unread:hover,
@@ -469,20 +470,34 @@ button.day-notes-btn.day-notes-read:focus-visible {
   background: #b91c1c;
 }
 
+/* Slow throb: the old ring faded to transparent at mid-cycle, so it read as a
+   faint outline. Scale, a real opacity dip, and a hot ring stay obvious
+   across a desk without flashing. */
 @keyframes day-notes-unread-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5);
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(251, 113, 133, 0);
   }
-  50% {
-    box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+  35%,
+  65% {
+    transform: scale(1.1);
+    opacity: 0.45;
+    box-shadow:
+      0 0 0 5px #fb7185,
+      0 0 28px 10px rgba(220, 38, 38, 0.9);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   button.day-notes-btn.day-notes-unread {
     animation: none;
-    box-shadow: inset 0 0 0 2px #fecaca;
+    transform: none;
+    opacity: 1;
+    box-shadow:
+      0 0 0 3px #ffffff,
+      0 0 14px 3px rgba(220, 38, 38, 0.9);
   }
 }
 
