@@ -247,8 +247,8 @@ describe("Today notes chrome", () => {
       css.indexOf("@keyframes day-notes-unread-pulse"),
       css.indexOf("@media (prefers-reduced-motion"),
     );
-    expect(keyframes).toContain("scale(1.08)");
-    expect(keyframes).toContain("opacity: 0.55");
+    expect(keyframes).toContain("scale(1.1)");
+    expect(keyframes).toContain("opacity: 0.45");
     expect(keyframes).toContain("box-shadow:");
     expect(css).toContain("prefers-reduced-motion");
     expect(css).toContain("#dc2626");

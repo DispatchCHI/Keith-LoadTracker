@@ -471,21 +471,22 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 /* Slow throb: the old ring faded to transparent at mid-cycle, so it read as a
-   faint outline. Scale, opacity, and a solid glow stay obvious across a desk. */
+   faint outline. Scale, a real opacity dip, and a hot ring stay obvious
+   across a desk without flashing. */
 @keyframes day-notes-unread-pulse {
   0%,
   100% {
     transform: scale(1);
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    box-shadow: 0 0 0 0 rgba(251, 113, 133, 0);
   }
-  40%,
-  60% {
-    transform: scale(1.08);
-    opacity: 0.55;
+  35%,
+  65% {
+    transform: scale(1.1);
+    opacity: 0.45;
     box-shadow:
-      0 0 0 4px #ffffff,
-      0 0 22px 8px rgba(220, 38, 38, 0.95);
+      0 0 0 5px #fb7185,
+      0 0 28px 10px rgba(220, 38, 38, 0.9);
   }
 }
 
