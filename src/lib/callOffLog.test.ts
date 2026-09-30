@@ -7,8 +7,10 @@ import {
   logEntriesToRows,
   logEntrySubtracts,
   mergeCallOffLog,
+  reconcileCallOffLogCloud,
   rowsFromSeedCsv,
   seedIdForRow,
+  type CallOffLogEntry,
 } from "./callOffLog";
 import { fullDayOffCount, fullDayOffEntries } from "./driverAvailability";
 
@@ -76,6 +78,48 @@ describe("call-off log", () => {
     expect(entry?.name).toBe("Test Driver");
     const merged = mergeCallOffLog(seeded, seeded, []);
     expect(merged).toHaveLength(seeded.length);
+  });
+});
+
+describe("call-off cloud reconcile timestamps", () => {
+  const base: CallOffLogEntry = {
+    id: "co-1",
+    name: "Mike Smith",
+    start: "2026-09-30",
+    end: null,
+    reason: "P-Day",
+    createdAt: "2026-09-30T18:32:00.123Z",
+    updatedAt: "2026-09-30T18:32:00.123Z",
+  };
+
+  it("does not re-upload a row PostgREST echoed in +00:00 form", () => {
+    const remote: CallOffLogEntry = {
+      ...base,
+      createdAt: "2026-09-30T18:32:00.123000+00:00",
+      updatedAt: "2026-09-30T18:32:00.123000+00:00",
+    };
+    const result = reconcileCallOffLogCloud({
+      local: [base],
+      remote: [remote],
+      deletedIds: [],
+      seenIds: [base.id],
+    });
+    expect(result.toUpload).toEqual([]);
+  });
+
+  it("still uploads a later local edit", () => {
+    const local: CallOffLogEntry = {
+      ...base,
+      reason: "ok'd off",
+      updatedAt: "2026-09-30T19:05:00.000Z",
+    };
+    const result = reconcileCallOffLogCloud({
+      local: [local],
+      remote: [base],
+      deletedIds: [],
+      seenIds: [base.id],
+    });
+    expect(result.toUpload.map((row) => row.id)).toEqual([base.id]);
   });
 });
 

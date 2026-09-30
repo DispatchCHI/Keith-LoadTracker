@@ -10,6 +10,7 @@
  */
 
 import { isValidISODate, yearOfISO } from "./chicagoDate";
+import { isIsoAfter } from "./isoTime";
 import {
   cleanDriverName,
   cleanTruckNumber,
@@ -599,7 +600,7 @@ export function reconcileDriverGoneCloud(
       continue;
     }
     if (local && remote) {
-      if (local.updatedAt > remote.updatedAt) {
+      if (isIsoAfter(local.updatedAt, remote.updatedAt)) {
         next.entries[id] = local;
         toUploadEntries.push(local);
       } else {

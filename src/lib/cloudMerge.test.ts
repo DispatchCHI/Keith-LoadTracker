@@ -1248,3 +1248,38 @@ describe("mergeIncrementalCloudLoads", () => {
     expect(toDelete.map((row) => row.id)).toEqual(["doom"]);
   });
 });
+
+describe("PostgREST updated_at echo", () => {
+  const day = "2026-09-30";
+  const local = load("echo", day, { updatedAt: "2026-09-30T18:32:00.123Z" });
+  const remote = load("echo", day, { updatedAt: "2026-09-30T18:32:00.123000+00:00" });
+
+  it("does not re-upsert a load the cloud already has at the same instant", () => {
+    const full = mergeCloudLoads({
+      remote: [remote],
+      cache: store([local]),
+      local: store([local]),
+      pending: [],
+    });
+    const delta = mergeIncrementalCloudLoads({
+      remote: [remote],
+      cache: store([local]),
+      local: store([local]),
+      pending: [],
+    });
+    expect(full.toUpsert).toEqual([]);
+    expect(delta.toUpsert).toEqual([]);
+  });
+
+  it("still upserts a load edited after the cloud row", () => {
+    const newer = load("echo", day, { updatedAt: "2026-09-30T19:05:00.000Z" });
+    const full = mergeCloudLoads({
+      remote: [remote],
+      cache: store([newer]),
+      local: store([newer]),
+      pending: [],
+      lastSuccessfulSyncAt: "2026-09-30T18:00:00.000Z",
+    });
+    expect(full.toUpsert.map((row) => row.id)).toEqual(["echo"]);
+  });
+});
