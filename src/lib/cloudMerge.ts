@@ -1,4 +1,5 @@
 import type { Load } from "../types";
+import { isIsoAfter } from "./isoTime";
 import { keepLoadDriverName } from "./loadDriver";
 import {
   isExplicitDeleteOp,
@@ -655,7 +656,7 @@ export function mergeCloudLoads(input: CloudMergeInput): CloudMergeResult {
     if (!remote) {
       return pendingIds.has(load.id) || isProtectedDeviceLoad(load, protectOpts);
     }
-    return load.updatedAt > remote.updatedAt;
+    return isIsoAfter(load.updatedAt, remote.updatedAt);
   });
 
   return {
@@ -730,7 +731,7 @@ export function mergeIncrementalCloudLoads(input: CloudMergeInput): CloudMergeRe
       // Delta omission ≠ missing on server; only flush queued upserts.
       return pendingIds.has(load.id);
     }
-    return load.updatedAt > remote.updatedAt;
+    return isIsoAfter(load.updatedAt, remote.updatedAt);
   });
 
   const toTombstoneSet = new Set<string>(toDeleteIds);

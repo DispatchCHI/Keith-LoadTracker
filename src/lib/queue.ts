@@ -1,4 +1,5 @@
 import type { Load } from "../types";
+import { isIsoAfter } from "./isoTime";
 
 export const QUEUE_KEY = "chitrader.load-tracker.queue.v1";
 
@@ -167,8 +168,8 @@ export function dropConfirmedSyncedOps(
     if (op.kind !== "upsert") return true;
     const remoteAt = remoteUpdatedAtById.get(op.load.id);
     if (!remoteAt) return true;
-    // ISO timestamps compare lexicographically.
-    return op.load.updatedAt > remoteAt;
+    // Same instant in `Z` vs `+00:00` form is already synced. String `>` is not.
+    return isIsoAfter(op.load.updatedAt, remoteAt);
   });
 }
 

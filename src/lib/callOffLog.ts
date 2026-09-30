@@ -6,6 +6,7 @@ import {
   type CallOffRow,
 } from "./driverAvailability";
 import { isValidISODate } from "./chicagoDate";
+import { isIsoAfter } from "./isoTime";
 
 export const CALL_OFF_LOG_KEY = "chitrader.load-tracker.call-off-log.v1";
 
@@ -299,7 +300,7 @@ export function reconcileCallOffLogCloud(input: {
     if (deleted.has(row.id)) return false;
     const remoteRow = input.remote.find((item) => item.id === row.id);
     if (!remoteRow) return true;
-    return row.updatedAt > remoteRow.updatedAt;
+    return isIsoAfter(row.updatedAt, remoteRow.updatedAt);
   });
   const seenNext = new Set<string>();
   for (const id of remoteIds) seenNext.add(id);

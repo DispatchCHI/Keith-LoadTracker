@@ -184,6 +184,19 @@ describe("dropConfirmedSyncedOps", () => {
     const kept = dropConfirmedSyncedOps(ops, remote);
     expect(kept.map((op) => op.opId)).toEqual(["b", "del"]);
   });
+
+  it("drops an upsert whose cloud echo is the same instant in PostgREST form", () => {
+    const ops: QueueOp[] = [
+      {
+        opId: "a",
+        kind: "upsert",
+        load: sampleLoad("load-a", "2026-09-30T18:32:00.123Z"),
+        queuedAt: "2026-09-30T18:32:00.123Z",
+      },
+    ];
+    const remote = new Map([["load-a", "2026-09-30T18:32:00.123000+00:00"]]);
+    expect(dropConfirmedSyncedOps(ops, remote)).toEqual([]);
+  });
 });
 
 describe("takeFlushUpsertBatch", () => {

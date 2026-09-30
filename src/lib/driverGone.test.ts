@@ -484,3 +484,55 @@ describe("Gone duplicate people", () => {
     expect(result.toDeleteRemoteEntries).toContain(a.entry!.id);
   });
 });
+
+describe("Gone cloud timestamp echo", () => {
+  it("does not re-upload when PostgREST returns the same instant", () => {
+    const added = addGoneEntry(emptyDriverGoneStore(), {
+      employeeNumber: "86",
+      name: "Garry Prince",
+      notes: "Retired",
+    });
+    const id = added.entry!.id;
+    const localEntry = {
+      ...added.store.entries[id],
+      updatedAt: "2026-09-30T18:32:00.123Z",
+    };
+    const remoteEntry = {
+      ...localEntry,
+      updatedAt: "2026-09-30T18:32:00.123000+00:00",
+    };
+    const result = reconcileDriverGoneCloud({
+      local: { entries: { [id]: localEntry } },
+      remote: { entries: { [id]: remoteEntry } },
+      deletedEntryIds: [],
+      seenRemoteEntryIds: [id],
+    });
+    expect(result.toUploadEntries).toEqual([]);
+    expect(result.next.entries[id]?.updatedAt).toBe(remoteEntry.updatedAt);
+  });
+
+  it("still uploads a later local edit", () => {
+    const added = addGoneEntry(emptyDriverGoneStore(), {
+      employeeNumber: "86",
+      name: "Garry Prince",
+      notes: "Retired",
+    });
+    const id = added.entry!.id;
+    const remoteEntry = {
+      ...added.store.entries[id],
+      updatedAt: "2026-09-30T18:32:00.123000+00:00",
+    };
+    const localEntry = {
+      ...remoteEntry,
+      notes: "Retired, last load 9/29",
+      updatedAt: "2026-09-30T19:05:00.000Z",
+    };
+    const result = reconcileDriverGoneCloud({
+      local: { entries: { [id]: localEntry } },
+      remote: { entries: { [id]: remoteEntry } },
+      deletedEntryIds: [],
+      seenRemoteEntryIds: [id],
+    });
+    expect(result.toUploadEntries.map((row) => row.id)).toEqual([id]);
+  });
+});
