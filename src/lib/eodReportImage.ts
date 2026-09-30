@@ -30,7 +30,7 @@ const SANS = "ui-sans-serif, system-ui, sans-serif";
 
 /**
  * Canvas type scale for the EOD PNG.
- * Email clients fit this ~1480px-wide image to the message column, so these
+ * Email clients fit this ~1600px-wide image to the message column, so these
  * sizes are a clear step up from the previous 11–26px set — large enough to
  * stay readable after that shrink, without restretching the stat/landfill chips.
  */
@@ -56,13 +56,15 @@ function canvasFont(weight: 500 | 600 | 700, px: number): string {
 /** Shared spacing for the EOD PNG — row boxes track the type scale; chips stay compact. */
 export const EOD_IMAGE_LAYOUT = {
   pad: 16,
-  width: 1480,
+  /** Modest bump past 1480 so hour cols can breathe without crushing EOD chips. */
+  width: 1600,
   titleH: 80,
   sectionTitleH: 32,
   sectionGap: 10,
   /** Gap between left/right columns in the two side-by-side bands. */
   colGap: 12,
-  hourColW: 62,
+  /** Wider than the post-font-bump 62px so 26px hour figures aren't cramped. */
+  hourColW: 72,
   nameColW: 176,
   gridHeaderH: 34,
   gridRowH: 40,
@@ -96,11 +98,13 @@ export const EOD_IMAGE_LAYOUT = {
   /** Extra pad around station table content inside its card. */
   tableInnerPad: 10,
   /**
-   * Landfill cards: fixed width, 3-up in the right column.
-   * Slightly wider than the prior 280px so 20px destination names still fit;
-   * the stack gap inside each row is tighter (see drawLandfills).
+   * Landfill cards: fixed width, 2-up in the right column.
+   * Cap at two columns so destinations stack under Newton / Prairie View
+   * instead of leaving empty vertical space beside a sparse third column.
    */
   lfCardW: 328,
+  /** Hard cap — never open a third landfill column even if the band is wide. */
+  lfColsMax: 2,
   /** Trailing band for "12 / 34" and the MSW / TOTAL caption. */
   lfCountBand: 104,
   lfRowH: 50,
@@ -150,11 +154,12 @@ export function landfillColumnWidth(): number {
   return Math.max(L.lfCardW, eodContentWidth() - stationTableCardWidth() - L.colGap);
 }
 
-/** How many fixed-width landfill cards fit in the given (or default landfill) column. */
+/** How many fixed-width landfill cards fit in the given (or default landfill) column (capped at lfColsMax). */
 export function landfillColumnCount(contentWidth = landfillColumnWidth()): number {
   const L = EOD_IMAGE_LAYOUT;
   const avail = Math.max(L.lfCardW, contentWidth);
-  return Math.max(1, Math.floor((avail + L.lfGap) / (L.lfCardW + L.lfGap)));
+  const fit = Math.max(1, Math.floor((avail + L.lfGap) / (L.lfCardW + L.lfGap)));
+  return Math.min(L.lfColsMax, fit);
 }
 
 /** Stacked height of the five compact EOD stat cards (no section title). */
