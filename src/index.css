@@ -1505,6 +1505,16 @@ button.day-notes-btn.day-notes-read:focus-visible {
   line-height: 1.05;
 }
 
+.eod-stations-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eod-stations-toggle .totals-toggle-title {
+  letter-spacing: 0.1em;
+}
+
 .eod-table-wrap {
   overflow: hidden;
   border: 1px solid var(--line);

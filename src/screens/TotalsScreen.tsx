@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { BrandMark } from "../components/BrandMark";
 import { CollapsibleRank } from "../components/CollapsibleRank";
 import { DayPicker } from "../components/DayPicker";
@@ -62,6 +63,7 @@ export function TotalsScreen({
   const { totalsOn } = useDailyEod();
   const { availabilityOn } = useDrivers();
   const [filter, setFilter] = useState<TotalsFilter | null>(null);
+  const [stationsOpen, setStationsOpen] = useState(false);
   const board = useStationCallBoard(date);
   const snapshot = totalsOn(date);
 
@@ -84,6 +86,11 @@ export function TotalsScreen({
 
   const matching = filter ? rankAccordionLoads(dayLoads, filter) : [];
   const dayPhrase = date === today ? "today" : `on ${formatShortDate(date)}`;
+  const stationWord = eod.stations.length === 1 ? "station" : "stations";
+
+  useEffect(() => {
+    setStationsOpen(false);
+  }, [date]);
 
   const toggle = (next: TotalsFilter) => {
     setFilter((prev) =>
@@ -150,27 +157,56 @@ export function TotalsScreen({
             );
           })}
         </div>
-        <div className="eod-table-wrap">
-          <table className="eod-table">
-            <thead>
-              <tr>
-                <th>Station</th>
-                <th>Totals</th>
-                <th>MSW</th>
-                <th>Closed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eod.stations.map((row) => (
-                <tr key={row.id}>
-                  <th scope="row">{row.label}</th>
-                  <td>{row.pickedUp}</td>
-                  <td>{row.msw}</td>
-                  <td>{row.left === null ? "—" : row.left}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div
+          className={
+            stationsOpen
+              ? "eod-stations-block"
+              : "eod-stations-block eod-stations-block-collapsed"
+          }
+        >
+          <button
+            type="button"
+            className="totals-toggle eod-stations-toggle"
+            aria-expanded={stationsOpen}
+            onClick={() => setStationsOpen((open) => !open)}
+          >
+            <span className="totals-toggle-copy">
+              <span className="totals-toggle-title">Stations</span>
+              <span className="totals-toggle-count">
+                {eod.stations.length} {stationWord}
+                {stationsOpen ? "" : " · tap to expand"}
+              </span>
+            </span>
+            <ChevronDown
+              size={18}
+              className={stationsOpen ? "totals-chevron open" : "totals-chevron"}
+              aria-hidden
+            />
+          </button>
+          {stationsOpen ? (
+            <div className="eod-table-wrap">
+              <table className="eod-table">
+                <thead>
+                  <tr>
+                    <th>Station</th>
+                    <th>Totals</th>
+                    <th>MSW</th>
+                    <th>Closed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eod.stations.map((row) => (
+                    <tr key={row.id}>
+                      <th scope="row">{row.label}</th>
+                      <td>{row.pickedUp}</td>
+                      <td>{row.msw}</td>
+                      <td>{row.left === null ? "—" : row.left}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </div>
       </section>
 
