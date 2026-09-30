@@ -121,6 +121,33 @@ html[data-theme="halloween"] .numpad-go {
   color: #1a0c08 !important;
 }
 
+html[data-theme="halloween"] button.day-notes-btn {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+html[data-theme="halloween"] button.day-notes-btn:hover,
+html[data-theme="halloween"] button.day-notes-btn:focus-visible {
+  background: #1d4ed8 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="halloween"] button.day-notes-btn.day-notes-unread,
+html[data-theme="halloween"] button.day-notes-btn.day-notes-read {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+html[data-theme="halloween"] button.day-notes-btn.day-notes-unread:hover,
+html[data-theme="halloween"] button.day-notes-btn.day-notes-unread:focus-visible,
+html[data-theme="halloween"] button.day-notes-btn.day-notes-read:hover,
+html[data-theme="halloween"] button.day-notes-btn.day-notes-read:focus-visible {
+  background: #b91c1c !important;
+  color: #ffffff !important;
+}
+
 html[data-theme="halloween"] .text-btn,
 html[data-theme="halloween"] .edit-link,
 html[data-theme="halloween"] .text-btn.amber {

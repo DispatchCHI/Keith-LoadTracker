@@ -9,15 +9,19 @@ import {
   type ReactNode,
 } from "react";
 import {
+  acknowledgeDayNote,
+  applySavedDayNote,
   fetchDayNotesFromCloud,
   noteOn,
+  notesButtonAffordance,
+  pushDayNoteReadHash,
   readDayNotesPersisted,
   reconcileDayNotesCloud,
-  upsertDayNote,
   upsertDayNoteRows,
   writeDayNotesPersisted,
   type DayNotesPersisted,
   type DayNotesStore,
+  type NotesButtonAffordance,
 } from "../lib/dayNotes";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
 import { pollWhenTabs, TODAY_HOT_TABS } from "../lib/cloudRefreshTabs";
@@ -27,6 +31,9 @@ type DayNotesContextValue = {
   store: DayNotesStore;
   cloud: boolean;
   noteOn: (date: string) => string;
+  notesAffordance: (date: string) => NotesButtonAffordance;
+  /** Call when the Notes popup opens this day. Shared across desks via read_hash. */
+  markNotesRead: (date: string) => void;
   saveNote: (date: string, note: string) => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -46,6 +53,7 @@ export function DayNotesProvider({ children }: { children: ReactNode }) {
   );
   const uploadingRef = useRef(false);
   const refreshTailRef = useRef(Promise.resolve());
+  const readHashSupportedRef = useRef(true);
 
   const persistLocal = useCallback((next: DayNotesStore, seen?: Iterable<string>) => {
     if (seen) seenRemoteRef.current = new Set(seen);
@@ -63,6 +71,7 @@ export function DayNotesProvider({ children }: { children: ReactNode }) {
     if (!cloud) return;
     const pulled = await fetchDayNotesFromCloud();
     if (!pulled.store) return;
+    readHashSupportedRef.current = pulled.readHashSupported;
     const result = reconcileDayNotesCloud({
       local: storeRef.current,
       remote: pulled.store,
@@ -71,9 +80,21 @@ export function DayNotesProvider({ children }: { children: ReactNode }) {
     if (result.toUpload.length && !uploadingRef.current) {
       uploadingRef.current = true;
       try {
-        await upsertDayNoteRows(result.toUpload, user?.id ?? null);
+        const wrote = await upsertDayNoteRows(result.toUpload, user?.id ?? null, {
+          includeReadHash: readHashSupportedRef.current,
+        });
+        if (!wrote.readHashSupported) readHashSupportedRef.current = false;
       } finally {
         uploadingRef.current = false;
+      }
+    }
+    if (readHashSupportedRef.current) {
+      for (const push of result.readHashPushes) {
+        const status = await pushDayNoteReadHash(push.date, push.readHash);
+        if (status === "missing-column") {
+          readHashSupportedRef.current = false;
+          break;
+        }
       }
     }
     persistLocal(result.next, result.seenRemoteDates);
@@ -99,14 +120,32 @@ export function DayNotesProvider({ children }: { children: ReactNode }) {
     }, { shouldPoll: pollWhenTabs(TODAY_HOT_TABS) });
   }, [cloud, refresh]);
 
+  const markNotesRead = useCallback(
+    (date: string) => {
+      const next = acknowledgeDayNote(storeRef.current, date);
+      if (next === storeRef.current) return;
+      persistLocal(next);
+      if (!cloud || !readHashSupportedRef.current) return;
+      const row = next[date];
+      if (!row) return;
+      void pushDayNoteReadHash(date, row.readHash).then((status) => {
+        if (status === "missing-column") readHashSupportedRef.current = false;
+      });
+    },
+    [cloud, persistLocal],
+  );
+
   const saveNote = useCallback(
     async (date: string, note: string) => {
-      const next = upsertDayNote(storeRef.current, date, note);
+      const next = applySavedDayNote(storeRef.current, date, note);
       persistLocal(next);
       if (!cloud) return;
       const row = next[date];
       if (!row) return;
-      await upsertDayNoteRows([row], user?.id ?? null);
+      const wrote = await upsertDayNoteRows([row], user?.id ?? null, {
+        includeReadHash: readHashSupportedRef.current,
+      });
+      if (!wrote.readHashSupported) readHashSupportedRef.current = false;
     },
     [cloud, persistLocal, user?.id],
   );
@@ -116,10 +155,13 @@ export function DayNotesProvider({ children }: { children: ReactNode }) {
       store,
       cloud,
       noteOn: (date: string) => noteOn(store, date),
+      notesAffordance: (date: string) =>
+        notesButtonAffordance(noteOn(store, date), store[date]?.readHash),
+      markNotesRead,
       saveNote,
       refresh,
     }),
-    [store, cloud, saveNote, refresh],
+    [store, cloud, markNotesRead, saveNote, refresh],
   );
 
   return (

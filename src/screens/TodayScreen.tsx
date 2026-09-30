@@ -8,7 +8,12 @@ import {
   weekStartingSunday,
 } from "../lib/chicagoDate";
 import { sortLoadsNewestFirst } from "../lib/sortLoads";
+import {
+  notesButtonAriaLabel,
+  notesButtonClassName,
+} from "../lib/dayNotes";
 import { useDailyEod } from "../store/DailyEodContext";
+import { useDayNotes } from "../store/DayNotesContext";
 import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
 import { BrandMark } from "../components/BrandMark";
@@ -56,6 +61,8 @@ export function TodayScreen({
 }: TodayScreenProps) {
   const today = chicagoToday();
   const { loads, loadsOn } = useLoads();
+  const { notesAffordance } = useDayNotes();
+  const notesState = notesAffordance(date);
   const { totalsOn } = useDailyEod();
   const { availabilityOn } = useDrivers();
   const dayLoads = useMemo(() => sortLoadsNewestFirst(loadsOn(date)), [date, loadsOn]);
@@ -139,7 +146,13 @@ export function TodayScreen({
           <button type="button" className="log-load-top" onClick={() => onLog(date)}>
             + Log load
           </button>
-          <button type="button" className="log-load-top notes-top" onClick={() => onNotes(date)}>
+          <button
+            type="button"
+            className={notesButtonClassName(notesState)}
+            data-notes-state={notesState}
+            aria-label={notesButtonAriaLabel(notesState)}
+            onClick={() => onNotes(date)}
+          >
             Notes
           </button>
           <EodReportButton date={date} />
