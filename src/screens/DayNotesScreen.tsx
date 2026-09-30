@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { BrandMark } from "../components/BrandMark";
 import { chicagoToday, formatHeaderDate } from "../lib/chicagoDate";
@@ -10,7 +10,7 @@ type DayNotesScreenProps = {
 };
 
 export function DayNotesScreen({ date, onCancel }: DayNotesScreenProps) {
-  const { noteOn, saveNote, cloud } = useDayNotes();
+  const { noteOn, saveNote, markNotesRead, cloud } = useDayNotes();
   const [draft, setDraft] = useState(() => noteOn(date));
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -19,6 +19,12 @@ export function DayNotesScreen({ date, onCancel }: DayNotesScreenProps) {
   useEffect(() => {
     setDraft(noteOn(date));
   }, [date, noteOn]);
+
+  // Opening the popup acks the note text already saved for this day.
+  // A later save of different text clears that ack until the popup is opened again.
+  useLayoutEffect(() => {
+    markNotesRead(date);
+  }, [date, markNotesRead]);
 
   const onSave = async () => {
     setSaving(true);
