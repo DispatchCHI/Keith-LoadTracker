@@ -11,16 +11,17 @@
 :root {
   color-scheme: light;
   --bg: #ffffff;
-  --phone: #fafaf9;
-  --surface: #f5f3f0;
-  --surface-2: #ede9e4;
-  --line: #d4cfc8;
-  --text: #1a1a1a;
-  --muted: #6b6b6b;
+  --phone: #ffffff;
+  --surface: #f4f5f7;
+  --surface-2: #f4f5f7;
+  --pressed: #e4e6ea;
+  --line: #d0d3d9;
+  --text: #111111;
+  --muted: #4a4a4a;
   --brand: #d8282c;
   --brand-ink: #ffffff;
   --amber: #b8860b;
-  --amber-ink: var(--brand-ink);
+  --amber-ink: #111111;
   --danger: #e85d4c;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -77,7 +78,7 @@ button {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 28px rgba(17, 17, 17, 0.08);
   position: relative;
 }
 
@@ -119,21 +120,18 @@ button {
 
 /* Wrong-day guard: New Load turns red when target date ≠ Chicago today. */
 .overlay-screen.overlay-not-today {
-  background: #fee2e2;
+  background: #f6e7b8;
+  color: #111111;
 }
 .modal-card:has(.overlay-not-today) {
-  background: #fee2e2;
-  border-color: #f87171;
-  box-shadow: 0 8px 28px rgba(185, 28, 28, 0.22);
+  background: #f6e7b8;
+  border-color: var(--amber);
+  box-shadow: 0 8px 28px rgba(184, 134, 11, 0.18);
 }
-.overlay-not-today .eyebrow {
-  color: #991b1b;
-}
-.overlay-not-today .overlay-title {
-  color: #7f1d1d;
-}
+.overlay-not-today .eyebrow,
+.overlay-not-today .overlay-title,
 .overlay-not-today-banner {
-  color: #b91c1c !important;
+  color: #111111 !important;
   font-weight: 700;
 }
 
@@ -238,8 +236,8 @@ button {
 }
 
 .tally-loads {
-  border-color: #d4cfc8;
-  background: #1f1416;
+  border-color: var(--line);
+  background: var(--surface);
 }
 
 .tally-label {
@@ -383,7 +381,7 @@ button {
 .text-btn {
   background: none;
   border: 0;
-  color: var(--amber);
+  color: var(--brand);
   font-weight: 700;
   padding: 8px 4px;
   min-height: 44px;
@@ -395,7 +393,7 @@ button {
 }
 
 .text-btn.amber {
-  color: var(--amber);
+  color: var(--brand);
 }
 
 .editing-label {
@@ -406,18 +404,39 @@ button {
   text-transform: uppercase;
 }
 
+button.log-a-load {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-weight: 800;
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.log-a-load:hover,
+button.log-a-load:focus-visible {
+  background: #b51f23;
+}
+
 button.log-load-top {
   width: max-content;
   max-width: max-content;
   min-width: 0;
   flex: 0 0 auto;
   align-self: flex-start;
-  min-height: 36px;
-  padding: 6px 14px;
-  border: 0;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--amber);
-  color: var(--amber-ink);
+  background: var(--surface);
+  color: var(--text);
   font-weight: 800;
   font-size: 14px;
   display: inline-flex;
@@ -445,6 +464,7 @@ button.log-load-top {
 button.notes-top {
   background: #2563eb;
   color: #ffffff;
+  border-color: transparent;
 }
 
 button.notes-top:hover,
@@ -568,8 +588,8 @@ button.day-notes-btn.day-notes-read:focus-visible {
 
 .tally-step:hover,
 .tally-step:focus-visible {
-  border-color: var(--amber);
-  color: var(--amber);
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
 .tally-chip-value {
@@ -587,7 +607,7 @@ button.day-notes-btn.day-notes-read:focus-visible {
 
 .tally-chip-value:hover,
 .tally-chip-value:focus-visible {
-  color: var(--amber);
+  color: var(--brand);
 }
 
 .tally-chip-input {
@@ -634,8 +654,82 @@ button.day-notes-btn.day-notes-read:focus-visible {
 
 .tab-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 4px;
+}
+
+.more-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.more-item {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 15px;
+  text-align: left;
+  padding: 0 12px;
+}
+
+.more-item-active {
+  background: var(--pressed);
+}
+
+.today-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lane-answer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 10px 12px 10px 14px;
+}
+
+.lane-answer-value {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.lane-answer .field-label {
+  margin-bottom: 2px;
+}
+
+.text-link {
+  align-self: center;
+  background: none;
+  border: 0;
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  padding: 8px 4px;
+}
+
+button.sheet-share-btn {
+  width: max-content;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 14px;
 }
 
 .tab {
@@ -652,8 +746,8 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .tab-active {
-  background: var(--surface-2);
-  color: var(--amber);
+  background: var(--brand);
+  color: var(--brand-ink);
 }
 
 .truck-display {
@@ -727,9 +821,9 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .numpad-go {
-  background: var(--amber);
-  color: var(--amber-ink);
-  border-color: #a51f26;
+  background: var(--brand);
+  color: var(--brand-ink);
+  border-color: var(--brand);
   font-size: 16px;
   font-weight: 800;
 }
@@ -750,8 +844,8 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .truck-summary-badge {
-  background: var(--amber);
-  color: var(--amber-ink);
+  background: var(--pressed);
+  color: var(--text);
   font-weight: 800;
   letter-spacing: 0.04em;
   padding: 8px 12px;
@@ -828,6 +922,12 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .day-chip-active {
+  background: var(--brand);
+  color: var(--brand-ink);
+  border-color: var(--brand);
+}
+
+.day-chip-not-today {
   background: var(--amber);
   color: var(--amber-ink);
   border-color: var(--amber);
@@ -853,8 +953,10 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .day-chip-active .day-loads,
-.day-chip-active .day-drivers {
-  color: var(--amber-ink);
+.day-chip-active .day-drivers,
+.day-chip-not-today .day-loads,
+.day-chip-not-today .day-drivers {
+  color: inherit;
   opacity: 0.9;
 }
 
@@ -884,7 +986,7 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .empty h2 {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 20px;
 }
 
@@ -911,10 +1013,11 @@ button.day-notes-btn.day-notes-read:focus-visible {
   font-weight: 650;
 }
 
-.chip-selected {
-  background: var(--amber);
-  color: var(--amber-ink);
-  border-color: var(--amber);
+.chip-selected,
+.chip:active {
+  background: var(--pressed);
+  color: var(--text);
+  border-color: var(--line);
 }
 
 .chip-invalid {
@@ -953,7 +1056,7 @@ button.day-notes-btn.day-notes-read:focus-visible {
   align-items: center;
   justify-content: space-between;
   background: var(--surface);
-  border: 1px solid var(--amber);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 4px 10px 4px 16px;
 }
@@ -974,8 +1077,8 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .text-input:focus {
-  outline: 2px solid var(--amber);
-  border-color: var(--amber);
+  outline: 2px solid var(--brand);
+  border-color: var(--brand);
 }
 
 .choice-chip,
@@ -1001,9 +1104,9 @@ button.day-notes-btn.day-notes-read:focus-visible {
 .choice-chip-active,
 .vac-year-row .day-chip-active,
 .calloffs-reason-row .day-chip-active {
-  background: var(--brand, #d8282c);
-  color: #ffffff;
-  border-color: var(--brand, #d8282c);
+  background: var(--pressed);
+  color: var(--text);
+  border-color: var(--line);
 }
 
 .overlay-footer {
@@ -1099,8 +1202,13 @@ button.day-notes-btn.day-notes-read:focus-visible {
 
 .btn-primary {
   border: 0;
-  background: var(--amber);
-  color: var(--amber-ink);
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  background: #b51f23;
 }
 
 .btn-primary:disabled {
@@ -1115,8 +1223,8 @@ button.day-notes-btn.day-notes-read:focus-visible {
 
 .btn-danger {
   border: 0;
-  background: #5a221c;
-  color: #ffc4bc;
+  background: var(--danger);
+  color: #ffffff;
 }
 
 .change-card {
@@ -1256,8 +1364,8 @@ button.day-notes-btn.day-notes-read:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #1f1416;
-  border: 1px solid #d4cfc8;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 18px;
   padding: 16px 18px;
 }
@@ -1469,8 +1577,8 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .eod-stat-loads {
-  border-color: #d4cfc8;
-  background: #1f1416;
+  border-color: var(--line);
+  background: var(--surface);
 }
 
 .eod-stat-label {
@@ -1581,9 +1689,9 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .rank-row-active {
-  border-color: var(--amber);
-  box-shadow: inset 0 0 0 1px var(--amber);
-  background: #fae6e7;
+  border-color: var(--line);
+  box-shadow: inset 0 0 0 1px var(--line);
+  background: var(--pressed);
 }
 
 .rank-item {
@@ -1799,8 +1907,8 @@ button.day-notes-btn.day-notes-read:focus-visible {
   text-align: right;
   font-size: 13px;
 }.drivers-card {
-  background: #1f1416;
-  border: 1px solid #d4cfc8;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 18px;
   padding: 16px 18px;
   display: flex;
@@ -2481,7 +2589,7 @@ body.app-ready .splash {
   width: 100%;
   min-height: 56px;
   border-radius: 16px;
-  border: 1px solid var(--amber);
+  border: 1px solid var(--line);
   background: var(--surface);
   padding: 8px 16px;
   font-family: "Barlow Condensed", "IBM Plex Sans", sans-serif;
@@ -2491,7 +2599,8 @@ body.app-ready .splash {
 }
 
 .truck-kb-input:focus {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--brand);
+  border-color: var(--brand);
 }
 
 .app-shell.is-desktop {
@@ -3161,9 +3270,9 @@ body.app-ready .splash {
   cursor: pointer;
 }
 .specialty-type-chip.is-selected {
-  background: var(--amber);
-  color: var(--amber-ink);
-  border-color: var(--amber);
+  background: var(--pressed);
+  color: var(--text);
+  border-color: var(--line);
 }
 .specialty-extra-list .text-input.specialty-dest-input {
   margin-top: 6px;
@@ -4520,14 +4629,13 @@ body.app-ready .splash {
 .station-calls-add-btn {
   margin-top: 8px;
   padding: 8px 12px;
-  background: #007bff;
-  color: white;
-  border: 0;
-  border-radius: 6px;
-  font-weight: 600;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-weight: 700;
   font-size: 14px;
   cursor: pointer;
-  transition: opacity 0.2s;
 }
 .station-calls-add-btn:hover {
   opacity: 0.9;

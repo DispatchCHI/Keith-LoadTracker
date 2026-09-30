@@ -24,6 +24,38 @@ import { useDriverRoster } from "../store/DriverRosterContext";
 import { useLoads } from "../store/LoadsContext";
 import type { Load } from "../types";
 
+type LogStep = "truck" | "pickup" | "commodity" | "destination" | "save";
+
+function answersReady(value: FormState): boolean {
+  return Boolean(
+    value.commodity.trim() &&
+      value.destination.trim() &&
+      value.destination !== "Other...",
+  );
+}
+
+function AnswerRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: () => void;
+}) {
+  return (
+    <div className="lane-answer">
+      <div>
+        <div className="field-label">{label}</div>
+        <p className="lane-answer-value">{value}</p>
+      </div>
+      <button type="button" className="text-btn" onClick={onChange}>
+        Change
+      </button>
+    </div>
+  );
+}
+
 type LogLoadScreenProps = {
   initialTruck?: string;
   date?: string;
@@ -54,9 +86,15 @@ export function LogLoadScreen({
   } | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [truck, setTruck] = useState(initialTruck);
-  const [step, setStep] = useState<"truck" | "form">(
-    initialTruck ? "form" : "truck",
+  const [stack, setStack] = useState<LogStep[]>(() =>
+    initialTruck ? ["pickup"] : ["truck"],
   );
+  const step = stack[stack.length - 1] ?? "truck";
+  const push = (next: LogStep) => setStack((prev) => [...prev, next]);
+  const back = () => {
+    if (stack.length <= 1) onCancel();
+    else setStack((prev) => prev.slice(0, -1));
+  };
   const [form, setForm] = useState<FormState>({
     truck: initialTruck,
     stationId: "",
@@ -75,7 +113,32 @@ export function LogLoadScreen({
   const commitTruck = (nextTruck: string) => {
     setTruck(nextTruck);
     setForm((prev) => ({ ...prev, truck: nextTruck }));
-    setStep("form");
+    push("pickup");
+  };
+
+  const onPicked = (next: FormState) => {
+    if (step === "pickup" || step === "commodity") {
+      push(answersReady(next) ? "save" : step === "pickup" ? "commodity" : "destination");
+      return;
+    }
+    if (step === "destination" && next.destination.trim() && next.destination !== "Other...") {
+      push("save");
+    }
+  };
+
+  const continueTyped = () => {
+    if (step === "pickup") {
+      if (!pickupLabel(form.stationId, form.pickup)) return;
+      push(answersReady(form) ? "save" : "commodity");
+      return;
+    }
+    if (step === "commodity") {
+      if (!form.commodity.trim()) return;
+      push(answersReady(form) ? "save" : "destination");
+      return;
+    }
+    if (!form.destination.trim() || form.destination === "Other...") return;
+    push("save");
   };
 
   const finishSave = () => {
@@ -173,11 +236,20 @@ export function LogLoadScreen({
     void finishSave();
   };
 
+  const stepTitle =
+    step === "pickup"
+      ? "Pickup"
+      : step === "commodity"
+        ? "Commodity"
+        : step === "destination"
+          ? "Destination"
+          : "Save";
+
   if (step === "truck") {
     return (
       <div className={screenClass}>
         <header className="overlay-header">
-          <button type="button" className="icon-btn" onClick={onCancel} aria-label="Back">
+          <button type="button" className="icon-btn" onClick={back} aria-label="Back">
             <ArrowLeft size={22} />
           </button>
           <BrandMark size="sm" />
@@ -207,7 +279,7 @@ export function LogLoadScreen({
   return (
     <div className={screenClass}>
       <header className="overlay-header">
-        <button type="button" className="icon-btn" onClick={onCancel} aria-label="Back">
+        <button type="button" className="icon-btn" onClick={back} aria-label="Back">
           <ArrowLeft size={22} />
         </button>
         <BrandMark size="sm" />
@@ -216,21 +288,64 @@ export function LogLoadScreen({
             Truck {form.truck}
             {loggingDriverName ? ` · ${loggingDriverName}` : ""}
           </p>
-          <h1 className="overlay-title">Log load</h1>
+          <h1 className="overlay-title">{stepTitle}</h1>
           <p className={notToday ? "overlay-sub overlay-not-today-banner" : "overlay-sub"}>
             {notToday ? `Not today — ${formatHeaderDate(targetDate)}` : "Today"}
           </p>
         </div>
       </header>
 
-      <LoadForm
-        value={form}
-        onChange={setForm}
-        onChangeTruck={() => setStep("truck")}
-        driverName={loggingDriverName}
-      />
+      <AnswerRow label="Truck" value={form.truck} onChange={() => push("truck")} />
+      {step === "commodity" || step === "destination" || step === "save" ? (
+        <AnswerRow
+          label="Pickup"
+          value={pickupLabel(form.stationId, form.pickup)}
+          onChange={() => push("pickup")}
+        />
+      ) : null}
+      {step === "destination" || (step === "save" && form.commodity.trim()) ? (
+        <AnswerRow
+          label="Commodity"
+          value={form.commodity}
+          onChange={() => push("commodity")}
+        />
+      ) : null}
+      {step === "save" && form.destination.trim() ? (
+        <AnswerRow
+          label="Destination"
+          value={form.destination}
+          onChange={() => push("destination")}
+        />
+      ) : null}
 
-      {duplicate ? (
+      {step === "pickup" || step === "commodity" || step === "destination" ? (
+        <>
+          <LoadForm
+            value={form}
+            onChange={setForm}
+            onChangeTruck={() => push("truck")}
+            driverName={loggingDriverName}
+            part={step}
+            onPicked={onPicked}
+          />
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={
+              step === "pickup"
+                ? !pickupLabel(form.stationId, form.pickup)
+                : step === "commodity"
+                  ? !form.commodity.trim()
+                  : !form.destination.trim() || form.destination === "Other..."
+            }
+            onClick={continueTyped}
+          >
+            Next
+          </button>
+        </>
+      ) : null}
+
+      {step === "save" && duplicate ? (
         <div className="delete-confirm warn-confirm">
           <p>
             Truck {duplicate.truck} already has this same pickup, commodity, and
@@ -254,7 +369,7 @@ export function LogLoadScreen({
         </div>
       ) : null}
 
-      {specialtyWarn ? (
+      {step === "save" && specialtyWarn ? (
         <div className="delete-confirm warn-confirm">
           <p className="specialty-warn-title">No Available Loads</p>
           <p>
@@ -285,27 +400,29 @@ export function LogLoadScreen({
         </div>
       ) : null}
 
-      <div className="overlay-footer overlay-footer-stack">
-        <QuantityStepper value={qty} onChange={setQuantity} />
-        <div className="overlay-footer-actions">
-          <button type="button" className="btn-ghost" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn-primary grow"
-            disabled={!formComplete(form)}
-            onClick={() =>
-              commit({
-                forceDuplicate: Boolean(duplicate),
-                forceSpecialty: Boolean(specialtyWarn),
-              })
-            }
-          >
-            {qty === 1 ? "Save" : `Save ${qty} loads`}
-          </button>
+      {step === "save" ? (
+        <div className="overlay-footer overlay-footer-stack">
+          <QuantityStepper value={qty} onChange={setQuantity} />
+          <div className="overlay-footer-actions">
+            <button type="button" className="btn-ghost" onClick={onCancel}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary grow"
+              disabled={!formComplete(form)}
+              onClick={() =>
+                commit({
+                  forceDuplicate: Boolean(duplicate),
+                  forceSpecialty: Boolean(specialtyWarn),
+                })
+              }
+            >
+              {qty === 1 ? "Save" : `Save ${qty} loads`}
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

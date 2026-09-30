@@ -76,13 +76,16 @@ describe("tabFromLocation", () => {
 });
 
 describe("sidebar labels and order", () => {
-  it("lists Today, Drivers, Vacation, Trucks, Customers, Analytics", () => {
+  it("lists Today plus More, with the other sections under More", () => {
     const src = readFileSync(new URL("../components/TabBar.tsx", import.meta.url), "utf8");
+    expect(src).toMatch(/>\s*Today\s*</);
+    expect(src).toMatch(/>\s*More\s*</);
     expect(src).toMatch(
-      /id: "today".*label: "Today"[\s\S]*id: "driver".*label: "Drivers"[\s\S]*id: "vacation".*label: "Vacation"[\s\S]*id: "trucks".*label: "Search"[\s\S]*id: "customers".*label: "Customers"[\s\S]*id: "analytics".*label: "Analytics"/,
+      /id: "driver".*label: "Drivers"[\s\S]*id: "calloffs".*label: "Call offs"[\s\S]*id: "vacation".*label: "Vacation"[\s\S]*id: "trucks".*label: "Search"[\s\S]*id: "customers".*label: "Customers"[\s\S]*id: "analytics".*label: "Analytics"/,
     );
     expect(src).not.toContain("AnalyticsYTD");
     expect(src).not.toMatch(/label: "Driver"/);
+    expect(src).not.toContain("Call-Off's");
   });
 });
 

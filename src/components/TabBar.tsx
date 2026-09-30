@@ -1,10 +1,10 @@
+import { useState } from "react";
 import type { TabId } from "../types";
 import { BrandMark } from "./BrandMark";
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "today", label: "Today" },
+const MORE_TABS: { id: TabId; label: string }[] = [
   { id: "driver", label: "Drivers" },
-  { id: "calloffs", label: "Call-Off's" },
+  { id: "calloffs", label: "Call offs" },
   { id: "vacation", label: "Vacation" },
   { id: "trucks", label: "Search" },
   { id: "customers", label: "Customers" },
@@ -20,6 +20,9 @@ export function TabBar({
   onChange: (tab: TabId) => void;
   vertical?: boolean;
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreActive = MORE_TABS.some((item) => item.id === tab);
+
   return (
     <nav
       className={vertical ? "tab-bar tab-bar-side" : "tab-bar"}
@@ -31,17 +34,42 @@ export function TabBar({
         </div>
       ) : null}
       <div className="tab-row">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={tab === item.id ? "tab tab-active" : "tab"}
-            onClick={() => onChange(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
+        <button
+          type="button"
+          className={tab === "today" ? "tab tab-active" : "tab"}
+          onClick={() => {
+            setMoreOpen(false);
+            onChange("today");
+          }}
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          className={moreActive ? "tab tab-active" : "tab"}
+          aria-expanded={moreOpen}
+          onClick={() => setMoreOpen((open) => !open)}
+        >
+          More
+        </button>
       </div>
+      {moreOpen ? (
+        <div className="more-panel">
+          {MORE_TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={tab === item.id ? "more-item more-item-active" : "more-item"}
+              onClick={() => {
+                setMoreOpen(false);
+                onChange(item.id);
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </nav>
   );
 }

@@ -149,8 +149,8 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
         (/call_off_log/i.test(message) && /does not exist|could not find/i.test(message));
       setError(
         missing
-          ? "Call-Off's did not reach the cloud — run Load-Tracker-call-off-log.sql in Supabase once."
-          : `Call-Off's did not reach the cloud — ${message || "unknown error"}`,
+          ? "Call offs did not reach the cloud — run Load-Tracker-call-off-log.sql in Supabase once."
+          : `Call offs did not reach the cloud — ${message || "unknown error"}`,
       );
       return null;
     }
@@ -169,7 +169,7 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
         .from("call_off_log")
         .upsert(entries.map((row) => entryToRemote(row, user?.id ?? null)));
       if (writeError) {
-        setError(`Call-Off's did not reach the cloud — ${writeError.message}`);
+        setError(`Call offs did not reach the cloud — ${writeError.message}`);
       }
     },
     [session, user?.id],
@@ -181,7 +181,7 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
     if (!supabase) return;
     const { error: writeError } = await supabase.from("call_off_log").delete().in("id", ids);
     if (writeError) {
-      setError(`Call-Off's did not reach the cloud — ${writeError.message}`);
+      setError(`Call offs did not reach the cloud — ${writeError.message}`);
     }
   }, []);
 

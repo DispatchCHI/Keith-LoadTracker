@@ -8,14 +8,14 @@ const TONES: Record<string, TagTone> = {
   trash: { bg: "#bfdbfe", fg: "#1e3a8a", border: "#60a5fa" },
   recycle: { bg: "#bbf7d0", fg: "#14532d", border: "#4ade80" },
   yard: { bg: "#fef08a", fg: "#713f12", border: "#eab308" },
-  wood: { bg: "#3d2a14", fg: "#e0b07a", border: "#8a5a32" },
+  wood: { bg: "#f3e6d0", fg: "#3d2a14", border: "#d0d3d9" },
   cardboard: { bg: "#a16207", fg: "#fff7ed", border: "#78350f" },
   leachate: { bg: "#ddd6fe", fg: "#5b21b6", border: "#8b5cf6" },
   residual: { bg: "#fbcfe8", fg: "#831843", border: "#ec4899" },
   glass: { bg: "#e5e7eb", fg: "#374151", border: "#9ca3af" },
   cd: { bg: "#d6b48c", fg: "#4a2c16", border: "#a8794f" },
-  tires: { bg: "#2a2438", fg: "#c4b4e0", border: "#5a4e78" },
-  default: { bg: "#2a2e36", fg: "#d4d0c8", border: "#4a4e56" },
+  tires: { bg: "#ece7f6", fg: "#2a2438", border: "#d0d3d9" },
+  default: { bg: "#f4f5f7", fg: "#2a2e36", border: "#d0d3d9" },
 };
 
 function isCdCommodity(c: string): boolean {

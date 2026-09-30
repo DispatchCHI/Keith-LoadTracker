@@ -9,11 +9,12 @@ html[data-theme="halloween"] {
   --text: #f7ead6;
   --muted: #c4a07a;
   --panel: #1c1014;
-  --brand: #e85d04;
-  --brand-ink: #1a0c08;
-  --amber: #f4a261;
-  --amber-ink: #1a0c08;
-  --danger: #ef6b5b;
+  --pressed: #3a242c;
+  --brand: #d8282c;
+  --brand-ink: #ffffff;
+  --amber: #b8860b;
+  --amber-ink: #111111;
+  --danger: #e85d4c;
   --halloween-bg: url("/brand/halloween-bg.png");
 }
 
@@ -47,7 +48,7 @@ html[data-theme="halloween"] .overlay-screen {
 html[data-theme="halloween"] .phone {
   background: rgba(16, 8, 12, 0.82) !important;
   border-color: #6b3a22 !important;
-  box-shadow: 0 24px 80px rgba(80, 20, 8, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
 html[data-theme="halloween"] .session-bar {
@@ -67,8 +68,8 @@ html[data-theme="halloween"] .tab {
 }
 
 html[data-theme="halloween"] .tab-active {
-  background: #3a2018 !important;
-  color: #f4a261 !important;
+  background: #d8282c !important;
+  color: #ffffff !important;
 }
 
 html[data-theme="halloween"] .tally-card,
@@ -111,14 +112,27 @@ html[data-theme="halloween"] .calloff-add-btn {
 
 html[data-theme="halloween"] .chip.chip-selected,
 html[data-theme="halloween"] .chip[aria-pressed="true"],
-html[data-theme="halloween"] .day-chip-active,
 html[data-theme="halloween"] .choice-chip-active,
+html[data-theme="halloween"] .more-item-active {
+  background: #3a242c !important;
+  border-color: #6b3a22 !important;
+  color: #f7ead6 !important;
+}
+
+html[data-theme="halloween"] .day-chip-active,
 html[data-theme="halloween"] .btn-primary,
-html[data-theme="halloween"] button.log-load-top,
+html[data-theme="halloween"] button.log-a-load,
 html[data-theme="halloween"] .numpad-go {
-  background: #e85d04 !important;
-  border-color: #f4a261 !important;
-  color: #1a0c08 !important;
+  background: #d8282c !important;
+  border-color: #d8282c !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="halloween"] .day-chip-not-today,
+html[data-theme="halloween"] .updated-badge {
+  background: #b8860b !important;
+  border-color: #b8860b !important;
+  color: #111111 !important;
 }
 
 html[data-theme="halloween"] button.day-notes-btn {
@@ -149,9 +163,18 @@ html[data-theme="halloween"] button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 html[data-theme="halloween"] .text-btn,
-html[data-theme="halloween"] .edit-link,
-html[data-theme="halloween"] .text-btn.amber {
-  color: #f4a261 !important;
+html[data-theme="halloween"] .edit-link {
+  color: #f7ead6 !important;
+}
+
+html[data-theme="halloween"] .text-btn.danger,
+html[data-theme="halloween"] .edit-link.danger {
+  color: #ffffff !important;
+}
+
+html[data-theme="halloween"] .btn-danger {
+  background: #e85d4c !important;
+  color: #ffffff !important;
 }
 
 html[data-theme="halloween"] .text-input,
@@ -212,80 +235,78 @@ html[data-theme="halloween"] .theme-toggle {
 }
 
 html[data-theme="halloween"] .theme-toggle.is-on {
-  background: #e85d04;
-  color: #1a0c08;
-  border-color: #f4a261;
+  background: #d8282c;
+  color: #ffffff;
+  border-color: #d8282c;
 }
 
 html[data-theme="halloween"] .calloff-kind-btn {
   font-weight: 800;
-  background: #3a2018 !important;
 }
 
-html[data-theme="halloween"] .calloff-kind-call-off {
-  background: #1e3a5f !important;
-  border: 1px solid #7eb6ff !important;
-  color: #d6e8fb !important;
-}
-
+html[data-theme="halloween"] .oot-chip.calloff-chip-call-off,
+html[data-theme="halloween"] .calloff-chip-call-off,
+html[data-theme="halloween"] .calloff-kind-call-off,
 html[data-theme="halloween"] .calloff-kind-call-off.selected {
-  background: #2f6fb3 !important;
+  background: #f97316 !important;
+  border-color: #ea580c !important;
   color: #ffffff !important;
 }
 
-html[data-theme="halloween"] .calloff-kind-p-day {
-  background: #14532d !important;
-  border: 1px solid #6ee7a0 !important;
-  color: #dcfce7 !important;
-}
-
+html[data-theme="halloween"] .oot-chip.calloff-chip-p-day,
+html[data-theme="halloween"] .calloff-chip-p-day,
+html[data-theme="halloween"] .calloff-kind-p-day,
 html[data-theme="halloween"] .calloff-kind-p-day.selected {
   background: #166534 !important;
+  border-color: #14532d !important;
   color: #ffffff !important;
 }
 
-html[data-theme="halloween"] .calloff-kind-okd-off {
-  background: #854d0e !important;
-  border: 1px solid #facc15 !important;
-  color: #fef08a !important;
+html[data-theme="halloween"] .oot-chip.calloff-chip-okd-off,
+html[data-theme="halloween"] .calloff-chip-okd-off,
+html[data-theme="halloween"] .calloff-kind-okd-off,
+html[data-theme="halloween"] .calloff-kind-okd-off.selected {
+  background: #6b7280 !important;
+  border-color: #4b5563 !important;
+  color: #ffffff !important;
 }
 
-html[data-theme="halloween"] .calloff-kind-okd-off.selected {
+html[data-theme="halloween"] .oot-chip.calloff-chip-ncns,
+html[data-theme="halloween"] .calloff-chip-ncns,
+html[data-theme="halloween"] .calloff-kind-ncns,
+html[data-theme="halloween"] .calloff-kind-ncns.selected {
+  background: #b91c1c !important;
+  border-color: #7f1d1d !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="halloween"] .oot-chip.calloff-chip-late-early,
+html[data-theme="halloween"] .calloff-chip-late-early,
+html[data-theme="halloween"] .calloff-kind-late-early,
+html[data-theme="halloween"] .calloff-kind-late-early.selected {
   background: #facc15 !important;
+  border-color: #eab308 !important;
   color: #422006 !important;
 }
 
-html[data-theme="halloween"] .calloff-kind-ncns {
-  background: #7f1d1d !important;
-  border: 1px solid #ff8a8a !important;
-  color: #fee2e2 !important;
-}
-
-html[data-theme="halloween"] .calloff-kind-ncns.selected {
-  background: #b91c1c !important;
-  color: #ffffff !important;
-}
-
-html[data-theme="halloween"] .calloff-kind-late-early {
-  background: #9a3412 !important;
-  border: 1px solid #fb923c !important;
-  color: #ffedd5 !important;
-}
-
-html[data-theme="halloween"] .calloff-kind-late-early.selected {
-  background: #f97316 !important;
-  color: #ffffff !important;
-}
-
-html[data-theme="halloween"] .calloff-kind-fmla {
-  background: #4c1d95 !important;
-  border: 1px solid #a78bfa !important;
-  color: #ede9fe !important;
-}
-
+html[data-theme="halloween"] .oot-chip.calloff-chip-fmla,
+html[data-theme="halloween"] .calloff-chip-fmla,
+html[data-theme="halloween"] .calloff-kind-fmla,
 html[data-theme="halloween"] .calloff-kind-fmla.selected {
-  background: #7c3aed !important;
+  background: #db2777 !important;
+  border-color: #be185d !important;
   color: #ffffff !important;
+}
+
+html[data-theme="halloween"] .oot-chip.vacation-chip,
+html[data-theme="halloween"] .vacation-chip,
+html[data-theme="halloween"] .oot-chip.calloff-chip-vacation,
+html[data-theme="halloween"] .calloff-chip-vacation,
+html[data-theme="halloween"] .calloff-kind-vacation,
+html[data-theme="halloween"] .calloff-kind-vacation.selected {
+  background: #d6e8fb !important;
+  border-color: #7eb6ff !important;
+  color: #123152 !important;
 }
 
 html[data-theme="halloween"] .rank-row-active {

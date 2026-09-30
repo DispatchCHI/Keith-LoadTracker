@@ -1,5 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useMemo } from "react";
 import { dailyCounts } from "../lib/analytics";
 import { displayLoadCount } from "../lib/dailyEod";
 import {
@@ -24,21 +23,6 @@ import { SpecialtyBoardCard } from "../components/SpecialtyBoardCard";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
 import { EodReportButton } from "../components/EodReportButton";
 import { LoadRow } from "../components/LoadRow";
-
-function scrollParentFor(el: HTMLElement | null): HTMLElement | null {
-  let node: HTMLElement | null = el?.parentElement ?? null;
-  while (node) {
-    const { overflowY } = getComputedStyle(node);
-    if (
-      (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
-      node.scrollHeight > node.clientHeight + 1
-    ) {
-      return node;
-    }
-    node = node.parentElement;
-  }
-  return null;
-}
 
 type TodayScreenProps = {
   date: string;
@@ -68,29 +52,6 @@ export function TodayScreen({
   const dayLoads = useMemo(() => sortLoadsNewestFirst(loadsOn(date)), [date, loadsOn]);
   const snapshot = totalsOn(date);
   const viewingToday = date === today;
-  const [loadsOpen, setLoadsOpen] = useState(false);
-  const dayLoadsBlockRef = useRef<HTMLElement | null>(null);
-  const pinDayLoadsTopRef = useRef(false);
-
-  useEffect(() => {
-    setLoadsOpen(false);
-  }, [date]);
-
-  useLayoutEffect(() => {
-    if (!loadsOpen || !pinDayLoadsTopRef.current) return;
-    pinDayLoadsTopRef.current = false;
-    const el = dayLoadsBlockRef.current;
-    if (!el) return;
-    const pad = 8;
-    const scroller = scrollParentFor(el);
-    if (scroller) {
-      const delta =
-        el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - pad;
-      scroller.scrollTop += delta;
-    } else {
-      window.scrollBy(0, el.getBoundingClientRect().top - pad);
-    }
-  }, [loadsOpen]);
 
   const countByDate = useMemo(() => {
     const map = new Map<string, number>();
@@ -100,7 +61,6 @@ export function TodayScreen({
     return map;
   }, [loads, date, totalsOn]);
 
-  const loadWord = dayLoads.length === 1 ? "load" : "loads";
   const msWDispatchedToday = useMemo(() => {
     const counts = { batavia: 0, evanston: 0, hooker: 0 };
     for (const load of dayLoads) {
@@ -134,40 +94,31 @@ export function TodayScreen({
           driverCountFor={(iso) => availabilityOn(iso)?.available ?? null}
         />
       ) : !viewingToday ? (
-        <button type="button" className="text-btn amber" onClick={() => onDateChange(today)}>
+        <button type="button" className="text-btn" onClick={() => onDateChange(today)}>
           Jump to today
         </button>
       ) : null}
 
-      <DriversCard compact collapsible date={date} loadCount={displayLoadCount(dayLoads.length, snapshot)} />
+      <button type="button" className="log-a-load" onClick={() => onLog(date)}>
+        Log a load
+      </button>
 
-      <div className="log-load-row">
-        <div className="log-load-actions">
-          <button type="button" className="log-load-top" onClick={() => onLog(date)}>
-            + Log load
-          </button>
-          <button
-            type="button"
-            className={notesButtonClassName(notesState)}
-            data-notes-state={notesState}
-            aria-label={notesButtonAriaLabel(notesState)}
-            onClick={() => onNotes(date)}
-          >
-            Notes
-          </button>
-          <EodReportButton date={date} />
+      {dayLoads.length === 0 ? (
+        <div className="empty">
+          <h2>No loads yet</h2>
         </div>
-        <DispatchTalliesRow
-          date={date}
-          bataviaDispatchedToday={msWDispatchedToday.batavia}
-          evanstonDispatchedToday={msWDispatchedToday.evanston}
-          hookerDispatchedToday={msWDispatchedToday.hooker}
-        />
-      </div>
-
-      <StationCallsCard date={date} />
-
-      <SpecialtyBoardCard date={date} />
+      ) : (
+        <div className="feed">
+          {dayLoads.map((load) => (
+            <LoadRow
+              key={load.id}
+              load={load}
+              onEdit={() => onEdit(load.id)}
+              highlight={load.id === justEditedId ? "just-edited" : null}
+            />
+          ))}
+        </div>
+      )}
 
       {justEditedId ? (
         <p className="recalc-note">
@@ -175,63 +126,31 @@ export function TodayScreen({
         </p>
       ) : null}
 
-      {dayLoads.length === 0 ? (
-        <div className="empty">
-          <h2>No loads {viewingToday ? "yet today" : `on ${formatHeaderDate(date)}`}</h2>
-          <p>
-            Log the first haul for this Chicago calendar day with + Log load
-            above. You can keep adding more without losing this date. Use the
-            week list to change days.
-          </p>
-        </div>
-      ) : (
-        <section
-          ref={dayLoadsBlockRef}
-          className={
-            loadsOpen ? "totals-block day-loads-block" : "totals-block day-loads-block totals-block-collapsed"
-          }
+      <div className="today-tools">
+        <button
+          type="button"
+          className={notesButtonClassName(notesState)}
+          data-notes-state={notesState}
+          aria-label={notesButtonAriaLabel(notesState)}
+          onClick={() => onNotes(date)}
         >
-          <button
-            type="button"
-            className="totals-toggle"
-            aria-expanded={loadsOpen}
-            onMouseDown={(event) => {
-              event.preventDefault();
-            }}
-            onClick={() => {
-              setLoadsOpen((v) => {
-                if (!v) pinDayLoadsTopRef.current = true;
-                return !v;
-              });
-            }}
-          >
-            <span className="totals-toggle-copy">
-              <span className="totals-toggle-title">Day loads</span>
-              <span className="totals-toggle-count">
-                {dayLoads.length} {loadWord}
-                {loadsOpen ? "" : " · tap to expand"}
-              </span>
-            </span>
-            <ChevronDown
-              size={18}
-              className={loadsOpen ? "totals-chevron open" : "totals-chevron"}
-              aria-hidden
-            />
-          </button>
-          {loadsOpen ? (
-            <div className="feed day-loads-feed">
-              {dayLoads.map((load) => (
-                <LoadRow
-                  key={load.id}
-                  load={load}
-                  onEdit={() => onEdit(load.id)}
-                  highlight={load.id === justEditedId ? "just-edited" : null}
-                />
-              ))}
-            </div>
-          ) : null}
-        </section>
-      )}
+          Notes
+        </button>
+        <EodReportButton date={date} />
+      </div>
+
+      <DriversCard compact collapsible date={date} loadCount={displayLoadCount(dayLoads.length, snapshot)} />
+
+      <DispatchTalliesRow
+        date={date}
+        bataviaDispatchedToday={msWDispatchedToday.batavia}
+        evanstonDispatchedToday={msWDispatchedToday.evanston}
+        hookerDispatchedToday={msWDispatchedToday.hooker}
+      />
+
+      <StationCallsCard date={date} />
+
+      <SpecialtyBoardCard date={date} />
     </div>
   );
 }

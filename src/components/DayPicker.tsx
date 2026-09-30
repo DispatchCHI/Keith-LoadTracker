@@ -59,7 +59,13 @@ export function DayPicker({
             <button
               key={iso}
               type="button"
-              className={iso === date ? "day-chip day-chip-active" : "day-chip"}
+              className={
+                iso === date && iso !== today
+                  ? "day-chip day-chip-not-today"
+                  : iso === date
+                    ? "day-chip day-chip-active"
+                    : "day-chip"
+              }
               onClick={() => onChange(iso)}
             >
               <span className="day-num">{dayNumber(iso)}</span>

@@ -30,11 +30,11 @@ export function EodReportButton({ date }: { date: string }) {
     <span className="eod-report-wrap">
       <button
         type="button"
-        className="log-load-top notes-top"
+        className="sheet-share-btn"
         onClick={() => void onClick()}
         disabled={busy}
       >
-        {busy ? "Building…" : "EOD image"}
+        {busy ? "Building…" : "Share today’s sheet"}
       </button>
       {error ? <span className="field-hint">{error}</span> : null}
     </span>

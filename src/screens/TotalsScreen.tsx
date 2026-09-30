@@ -183,7 +183,7 @@ export function TotalsScreen({
               : "Log a haul and these rankings fill in live."}
           </p>
           <button type="button" className="btn-primary" onClick={() => onLog(date)}>
-            + Log load
+            Log a load
           </button>
         </div>
       ) : (
@@ -245,7 +245,7 @@ export function TotalsScreen({
           ) : null}
 
           <button type="button" className="btn-primary" onClick={() => onLog(date)}>
-            + Log load
+            Log a load
           </button>
         </>
       )}

@@ -34,6 +34,9 @@ describe("commodityTone", () => {
     const tires = commodityTone("Tires");
     const trash = commodityTone("Trash (MSW)");
     expect(tires).not.toEqual(trash);
-    expect(tires.fg).toBe("#c4b4e0");
+    expect(tires.fg).toBe("#2a2438");
+    expect(tires.bg).toBe("#ece7f6");
+    expect(commodityTone("Wood").bg).toBe("#f3e6d0");
+    expect(commodityTone("Something else").bg).toBe("#f4f5f7");
   });
 });

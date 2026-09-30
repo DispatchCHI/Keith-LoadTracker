@@ -143,7 +143,7 @@ export function CallOffsScreen() {
           <BrandMark />
           <div>
             <p className="eyebrow">Dispatcher log</p>
-            <h1 className="page-title">Call-Off's</h1>
+            <h1 className="page-title">Call offs</h1>
           </div>
         </div>
         <p className="field-hint tight">

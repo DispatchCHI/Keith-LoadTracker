@@ -174,7 +174,7 @@ export function SearchScreen({
             className="btn-primary"
             onClick={() => onLogForTruck(truck, date)}
           >
-            + Log load for {truck}
+            Log a load for {truck}
           </button>
         </>
       ) : null}

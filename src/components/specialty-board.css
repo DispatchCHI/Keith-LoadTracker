@@ -99,9 +99,9 @@
 }
 
 .specialty-type-chip.is-selected {
-  background: var(--amber);
-  color: var(--amber-ink);
-  border-color: var(--amber);
+  background: var(--pressed, #e4e6ea);
+  color: var(--text);
+  border-color: var(--line);
 }
 
 .specialty-extra-list .text-input.specialty-dest-input {

@@ -81,12 +81,7 @@ export function LoginScreen() {
         <button type="submit" className="btn-primary" disabled={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
-        <button
-          type="button"
-          className="btn-ghost"
-          disabled={busy}
-          onClick={magic}
-        >
+        <button type="button" className="text-link" disabled={busy} onClick={magic}>
           Email me a magic link
         </button>
       </form>

@@ -90,12 +90,16 @@ export type FormState = {
   destination: string;
 };
 
+export type FormPart = "all" | "pickup" | "commodity" | "destination";
+
 type LoadFormProps = {
   value: FormState;
   onChange: (next: FormState) => void;
   original?: FormState;
   onChangeTruck: () => void;
   driverName?: string | null;
+  part?: FormPart;
+  onPicked?: (next: FormState) => void;
 };
 
 export function LoadForm({
@@ -104,6 +108,8 @@ export function LoadForm({
   original,
   onChangeTruck,
   driverName,
+  part = "all",
+  onPicked,
 }: LoadFormProps) {
   const { loads } = useLoads();
   const { store: customerLanes } = useCustomerLanes();
@@ -147,6 +153,14 @@ export function LoadForm({
   const visiblePickups = showAllStations
     ? rankedPickups
     : rankedPickups.slice(0, visibleCount);
+  const picked = (next: FormState) => {
+    onChange(next);
+    onPicked?.(next);
+  };
+  const showTruck = part === "all";
+  const showPickup = part === "all" || part === "pickup";
+  const showCommodity = part === "all" || part === "commodity";
+  const showDestination = part === "all" || part === "destination";
   const customNames = readCustomSpecialtyNames();
   const namedOddballs = CUSTOM_SPECIALTY_IDS.filter((id) =>
     isCustomSpecialtyRenamed(id, customNames[id]),
@@ -229,7 +243,7 @@ export function LoadForm({
       asOf: today,
       loads,
     });
-    onChange({
+    picked({
       ...value,
       stationId,
       pickup: name || pickup,
@@ -246,7 +260,7 @@ export function LoadForm({
       asOf: today,
       loads,
     });
-    onChange({
+    picked({
       ...value,
       stationId,
       pickup: name,
@@ -269,6 +283,7 @@ export function LoadForm({
     );
   return (
     <div className="form-stack">
+      {showTruck ? (
       <section className="field">
         <div className="field-label">Truck #</div>
         <div className="truck-field">
@@ -278,11 +293,13 @@ export function LoadForm({
               <span className="truck-driver-inline"> · {driverName}</span>
             ) : null}
           </div>
-          <button type="button" className="text-btn amber" onClick={onChangeTruck}>
-            Change...
+          <button type="button" className="text-btn" onClick={onChangeTruck}>
+            Change
           </button>
         </div>
       </section>
+      ) : null}
+      {showPickup ? (
       <section className="field">
         <div className="field-label">Pickup</div>
         <div className="chip-row">
@@ -314,7 +331,7 @@ export function LoadForm({
             />
           ) : null}
           <Chip
-            label="Custom..."
+            label="Other pickup"
             selected={
               isCustom &&
               !customPickupId &&
@@ -335,7 +352,7 @@ export function LoadForm({
               label={customNames[id]}
               selected={isCustom && customPickupId === id}
               onClick={() =>
-                onChange({
+                picked({
                   ...value,
                   stationId: CUSTOM_ID,
                   pickup: customNames[id],
@@ -347,7 +364,7 @@ export function LoadForm({
         {isCustom ? (
           <input
             className="text-input"
-            placeholder="Odd-ball pickup name (matches a specialty bubble)"
+            placeholder="Other pickup name"
             value={value.pickup}
             onChange={(e) => onChange({ ...value, pickup: e.target.value })}
             autoComplete="off"
@@ -355,11 +372,11 @@ export function LoadForm({
         ) : cascadeNote ? (
           <p className="field-hint">{cascadeNote}</p>
         ) : (
-          <p className="field-hint">
-            Pick a Customers-board pickup (or Custom for odd-balls).
-          </p>
+          <p className="field-hint">Pick a pickup, or Other pickup.</p>
         )}
       </section>
+      ) : null}
+      {showCommodity ? (
       <section className="field">
         <div className="field-label">Commodity</div>
         {isCustom && !laneBookPickup ? (
@@ -374,7 +391,7 @@ export function LoadForm({
                   key={item}
                   label={item}
                   selected={value.commodity === item}
-                  onClick={() => onChange({ ...value, commodity: item })}
+                  onClick={() => picked({ ...value, commodity: item })}
                 />
               ))}
             </div>
@@ -408,7 +425,7 @@ export function LoadForm({
                     asOf: today,
                     laneBookPickup,
                   });
-                  onChange({
+                  picked({
                     ...value,
                     commodity: item,
                     destination,
@@ -424,6 +441,8 @@ export function LoadForm({
           </div>
         )}
       </section>
+      ) : null}
+      {showDestination ? (
       <section className="field">
         <div className="field-label">Destination</div>
         {isCustom && !laneBookPickup ? (
@@ -435,7 +454,7 @@ export function LoadForm({
                   label={item}
                   selected={value.destination === item}
                   onClick={() =>
-                    onChange({
+                    picked({
                       ...value,
                       destination: item === "Other..." ? "" : item,
                     })
@@ -467,7 +486,7 @@ export function LoadForm({
                 onClick={() =>
                   pickupName &&
                   value.commodity.trim() &&
-                  onChange({ ...value, destination: item })
+                  picked({ ...value, destination: item })
                 }
               />
             ))}
@@ -477,6 +496,7 @@ export function LoadForm({
           </div>
         )}
       </section>
+      ) : null}
     </div>
   );
 }

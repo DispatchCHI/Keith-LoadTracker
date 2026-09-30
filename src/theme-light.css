@@ -4,11 +4,13 @@
   --bg: #ffffff;
   --phone: #ffffff;
   --surface: #f4f5f7;
-  --surface-2: #eceef2;
+  --surface-2: #f4f5f7;
+  --pressed: #e4e6ea;
   --line: #d0d3d9;
   --text: #111111;
   --muted: #4a4a4a;
   --panel: #ffffff;
+  --amber-ink: #111111;
 }
 
 html,
@@ -61,14 +63,9 @@ select {
 
 .tally-loads,
 .eod-stat-loads,
-.grand-total {
-  background: #f3e8e9;
-  border-color: #e0b4b6;
-  color: #111111;
-}
-
+.grand-total,
 .drivers-card {
-  background: #eeeeee !important;
+  background: #f4f5f7 !important;
   border-color: #d0d3d9 !important;
   color: #111111 !important;
 }
