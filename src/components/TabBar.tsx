@@ -20,7 +20,7 @@ export function TabBar({
   onChange: (tab: TabId) => void;
   vertical?: boolean;
 }) {
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(vertical);
   const moreActive = MORE_TABS.some((item) => item.id === tab);
 
   return (
@@ -38,7 +38,7 @@ export function TabBar({
           type="button"
           className={tab === "today" ? "tab tab-active" : "tab"}
           onClick={() => {
-            setMoreOpen(false);
+            if (!vertical) setMoreOpen(false);
             onChange("today");
           }}
         >
@@ -61,7 +61,7 @@ export function TabBar({
               type="button"
               className={tab === item.id ? "more-item more-item-active" : "more-item"}
               onClick={() => {
-                setMoreOpen(false);
+                if (!vertical) setMoreOpen(false);
                 onChange(item.id);
               }}
             >

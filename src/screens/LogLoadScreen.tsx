@@ -295,6 +295,7 @@ export function LogLoadScreen({
         </div>
       </header>
 
+      <div className="log-answers">
       <AnswerRow label="Truck" value={form.truck} onChange={() => push("truck")} />
       {step === "commodity" || step === "destination" || step === "save" ? (
         <AnswerRow
@@ -317,6 +318,7 @@ export function LogLoadScreen({
           onChange={() => push("destination")}
         />
       ) : null}
+      </div>
 
       {step === "pickup" || step === "commodity" || step === "destination" ? (
         <>

@@ -6,6 +6,18 @@ export function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
+/** Keep `data-layout` on <html> even on screens that never mount the shell (sign-in). */
+export function bindAppLayout() {
+  if (typeof window === "undefined") return;
+  const mq = window.matchMedia(QUERY);
+  const apply = () => {
+    document.documentElement.dataset.layout = mq.matches ? "desktop" : "phone";
+    document.documentElement.dataset.shell = isTauriRuntime() ? "tauri" : "web";
+  };
+  apply();
+  mq.addEventListener("change", apply);
+}
+
 export function useDesktopLayout(): boolean {
   const [desktop, setDesktop] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia(QUERY).matches : false,

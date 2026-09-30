@@ -139,8 +139,8 @@ function Shell() {
         ) : null}
 
         <div className="phone-body">
-          {tab === "today" && desktop ? (
-            <div className="desktop-split">
+          {tab === "today" ? (
+            <div className="desk-today">
               <TodayScreen
                 date={feedDate}
                 onDateChange={setFeedDate}
@@ -148,28 +148,18 @@ function Shell() {
                 onLog={(date) => setOverlay({ kind: "log", date })}
                 onNotes={(date) => setOverlay({ kind: "day-notes", date })}
                 onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
-                showDayPicker={false}
+                showDayPicker
               />
-              <TotalsScreen
-                embedded
-                date={feedDate}
-                onDateChange={setFeedDate}
-                onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
-                onLog={(date) => setOverlay({ kind: "log", date })}
-              />
+              {desktop ? (
+                <TotalsScreen
+                  embedded
+                  date={feedDate}
+                  onDateChange={setFeedDate}
+                  onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
+                  onLog={(date) => setOverlay({ kind: "log", date })}
+                />
+              ) : null}
             </div>
-          ) : null}
-
-          {tab === "today" && !desktop ? (
-            <TodayScreen
-              date={feedDate}
-              onDateChange={setFeedDate}
-              justEditedId={justEditedId}
-              onLog={(date) => setOverlay({ kind: "log", date })}
-              onNotes={(date) => setOverlay({ kind: "day-notes", date })}
-              onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
-              showDayPicker
-            />
           ) : null}
 
           {tab === "trucks" ? (

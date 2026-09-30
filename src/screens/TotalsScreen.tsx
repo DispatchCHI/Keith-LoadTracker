@@ -120,12 +120,14 @@ export function TotalsScreen({
         ) : null}
       </header>
 
-      <DayPicker
-        date={date}
-        onChange={changeDate}
-        loadCountFor={(iso) => countByDate.get(iso) ?? 0}
-        driverCountFor={(iso) => availabilityOn(iso)?.available ?? null}
-      />
+      {embedded ? null : (
+        <DayPicker
+          date={date}
+          onChange={changeDate}
+          loadCountFor={(iso) => countByDate.get(iso) ?? 0}
+          driverCountFor={(iso) => availabilityOn(iso)?.available ?? null}
+        />
+      )}
 
       <section className="eod-block">
         <div className="eod-head">
@@ -175,6 +177,7 @@ export function TotalsScreen({
       </section>
 
       {dayLoads.length === 0 ? (
+        embedded ? null : (
         <div className="empty compact">
           <h2>No loads {dayPhrase}</h2>
           <p>
@@ -186,6 +189,7 @@ export function TotalsScreen({
             Log a load
           </button>
         </div>
+        )
       ) : (
         <>
           <CollapsibleRank
@@ -244,9 +248,11 @@ export function TotalsScreen({
             <p className="field-hint">Tap a row to list those loads under it.</p>
           ) : null}
 
-          <button type="button" className="btn-primary" onClick={() => onLog(date)}>
-            Log a load
-          </button>
+          {embedded ? null : (
+            <button type="button" className="btn-primary" onClick={() => onLog(date)}>
+              Log a load
+            </button>
+          )}
         </>
       )}
 

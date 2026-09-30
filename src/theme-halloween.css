@@ -47,8 +47,9 @@ html[data-theme="halloween"] .overlay-screen {
 
 html[data-theme="halloween"] .phone {
   background: rgba(16, 8, 12, 0.82) !important;
-  border-color: #6b3a22 !important;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 html[data-theme="halloween"] .session-bar {

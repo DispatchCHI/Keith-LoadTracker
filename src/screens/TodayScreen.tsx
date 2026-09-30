@@ -74,7 +74,7 @@ export function TodayScreen({
   }, [dayLoads]);
 
   return (
-    <div className="screen">
+    <div className="screen today-screen">
       <header className="page-header">
         <div className="page-header-brand">
           <BrandMark />
@@ -99,54 +99,60 @@ export function TodayScreen({
         </button>
       ) : null}
 
-      <button type="button" className="log-a-load" onClick={() => onLog(date)}>
-        Log a load
-      </button>
+      <div className="today-workspace">
+        <div className="today-main">
+          <button type="button" className="log-a-load" onClick={() => onLog(date)}>
+            Log a load
+          </button>
 
-      {dayLoads.length === 0 ? (
-        <div className="empty">
-          <h2>No loads yet</h2>
+          {dayLoads.length === 0 ? (
+            <div className="empty">
+              <h2>No loads yet</h2>
+            </div>
+          ) : (
+            <div className="feed">
+              {dayLoads.map((load) => (
+                <LoadRow
+                  key={load.id}
+                  load={load}
+                  onEdit={() => onEdit(load.id)}
+                  highlight={load.id === justEditedId ? "just-edited" : null}
+                />
+              ))}
+            </div>
+          )}
+
+          {justEditedId ? (
+            <p className="recalc-note">
+              Totals recalculate after every edit. Same load, new facts.
+            </p>
+          ) : null}
         </div>
-      ) : (
-        <div className="feed">
-          {dayLoads.map((load) => (
-            <LoadRow
-              key={load.id}
-              load={load}
-              onEdit={() => onEdit(load.id)}
-              highlight={load.id === justEditedId ? "just-edited" : null}
-            />
-          ))}
-        </div>
-      )}
 
-      {justEditedId ? (
-        <p className="recalc-note">
-          Totals recalculate after every edit. Same load, new facts.
-        </p>
-      ) : null}
+        <aside className="today-rail">
+          <div className="today-tools">
+            <button
+              type="button"
+              className={notesButtonClassName(notesState)}
+              data-notes-state={notesState}
+              aria-label={notesButtonAriaLabel(notesState)}
+              onClick={() => onNotes(date)}
+            >
+              Notes
+            </button>
+            <EodReportButton date={date} />
+          </div>
 
-      <div className="today-tools">
-        <button
-          type="button"
-          className={notesButtonClassName(notesState)}
-          data-notes-state={notesState}
-          aria-label={notesButtonAriaLabel(notesState)}
-          onClick={() => onNotes(date)}
-        >
-          Notes
-        </button>
-        <EodReportButton date={date} />
+          <DriversCard compact collapsible date={date} loadCount={displayLoadCount(dayLoads.length, snapshot)} />
+
+          <DispatchTalliesRow
+            date={date}
+            bataviaDispatchedToday={msWDispatchedToday.batavia}
+            evanstonDispatchedToday={msWDispatchedToday.evanston}
+            hookerDispatchedToday={msWDispatchedToday.hooker}
+          />
+        </aside>
       </div>
-
-      <DriversCard compact collapsible date={date} loadCount={displayLoadCount(dayLoads.length, snapshot)} />
-
-      <DispatchTalliesRow
-        date={date}
-        bataviaDispatchedToday={msWDispatchedToday.batavia}
-        evanstonDispatchedToday={msWDispatchedToday.evanston}
-        hookerDispatchedToday={msWDispatchedToday.hooker}
-      />
 
       <StationCallsCard date={date} />
 
