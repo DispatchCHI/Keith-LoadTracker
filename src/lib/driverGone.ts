@@ -10,7 +10,7 @@
  */
 
 import { isValidISODate, yearOfISO } from "./chicagoDate";
-import { isIsoAfter } from "./isoTime";
+import { isIsoAfter, pickNewerByUpdatedAt } from "./isoTime";
 import {
   cleanDriverName,
   cleanTruckNumber,
@@ -229,7 +229,10 @@ export function gonePersonKey(
 }
 
 function preferGoneEntry(a: DriverGoneEntry, b: DriverGoneEntry): DriverGoneEntry {
-  if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt ? a : b;
+  if (isIsoAfter(a.updatedAt, b.updatedAt)) return a;
+  if (isIsoAfter(b.updatedAt, a.updatedAt)) return b;
+  // Same instant: heal Z to +00:00 before other tie-breaks.
+  if (a.updatedAt !== b.updatedAt) return pickNewerByUpdatedAt(a, b);
   if (a.notes.length !== b.notes.length) return a.notes.length >= b.notes.length ? a : b;
   if (Boolean(a.hireDate) !== Boolean(b.hireDate)) return a.hireDate ? a : b;
   return a.id <= b.id ? a : b;

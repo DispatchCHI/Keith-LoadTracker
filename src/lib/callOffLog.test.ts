@@ -7,6 +7,7 @@ import {
   logEntriesToRows,
   logEntrySubtracts,
   mergeCallOffLog,
+  mergeCallOffLog,
   reconcileCallOffLogCloud,
   rowsFromSeedCsv,
   seedIdForRow,
@@ -120,6 +121,36 @@ describe("call-off cloud reconcile timestamps", () => {
       seenIds: [base.id],
     });
     expect(result.toUpload.map((row) => row.id)).toEqual([base.id]);
+  });
+});
+
+
+describe("call-off merge heals Z timestamps", () => {
+  it("keeps PostgREST +00:00 over local Z at the same instant", () => {
+    const local: CallOffLogEntry = {
+      id: "co-heal",
+      name: "Mike Smith",
+      start: "2026-09-30",
+      end: null,
+      reason: "P-Day",
+      createdAt: "2026-09-30T18:32:00.123Z",
+      updatedAt: "2026-09-30T18:32:00.123Z",
+    };
+    const remote: CallOffLogEntry = {
+      ...local,
+      createdAt: "2026-09-30T18:32:00.123000+00:00",
+      updatedAt: "2026-09-30T18:32:00.123000+00:00",
+    };
+    const merged = mergeCallOffLog([local], [remote], []);
+    expect(merged[0]?.updatedAt).toBe(remote.updatedAt);
+    const result = reconcileCallOffLogCloud({
+      local: [local],
+      remote: [remote],
+      deletedIds: [],
+      seenIds: [local.id],
+    });
+    expect(result.toUpload).toEqual([]);
+    expect(result.next[0]?.updatedAt).toBe(remote.updatedAt);
   });
 });
 

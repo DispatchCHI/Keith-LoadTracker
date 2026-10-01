@@ -6,7 +6,7 @@ import {
   type CallOffRow,
 } from "./driverAvailability";
 import { isValidISODate } from "./chicagoDate";
-import { isIsoAfter } from "./isoTime";
+import { isIsoAfter, pickNewerByUpdatedAt } from "./isoTime";
 
 export const CALL_OFF_LOG_KEY = "chitrader.load-tracker.call-off-log.v1";
 
@@ -265,7 +265,10 @@ export function mergeCallOffLog(
   for (const row of local) {
     if (deleted.has(row.id)) continue;
     const current = byId.get(row.id);
-    if (!current || row.updatedAt >= current.updatedAt) byId.set(row.id, row);
+    // Strictly later local edits win. Same instant keeps remote (+00:00) so
+    // localStorage heals and string >= cannot keep a forever-Z echo.
+    if (!current) byId.set(row.id, row);
+    else byId.set(row.id, pickNewerByUpdatedAt(row, current));
   }
   return sortCallOffLog([...byId.values()]);
 }
