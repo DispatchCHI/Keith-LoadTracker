@@ -2560,14 +2560,15 @@ body.app-ready .splash {
 .tab-bar-side {
   display: flex;
   flex-direction: column;
-  width: 148px;
+  width: 168px;
   flex-shrink: 0;
   align-self: stretch;
   padding: 16px 10px calc(16px + var(--safe-bottom));
   border-top: 0;
   border-bottom: 0;
-  border-right: 1px solid var(--line);
-  background: #fafaf9;
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
+  background: #1d4ed8;
+  color: #ffffff;
   gap: 6px;
   position: static;
 }
@@ -2581,11 +2582,40 @@ body.app-ready .splash {
 
 .tab-bar-side .tab {
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   text-align: left;
   padding: 0 12px;
   font-size: 14px;
+  color: rgba(255, 255, 255, 0.92);
+  background: transparent;
 }
 
+.tab-bar-side .tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.tab-bar-side .tab-icon {
+  flex-shrink: 0;
+  opacity: 0.95;
+}
+
+.tab-bar-side .tab-label {
+  min-width: 0;
+}
+
+/* Desktop rail active: solid gray (not amber / not light-theme wash). */
+.tab-bar-side .tab-active {
+  background: #9ca3af;
+  color: #111111;
+}
+
+.tab-bar-side .tab-active .tab-icon {
+  opacity: 1;
+  color: #111111;
+}
 .desktop-split {
   display: grid;
   grid-template-columns: minmax(340px, 1fr) minmax(340px, 1fr);

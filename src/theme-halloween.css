@@ -56,14 +56,25 @@ html[data-theme="halloween"] .session-bar {
   color: #c4a07a;
 }
 
-html[data-theme="halloween"] .tab-bar,
-html[data-theme="halloween"] .tab-bar-side {
+html[data-theme="halloween"] .tab-bar {
   background: rgba(28, 16, 20, 0.76) !important;
   border-color: #6b3a22 !important;
 }
 
+/* Desktop rail stays solid blue + gray active even in Halloween. */
+html[data-theme="halloween"] .tab-bar-side {
+  background: #1d4ed8 !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
 html[data-theme="halloween"] .tab {
   color: #c4a07a;
+}
+
+html[data-theme="halloween"] .tab-bar-side .tab {
+  color: rgba(255, 255, 255, 0.92) !important;
+  background: transparent !important;
 }
 
 html[data-theme="halloween"] .tab-active {
@@ -71,6 +82,10 @@ html[data-theme="halloween"] .tab-active {
   color: #f4a261 !important;
 }
 
+html[data-theme="halloween"] .tab-bar-side .tab-active {
+  background: #9ca3af !important;
+  color: #111111 !important;
+}
 html[data-theme="halloween"] .tally-card,
 html[data-theme="halloween"] .load-row,
 html[data-theme="halloween"] .empty,
