@@ -39,7 +39,7 @@ body {
 
 /* Desktop left rail stays solid blue; do not wash it white with the light theme. */
 .tab-bar-side {
-  background: #1d4ed8 !important;
+  background: #1e3a8a !important;
   color: #ffffff !important;
   border-right-color: rgba(255, 255, 255, 0.18) !important;
 }
