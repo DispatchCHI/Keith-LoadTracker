@@ -30,12 +30,37 @@ body {
 .desk-main,
 .desk-topbar,
 .tab-bar,
-.tab-bar-side,
 .session-bar,
 .screen,
 .splash {
   background: #ffffff !important;
   color: #111111;
+}
+
+/* Desktop left rail stays solid blue; do not wash it white with the light theme. */
+.tab-bar-side {
+  background: #1d4ed8 !important;
+  color: #ffffff !important;
+  border-right-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+.tab-bar-side .tab {
+  color: rgba(255, 255, 255, 0.92) !important;
+  background: transparent !important;
+}
+
+.tab-bar-side .tab:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+.tab-bar-side .tab-active {
+  background: #9ca3af !important;
+  color: #111111 !important;
+}
+
+.tab-bar-side .tab-active .tab-icon {
+  color: #111111 !important;
 }
 
 input,

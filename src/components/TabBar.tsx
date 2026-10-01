@@ -1,14 +1,24 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  Briefcase,
+  Building2,
+  CalendarDays,
+  PhoneOff,
+  PieChart,
+  Search,
+  Users,
+} from "lucide-react";
 import type { TabId } from "../types";
 import { BrandMark } from "./BrandMark";
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "today", label: "Today" },
-  { id: "driver", label: "Drivers" },
-  { id: "calloffs", label: "Call-Off's" },
-  { id: "vacation", label: "Vacation" },
-  { id: "trucks", label: "Search" },
-  { id: "customers", label: "Customers" },
-  { id: "analytics", label: "Analytics" },
+const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
+  { id: "today", label: "Today", Icon: CalendarDays },
+  { id: "driver", label: "Drivers", Icon: Users },
+  { id: "calloffs", label: "Call-Off's", Icon: PhoneOff },
+  { id: "vacation", label: "Vacation", Icon: Briefcase },
+  { id: "trucks", label: "Search", Icon: Search },
+  { id: "customers", label: "Customers", Icon: Building2 },
+  { id: "analytics", label: "Analytics", Icon: PieChart },
 ];
 
 export function TabBar({
@@ -31,16 +41,22 @@ export function TabBar({
         </div>
       ) : null}
       <div className="tab-row">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={tab === item.id ? "tab tab-active" : "tab"}
-            onClick={() => onChange(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
+        {TABS.map((item) => {
+          const { Icon } = item;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={tab === item.id ? "tab tab-active" : "tab"}
+              onClick={() => onChange(item.id)}
+            >
+              {vertical ? (
+                <Icon className="tab-icon" aria-hidden size={18} strokeWidth={2} />
+              ) : null}
+              <span className="tab-label">{item.label}</span>
+            </button>
+          );
+        })}
       </div>
     </nav>
   );
