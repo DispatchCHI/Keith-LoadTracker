@@ -83,6 +83,7 @@ import {
   writeStore,
   type Persisted,
 } from "../lib/storage";
+import { safeSetItem } from "../lib/localStorageSafe";
 import { useAuth } from "./AuthContext";
 
 export type SyncStatus = "local" | "live" | "syncing" | "offline" | "error";
@@ -133,7 +134,7 @@ function readCloudCache(): Persisted {
 }
 
 function writeCloudCache(store: Persisted): void {
-  localStorage.setItem(CACHE_KEY, JSON.stringify(store));
+  safeSetItem(CACHE_KEY, JSON.stringify(store));
 }
 
 function bootstrapLocal(): Persisted {

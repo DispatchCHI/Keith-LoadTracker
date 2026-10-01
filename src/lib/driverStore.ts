@@ -6,6 +6,7 @@ import {
   cleanManualOffs,
   type ManualOffsStore,
 } from "./manualCallOffs";
+import { safeSetItem } from "./localStorageSafe";
 
 export const DAYS_KEY = "chitrader.load-tracker.driver-days.v1";
 
@@ -78,7 +79,7 @@ function writePayload(payload: DriverDaysPayload): void {
     manualOffsDeleted: payload.manualOffsDeleted,
     manualOffsSeen: payload.manualOffsSeen,
   };
-  localStorage.setItem(DAYS_KEY, JSON.stringify(next));
+  safeSetItem(DAYS_KEY, JSON.stringify(next));
 }
 
 export function readDayStore(): DayStore {

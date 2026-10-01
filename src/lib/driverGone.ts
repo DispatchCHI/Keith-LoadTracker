@@ -11,6 +11,7 @@
 
 import { isValidISODate, yearOfISO } from "./chicagoDate";
 import { isIsoAfter, pickNewerByUpdatedAt } from "./isoTime";
+import { safeSetItem } from "./localStorageSafe";
 import {
   cleanDriverName,
   cleanTruckNumber,
@@ -215,7 +216,7 @@ export function writeDriverGonePersisted(next: DriverGonePersisted): void {
     seenRemoteEntryIds: parseIdList(next.seenRemoteEntryIds),
     importedAt: next.importedAt ?? null,
   };
-  localStorage.setItem(DRIVER_GONE_STORE_KEY, JSON.stringify(payload));
+  safeSetItem(DRIVER_GONE_STORE_KEY, JSON.stringify(payload));
 }
 
 export function gonePersonKey(

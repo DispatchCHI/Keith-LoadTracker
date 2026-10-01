@@ -8,6 +8,7 @@ import {
   weekdayOfISO,
   yearOfISO,
 } from "./chicagoDate";
+import { safeSetItem } from "./localStorageSafe";
 
 export const VACATION_STORE_KEY = "chitrader.load-tracker.vacation.v2";
 export const VACATION_YARD_STORAGE_KEY = "chitrader.load-tracker.vacation-yard.v1";
@@ -147,7 +148,7 @@ export function readSelectedVacationYard(): VacationYard {
 }
 
 export function writeSelectedVacationYard(yard: VacationYard): void {
-  localStorage.setItem(VACATION_YARD_STORAGE_KEY, yard);
+  safeSetItem(VACATION_YARD_STORAGE_KEY, yard);
 }
 
 export function vacationNameKey(name: string): string {
@@ -499,24 +500,27 @@ export function readVacationStore(): VacationStore {
   return { weeks: persisted.weeks, entries: persisted.entries };
 }
 
-export function writeVacationPersisted(persisted: VacationPersisted): void {
+export function writeVacationPersisted(persisted: VacationPersisted): boolean {
   const stripped = applyVacationTombstones(
     { weeks: persisted.weeks, entries: persisted.entries },
     persisted.deletedWeekOfs,
     persisted.deletedEntryIds,
   );
-  localStorage.setItem(
-    VACATION_STORE_KEY,
-    JSON.stringify({
-      version: 2,
-      weeks: stripped.weeks,
-      entries: stripped.entries,
-      deletedWeekOfs: persisted.deletedWeekOfs.map(normalizeDeletedWeekKey),
-      deletedEntryIds: persisted.deletedEntryIds,
-      seenRemoteWeekOfs: persisted.seenRemoteWeekOfs.map(normalizeDeletedWeekKey),
-      seenRemoteEntryIds: persisted.seenRemoteEntryIds,
-    }),
-  );
+  const json = JSON.stringify({
+    version: 2,
+    weeks: stripped.weeks,
+    entries: stripped.entries,
+    deletedWeekOfs: persisted.deletedWeekOfs.map(normalizeDeletedWeekKey),
+    deletedEntryIds: persisted.deletedEntryIds,
+    seenRemoteWeekOfs: persisted.seenRemoteWeekOfs.map(normalizeDeletedWeekKey),
+    seenRemoteEntryIds: persisted.seenRemoteEntryIds,
+  });
+  try {
+    if (localStorage.getItem(VACATION_STORE_KEY) === json) return true;
+  } catch {
+    /* private mode — still try write */
+  }
+  return safeSetItem(VACATION_STORE_KEY, json);
 }
 
 export function writeVacationStore(

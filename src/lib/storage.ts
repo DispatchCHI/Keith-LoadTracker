@@ -1,5 +1,6 @@
 import type { Load } from "../types";
 import { chicagoToday } from "./chicagoDate";
+import { safeSetItem } from "./localStorageSafe";
 import { sortLoads } from "./sortLoads";
 
 /** Same key in the browser and the Tauri WebView — each environment keeps its own store. */
@@ -22,7 +23,7 @@ export function readLastSuccessfulSyncAt(): string | null {
 }
 
 export function writeLastSuccessfulSyncAt(iso: string): void {
-  localStorage.setItem(LAST_CLOUD_SYNC_KEY, iso);
+  safeSetItem(LAST_CLOUD_SYNC_KEY, iso);
 }
 
 /** ISO time of the last successful full (non-incremental) loads pull. */
@@ -43,7 +44,7 @@ export function readLastFullLoadsReconcileAt(): string | null {
 }
 
 export function writeLastFullLoadsReconcileAt(iso: string): void {
-  localStorage.setItem(LAST_FULL_LOADS_RECONCILE_KEY, iso);
+  safeSetItem(LAST_FULL_LOADS_RECONCILE_KEY, iso);
 }
 
 export type Persisted = {
@@ -143,7 +144,7 @@ export function readStore(): Persisted {
 }
 
 export function writeStore(store: Persisted): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  safeSetItem(STORAGE_KEY, JSON.stringify(store));
 }
 
 export function allLoads(store: Persisted): Load[] {
