@@ -1,5 +1,5 @@
 import type { Load } from "../types";
-import { isIsoAfter } from "./isoTime";
+import { isIsoAfter, pickNewerByUpdatedAt } from "./isoTime";
 import { keepLoadDriverName } from "./loadDriver";
 import {
   isExplicitDeleteOp,
@@ -15,7 +15,7 @@ import {
 } from "./storage";
 
 function newerWins(a: Load, b: Load): Load {
-  const winner = a.updatedAt >= b.updatedAt ? a : b;
+  const winner = pickNewerByUpdatedAt(a, b);
   const loser = winner === a ? b : a;
   return keepLoadDriverName(winner, loser);
 }
@@ -493,7 +493,9 @@ export function shouldApplyRealtimeUpsert(
   const tombstoned = deletedLoadIds([], store);
   if (tombstoned.has(incoming.id)) return false;
   const existing = allLoads(store).find((item) => item.id === incoming.id);
-  if (existing && existing.updatedAt >= incoming.updatedAt) return false;
+  // Same instant (Z vs +00:00) is not newer — skip so a Z echo cannot
+  // overwrite a healed PostgREST timestamp in the live store.
+  if (existing && !isIsoAfter(incoming.updatedAt, existing.updatedAt)) return false;
   return true;
 }
 
