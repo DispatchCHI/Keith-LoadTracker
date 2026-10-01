@@ -22,6 +22,7 @@ import {
   placesMatch,
   type CustomerLaneStore,
 } from "./customerLanes";
+import { safeSetItem } from "./localStorageSafe";
 
 export type SpecialtyStation = {
   id: string;
@@ -410,7 +411,7 @@ export function writeSpecialtyStore(
   const seen = seenRemoteIds ?? readSpecialtySeenRemoteIds();
   // Tombstones always win at persist so a stale cloud merge cannot bounce − / consume.
   const days = applySpecialtyTombstones(store, ids, keeps);
-  localStorage.setItem(
+  safeSetItem(
     STORE_KEY,
     JSON.stringify({
       version: 1,

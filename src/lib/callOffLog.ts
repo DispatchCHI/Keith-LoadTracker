@@ -7,6 +7,7 @@ import {
 } from "./driverAvailability";
 import { isValidISODate } from "./chicagoDate";
 import { isIsoAfter, pickNewerByUpdatedAt } from "./isoTime";
+import { safeSetItem } from "./localStorageSafe";
 
 export const CALL_OFF_LOG_KEY = "chitrader.load-tracker.call-off-log.v1";
 
@@ -129,7 +130,7 @@ export function readCallOffLogPersisted(): CallOffLogPersisted {
 }
 
 export function writeCallOffLogPersisted(next: CallOffLogPersisted): void {
-  localStorage.setItem(
+  safeSetItem(
     CALL_OFF_LOG_KEY,
     JSON.stringify({
       version: 1,

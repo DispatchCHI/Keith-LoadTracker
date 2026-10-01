@@ -9,6 +9,7 @@
 
 import { isValidISODate } from "./chicagoDate";
 import { isFullDayOff } from "./driverAvailability";
+import { safeSetItem } from "./localStorageSafe";
 import { sanitizeTruck } from "./truck";
 
 export const DRIVER_ROSTER_STORE_KEY = "chitrader.load-tracker.driver-roster.v1";
@@ -457,7 +458,7 @@ export function writeDriverRosterPersisted(next: DriverRosterPersisted): void {
     importedAt: next.importedAt ?? null,
     satInitializedYards: parseYardList(next.satInitializedYards),
   };
-  localStorage.setItem(DRIVER_ROSTER_STORE_KEY, JSON.stringify(payload));
+  safeSetItem(DRIVER_ROSTER_STORE_KEY, JSON.stringify(payload));
 }
 
 export function readDriverRosterUi(): DriverRosterUi {
@@ -483,7 +484,7 @@ export function readDriverRosterUi(): DriverRosterUi {
 
 export function writeDriverRosterUi(ui: DriverRosterUi): void {
   const kind = cleanDriverRosterKind(ui.kind);
-  localStorage.setItem(
+  safeSetItem(
     DRIVER_ROSTER_UI_KEY,
     JSON.stringify({
       kind,

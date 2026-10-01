@@ -4,6 +4,7 @@ import { CUSTOMER_LANE_SEED } from "../data/customerLaneSeed";
 import { canonicalDestination } from "../data/stations";
 import { isValidISODate } from "./chicagoDate";
 import { commodityRankLabel, tallyLabel } from "./commodity";
+import { safeSetItem } from "./localStorageSafe";
 
 export const CUSTOMER_LANES_STORE_KEY = "chitrader.load-tracker.customer-lanes.v1";
 export const CUSTOMER_LANES_TABLE = "customer_lanes";
@@ -328,11 +329,7 @@ export function readCustomerLanePersisted(): CustomerLanePersisted {
 }
 
 export function writeCustomerLanePersisted(next: CustomerLanePersisted): void {
-  try {
-    localStorage.setItem(CUSTOMER_LANES_STORE_KEY, JSON.stringify(next));
-  } catch {
-    /* private mode */
-  }
+  safeSetItem(CUSTOMER_LANES_STORE_KEY, JSON.stringify(next));
 }
 
 export function rowToCustomerLane(row: CustomerLaneRow): CustomerLane | null {
