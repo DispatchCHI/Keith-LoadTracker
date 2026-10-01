@@ -63,7 +63,7 @@ html[data-theme="halloween"] .tab-bar {
 
 /* Desktop rail stays solid blue + gray active even in Halloween. */
 html[data-theme="halloween"] .tab-bar-side {
-  background: #1d4ed8 !important;
+  background: #1e3a8a !important;
   border-color: rgba(255, 255, 255, 0.18) !important;
   color: #ffffff !important;
 }
