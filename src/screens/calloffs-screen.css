@@ -1,45 +1,61 @@
 .calloffs-screen {
-  gap: 12px;
+  gap: 10px;
 }
 
-.calloffs-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
-  font-size: 12px;
-  color: var(--muted);
+.calloffs-screen .page-title {
+  font-size: 22px;
+  margin-top: 2px;
 }
 
-.calloffs-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.calloffs-add,
+.calloffs-board {
+  background: #d3d7df;
+  border: 1px solid #b7bdc8;
+  border-radius: 12px;
 }
 
 .calloffs-add {
   display: grid;
-  width: min(100%, 960px);
-  align-self: flex-start;
+  width: 100%;
+  align-self: stretch;
   gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+  padding: 10px;
 }
 
 .calloffs-add-grid {
   display: grid;
-  grid-template-columns:
-    minmax(0, 1.5fr)
-    minmax(120px, 0.8fr)
-    minmax(120px, 0.8fr);
+  grid-template-columns: minmax(160px, 1.6fr) 148px 148px minmax(120px, 1fr) auto;
   gap: 8px;
+  align-items: center;
 }
 
-.calloffs-add > input.calloffs-reason-input {
-  width: 320px;
-  max-width: 100%;
-  justify-self: start;
+.calloffs-add .text-input,
+.calloffs-add .calloffs-reason-input {
+  margin-top: 0;
+  width: 100%;
+  min-height: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.calloffs-add-btn {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #b8860b;
+  color: #1a1408;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.calloffs-add-btn:hover,
+.calloffs-add-btn:focus-visible {
+  background: #a0740a;
 }
 
 .calloffs-reason-row {
@@ -49,7 +65,6 @@
   align-items: center;
 }
 
-/* Pill chips, same colors as Available drivers. */
 .calloffs-reason-row button,
 .calloffs-reason-row .calloff-kind-btn {
   display: inline-flex;
@@ -67,7 +82,11 @@
   opacity: 1;
 }
 
-/* Call Off = orange */
+.calloffs-reason-row .calloff-kind-btn.selected {
+  outline: 2px solid #111111;
+  outline-offset: 1px;
+}
+
 .calloffs-reason-row .calloff-kind-call-off,
 .calloffs-reason-row .calloff-kind-call-off.selected {
   background: #f97316 !important;
@@ -75,7 +94,6 @@
   color: #ffffff !important;
 }
 
-/* P-Day = green */
 .calloffs-reason-row .calloff-kind-p-day,
 .calloffs-reason-row .calloff-kind-p-day.selected {
   background: #166534 !important;
@@ -83,7 +101,6 @@
   color: #ffffff !important;
 }
 
-/* Ok'd Off = gray */
 .calloffs-reason-row .calloff-kind-okd-off,
 .calloffs-reason-row .calloff-kind-okd-off.selected {
   background: #6b7280 !important;
@@ -91,7 +108,6 @@
   color: #ffffff !important;
 }
 
-/* Vacation Day = light blue */
 .calloffs-reason-row .calloff-kind-vacation,
 .calloffs-reason-row .calloff-kind-vacation.selected {
   background: #d6e8fb !important;
@@ -99,7 +115,6 @@
   color: #123152 !important;
 }
 
-/* FMLA = pink */
 .calloffs-reason-row .calloff-kind-fmla,
 .calloffs-reason-row .calloff-kind-fmla.selected {
   background: #db2777 !important;
@@ -107,7 +122,6 @@
   color: #ffffff !important;
 }
 
-/* Late/Early = yellow */
 .calloffs-reason-row .calloff-kind-late-early,
 .calloffs-reason-row .calloff-kind-late-early.selected {
   background: #facc15 !important;
@@ -115,24 +129,186 @@
   color: #422006 !important;
 }
 
+.calloffs-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 400px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.calloffs-board {
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calloffs-board-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.calloffs-board-head h2,
+.calloffs-log-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.calloffs-board-head .num,
+.calloffs-log-head h2 span {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.calloffs-board-head .num {
+  font-size: 18px;
+}
+
+.calloffs-board-next {
+  margin-top: 6px;
+}
+
+.calloffs-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.calloffs-group {
+  background: var(--panel);
+  border: 1px solid #c3c8d1;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.calloffs-group-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.calloffs-group-label.kind-p-day {
+  background: #166534;
+  color: #ffffff;
+}
+
+.calloffs-group-label.kind-call-off {
+  background: #f97316;
+  color: #ffffff;
+}
+
+.calloffs-group-label.kind-vacation {
+  background: #d6e8fb;
+  color: #123152;
+}
+
+.calloffs-group-label.kind-fmla {
+  background: #db2777;
+  color: #ffffff;
+}
+
+.calloffs-group-label.kind-okd-off {
+  background: #6b7280;
+  color: #ffffff;
+}
+
+.calloffs-group-label.kind-ncns {
+  background: #b91c1c;
+  color: #ffffff;
+}
+
+.calloffs-group-label.kind-late-early {
+  background: #facc15;
+  color: #422006;
+}
+
+.calloffs-person {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 8px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.calloffs-person b {
+  font-weight: 700;
+}
+
+.calloffs-person span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  text-align: right;
+}
+
+.calloffs-log {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.calloffs-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  flex-wrap: wrap;
+}
+
+.calloffs-log-head h2 span {
+  margin-left: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .calloffs-screen .vac-year-row {
   gap: 6px;
 }
 
 .calloffs-screen .day-chip {
-  min-height: 34px;
-  height: 34px;
+  min-height: 32px;
+  height: 32px;
   padding: 0 12px;
   font-size: 12px;
   border-radius: 999px;
+  background: #f4f5f7;
+}
+
+.calloffs-screen .vac-year-row .day-chip-active {
+  background: #1e3a8a;
+  border-color: #1e3a8a;
+  color: #ffffff;
 }
 
 .calloffs-table-wrap {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 0;
   background: var(--panel);
-  max-height: calc(100dvh - 280px);
+  max-height: none;
 }
 
 .calloffs-table {
@@ -146,7 +322,7 @@
   padding: 6px 8px;
   border-bottom: 1px solid var(--line);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .calloffs-table thead th {
@@ -166,50 +342,77 @@
   color: var(--muted);
 }
 
-.calloffs-table tr.is-today {
-  background: color-mix(in srgb, var(--brand, #d8282c) 10%, transparent);
+.calloffs-table tr.is-today td {
+  background: #eef1f6;
+}
+
+.calloffs-table tr.is-today td.calloffs-emp {
+  box-shadow: inset 3px 0 0 #1e3a8a;
+  color: #1e3a8a;
+  font-weight: 800;
 }
 
 .calloffs-table tr.is-past {
   opacity: 0.72;
 }
 
-.calloffs-table input {
-  width: 100%;
-  min-height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  color: var(--text);
-  padding: 4px 8px;
-}
-
 .calloffs-kind {
   display: inline-flex;
-  margin-top: 4px;
+  margin-top: 0;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.calloffs-note-pill {
+  background: #ffffff;
+  border: 1px solid #d0d3d9;
+  color: #4a4a4a;
 }
 
 .calloffs-actions {
-  display: flex;
-  justify-content: flex-end;
+  width: 36px;
+  text-align: right;
 }
 
-@media (max-width: 720px) {
-  .calloffs-add {
-    width: 100%;
+.calloffs-table .calloff-remove {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+}
+
+[data-layout="desktop"] .phone-body:has(.calloffs-screen) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+[data-layout="desktop"] .calloffs-screen {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px 16px 14px;
+}
+
+[data-layout="desktop"] .calloffs-split {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+@media (max-width: 959px) {
+  .calloffs-split {
+    grid-template-columns: 1fr;
+  }
+
+  .calloffs-board,
+  .calloffs-table-wrap {
+    max-height: none;
+    overflow: visible;
   }
 
   .calloffs-add-grid {
     grid-template-columns: 1fr;
-  }
-
-  .calloffs-add > input.calloffs-reason-input {
-    width: 100%;
-    max-width: none;
-    justify-self: stretch;
   }
 }
