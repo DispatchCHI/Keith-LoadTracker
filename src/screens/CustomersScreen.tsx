@@ -301,21 +301,23 @@ export function CustomersScreen() {
                 <span>{group.label}</span>
                 <span>{group.rows.length}</span>
               </div>
-              {group.rows.map((name) => {
-                const count = laneCount(name);
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    className={selected === name ? "cust-row on" : "cust-row"}
-                    onClick={() => selectCustomer(name)}
-                  >
-                    <CustomerLogo name={name} />
-                    <span className="cust-row-name">{name}</span>
-                    <span className="cust-row-meta">{count || "none"}</span>
-                  </button>
-                );
-              })}
+              <div className="cust-group-body">
+                {group.rows.map((name) => {
+                  const count = laneCount(name);
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      className={selected === name ? "cust-row on" : "cust-row"}
+                      onClick={() => selectCustomer(name)}
+                    >
+                      <CustomerLogo name={name} />
+                      <span className="cust-row-name">{name}</span>
+                      <span className="cust-row-meta">{count || "none"}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </section>
           ))}
           {!groups.length ? <p className="cust-hint">No customers for this filter.</p> : null}

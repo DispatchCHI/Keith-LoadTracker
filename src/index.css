@@ -4655,10 +4655,10 @@ body.app-ready .splash {
 .cust-board {
   min-height: 0;
   overflow: auto;
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   background: #d3d7df;
   border: 1px solid #b7bdc8;
   border-radius: 12px;
@@ -4669,16 +4669,22 @@ body.app-ready .splash {
   border: 1px solid #c3c8d1;
   border-radius: 10px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .cust-group-label {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 3px 8px;
-  font-size: 11px;
+  padding: 2px 8px;
+  font-size: 10px;
   font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
   color: #ffffff;
+  flex-shrink: 0;
 }
 
 .cust-group-label.wm { background: #166534; }
@@ -4687,18 +4693,29 @@ body.app-ready .splash {
 .cust-group-label.ts { background: #0f766e; }
 .cust-group-label.none { background: #6b7280; }
 
+/* Scroll facilities inside each company grouping independently. */
+.cust-group-body {
+  max-height: min(200px, 32vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+
 .cust-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 4px 8px;
+  padding: 2px 8px;
+  min-height: 0;
   border: 0;
   border-top: 1px solid var(--line);
   background: var(--panel);
   text-align: left;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .cust-row.on {
@@ -4713,16 +4730,16 @@ body.app-ready .splash {
 
 .cust-row-meta {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 650;
 }
 
 .cust-brand {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 4px;
   background: #ffffff;
   padding: 1px;
   border: 1px solid var(--line);
@@ -4731,13 +4748,14 @@ body.app-ready .splash {
 .cust-brand.lg {
   width: 36px;
   height: 36px;
+  border-radius: 6px;
 }
 
 .cust-logo-slot {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
   border: 1px dashed #9ca3af;
   background: #ffffff;
 }
@@ -4745,6 +4763,7 @@ body.app-ready .splash {
 .cust-logo-slot.lg {
   width: 36px;
   height: 36px;
+  border-radius: 6px;
 }
 
 .cust-detail {
