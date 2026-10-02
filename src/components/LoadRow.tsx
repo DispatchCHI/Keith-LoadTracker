@@ -63,8 +63,8 @@ export function LoadRow({
           aria-pressed={checked}
           aria-label={
             checked
-              ? `Clear check on truck ${load.truck}`
-              : `Check off truck ${load.truck}`
+              ? `Clear the mark on truck ${load.truck}`
+              : `Mark truck ${load.truck}`
           }
           onClick={onToggleCheck}
         >

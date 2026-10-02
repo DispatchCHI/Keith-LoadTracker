@@ -70,10 +70,10 @@ select {
 }
 
 .load-row.load-row-checked {
-  background: #dff6e8;
+  background: #b8bec6;
   color: #111111;
-  border-color: #1b7a3d;
-  box-shadow: inset 4px 0 0 #1b7a3d;
+  border-color: #8e949e;
+  box-shadow: none;
 }
 
 .tally-card,

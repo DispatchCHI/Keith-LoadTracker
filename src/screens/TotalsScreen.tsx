@@ -319,7 +319,7 @@ function RankLoadList({
     <div className="feed rank-accordion-feed">
       {checkoff ? (
         <p className="field-hint tight">
-          Click a load to check it off. Click it again to clear the mark.
+          Click a load to shade the card. Click it again to clear it.
         </p>
       ) : null}
       {loads.map((load) => (
