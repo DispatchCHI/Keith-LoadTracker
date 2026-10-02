@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatTruckList,
   isBrokerTruck,
   isNumericTruck,
   KNOWN_BROKER_CODES,
+  parseTruckList,
   sanitizeTruck,
+  sanitizeTruckListInput,
 } from "./truck";
 
 describe("sanitizeTruck", () => {
@@ -54,5 +57,52 @@ describe("isBrokerTruck / isNumericTruck", () => {
     expect(isBrokerTruck("")).toBe(false);
     expect(isBrokerTruck("   ")).toBe(false);
     expect(isBrokerTruck("--")).toBe(false);
+  });
+});
+
+describe("sanitizeTruckListInput / parseTruckList", () => {
+  it("keeps commas and spaces while typing a list", () => {
+    expect(sanitizeTruckListInput("207, 214")).toBe("207, 214");
+    expect(sanitizeTruckListInput("vz, cgh")).toBe("VZ, CGH");
+    expect(sanitizeTruckListInput("207;214")).toBe("207214");
+  });
+
+  it("parses a comma list into separate sanitized trucks", () => {
+    expect(parseTruckList("207, 214, 301, 318")).toEqual({
+      trucks: ["207", "214", "301", "318"],
+      invalid: [],
+    });
+  });
+
+  it("single truck without commas matches sanitizeTruck", () => {
+    expect(parseTruckList("418").trucks).toEqual(["418"]);
+    expect(parseTruckList("vz").trucks).toEqual(["VZ"]);
+    expect(parseTruckList(" 55 ").trucks).toEqual(["55"]);
+  });
+
+  it("trims, skips empty tokens, drops duplicates, preserves order", () => {
+    expect(parseTruckList("207,, 214, ,207, 301")).toEqual({
+      trucks: ["207", "214", "301"],
+      invalid: [],
+    });
+  });
+
+  it("skips invalid tokens and reports them; all-invalid yields empty trucks", () => {
+    expect(parseTruckList("207, ---, 214")).toEqual({
+      trucks: ["207", "214"],
+      invalid: ["---"],
+    });
+    expect(parseTruckList("---, ***")).toEqual({
+      trucks: [],
+      invalid: ["---", "***"],
+    });
+  });
+
+  it("preserves broker codes per token", () => {
+    expect(parseTruckList("207, VZ, cgh").trucks).toEqual(["207", "VZ", "CGH"]);
+  });
+
+  it("formatTruckList joins with comma-space", () => {
+    expect(formatTruckList(["207", "214", "VZ"])).toBe("207, 214, VZ");
   });
 });

@@ -18,8 +18,13 @@ import {
   formatTruckDriverPreview,
   previewDriversForTruckInput,
   snapshotDriverNameForTruck,
+  type TruckDriverPreview,
 } from "../lib/loadDriver";
 import { newLoadId } from "../lib/storage";
+import {
+  formatTruckList,
+  parseTruckList,
+} from "../lib/truck";
 import { useDriverRoster } from "../store/DriverRosterContext";
 import { useLoads } from "../store/LoadsContext";
 import type { Load } from "../types";
@@ -30,6 +35,24 @@ type LogLoadScreenProps = {
   onCancel: () => void;
   onSaved: (id: string, date: string) => void;
 };
+
+function previewForTruckListInput(
+  rosterStore: Parameters<typeof previewDriversForTruckInput>[0],
+  raw: string,
+): TruckDriverPreview {
+  const { trucks } = parseTruckList(raw);
+  if (trucks.length === 0) {
+    return previewDriversForTruckInput(rosterStore, raw);
+  }
+  if (trucks.length === 1 && !raw.includes(",")) {
+    return previewDriversForTruckInput(rosterStore, trucks[0]);
+  }
+  const parts = trucks.map((unit) => {
+    const name = snapshotDriverNameForTruck(rosterStore, unit);
+    return name ? `${unit} · ${name}` : unit;
+  });
+  return { exact: parts.join("  "), guesses: [] };
+}
 
 export function LogLoadScreen({
   initialTruck = "",
@@ -54,6 +77,7 @@ export function LogLoadScreen({
   } | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [truck, setTruck] = useState(initialTruck);
+  const [truckError, setTruckError] = useState<string | null>(null);
   const [step, setStep] = useState<"truck" | "form">(
     initialTruck ? "form" : "truck",
   );
@@ -66,15 +90,35 @@ export function LogLoadScreen({
   });
 
   const qty = clampLoadQty(quantity);
-  const loggingDriverName = snapshotDriverNameForTruck(rosterStore, form.truck);
+  const formTrucks = useMemo(
+    () => parseTruckList(form.truck).trucks,
+    [form.truck],
+  );
+  const truckCount = Math.max(1, formTrucks.length);
+  const totalLoads = qty * truckCount;
+  const loggingDriverName =
+    formTrucks.length === 1
+      ? snapshotDriverNameForTruck(rosterStore, formTrucks[0])
+      : null;
   const typingPreview = useMemo(
-    () => previewDriversForTruckInput(rosterStore, truck),
+    () => previewForTruckListInput(rosterStore, truck),
     [rosterStore, truck],
   );
 
   const commitTruck = (nextTruck: string) => {
-    setTruck(nextTruck);
-    setForm((prev) => ({ ...prev, truck: nextTruck }));
+    const { trucks, invalid } = parseTruckList(nextTruck);
+    if (trucks.length === 0) {
+      setTruckError(
+        invalid.length
+          ? "No valid truck numbers. Use unit numbers or broker codes (e.g. 207 or VZ)."
+          : "Enter at least one truck number.",
+      );
+      return;
+    }
+    const normalized = formatTruckList(trucks);
+    setTruckError(null);
+    setTruck(normalized);
+    setForm((prev) => ({ ...prev, truck: normalized }));
     setStep("form");
   };
 
@@ -82,28 +126,31 @@ export function LogLoadScreen({
     const now = new Date().toISOString();
     const pickup = pickupLabel(form.stationId, form.pickup);
     const destination = form.destination.trim();
-    const candidate = {
-      truck: form.truck.trim(),
-      pickup,
-      commodity: form.commodity.trim(),
-      destination,
-      createdAt: now,
-    };
+    const commodity = form.commodity.trim();
+    const trucks = parseTruckList(form.truck).trucks;
+    if (trucks.length === 0) return;
 
     let lastId = "";
-    for (let i = 0; i < qty; i++) {
-      const createdAt = batchCreatedAt(now, i);
-      const id = newLoadId();
-      lastId = id;
-      saveLoad({
-        id,
-        ...candidate,
-        createdAt,
-        stationId: form.stationId,
-        date: targetDate,
-        updatedAt: createdAt,
-        driverName: snapshotDriverNameForTruck(rosterStore, candidate.truck),
-      });
+    let batchIndex = 0;
+    for (const unit of trucks) {
+      for (let i = 0; i < qty; i++) {
+        const createdAt = batchCreatedAt(now, batchIndex);
+        batchIndex += 1;
+        const id = newLoadId();
+        lastId = id;
+        saveLoad({
+          id,
+          truck: unit,
+          pickup,
+          commodity,
+          destination,
+          createdAt,
+          stationId: form.stationId,
+          date: targetDate,
+          updatedAt: createdAt,
+          driverName: snapshotDriverNameForTruck(rosterStore, unit),
+        });
+      }
     }
 
     // Dismiss immediately — specialty cloud deletes must not block the log screen.
@@ -118,9 +165,12 @@ export function LogLoadScreen({
       form.commodity,
     );
     if (lane) {
-      void consumeOpens(targetDate, lane.specialtyId, lane.chips, qty).catch(
-        (err) => console.warn("specialty consume after save failed", err),
-      );
+      void consumeOpens(
+        targetDate,
+        lane.specialtyId,
+        lane.chips,
+        totalLoads,
+      ).catch((err) => console.warn("specialty consume after save failed", err));
     }
   };
 
@@ -129,24 +179,29 @@ export function LogLoadScreen({
     forceSpecialty?: boolean;
   }) => {
     if (!formComplete(form)) return;
+    const trucks = parseTruckList(form.truck).trucks;
+    if (trucks.length === 0) return;
     const forceDuplicate = opts?.forceDuplicate ?? false;
     const forceSpecialty = opts?.forceSpecialty ?? false;
     const now = new Date().toISOString();
     const pickup = pickupLabel(form.stationId, form.pickup);
     const destination = form.destination.trim();
+    const commodity = form.commodity.trim();
 
     if (!forceDuplicate) {
-      const match = findNearDuplicate(loads, {
-        truck: form.truck.trim(),
-        pickup,
-        commodity: form.commodity.trim(),
-        destination,
-        createdAt: now,
-      });
-      if (match) {
-        setSpecialtyWarn(null);
-        setDuplicate(match);
-        return;
+      for (const unit of trucks) {
+        const match = findNearDuplicate(loads, {
+          truck: unit,
+          pickup,
+          commodity,
+          destination,
+          createdAt: now,
+        });
+        if (match) {
+          setSpecialtyWarn(null);
+          setDuplicate(match);
+          return;
+        }
       }
     }
 
@@ -158,7 +213,7 @@ export function LogLoadScreen({
     );
     if (!forceSpecialty && lane) {
       const opens = opensFor(targetDate, lane.specialtyId, lane.chips);
-      if (opens < qty) {
+      if (opens < totalLoads) {
         setDuplicate(null);
         setSpecialtyWarn({
           opens,
@@ -193,12 +248,19 @@ export function LogLoadScreen({
         </header>
         <TruckEntry
           value={truck}
-          onChange={setTruck}
+          onChange={(next) => {
+            setTruckError(null);
+            setTruck(next);
+          }}
           onSubmit={() => truck && commitTruck(truck)}
           submitLabel="Next"
           autoFocus
-          hint="Type the unit number or broker code, or use the pad."
-          driverPreview={formatTruckDriverPreview(typingPreview)}
+          allowMulti
+          error={truckError}
+          hint="Type unit numbers or broker codes — commas for several (e.g. 207, 214)."
+          driverPreview={
+            truckError ? undefined : formatTruckDriverPreview(typingPreview)
+          }
         />
       </div>
     );
@@ -219,6 +281,9 @@ export function LogLoadScreen({
           <h1 className="overlay-title">Log load</h1>
           <p className={notToday ? "overlay-sub overlay-not-today-banner" : "overlay-sub"}>
             {notToday ? `Not today — ${formatHeaderDate(targetDate)}` : "Today"}
+            {formTrucks.length > 1
+              ? ` · ${formTrucks.length} trucks`
+              : ""}
           </p>
         </div>
       </header>
@@ -226,7 +291,10 @@ export function LogLoadScreen({
       <LoadForm
         value={form}
         onChange={setForm}
-        onChangeTruck={() => setStep("truck")}
+        onChangeTruck={() => {
+          setTruckError(null);
+          setStep("truck");
+        }}
         driverName={loggingDriverName}
       />
 
@@ -237,7 +305,9 @@ export function LogLoadScreen({
             destination logged {formatCreatedStamp(duplicate.createdAt) || "just now"}
             {duplicate.displayName ? ` by ${duplicate.displayName}` : ""}. This
             can double-count a dispatch.
-            {qty > 1 ? ` Save anyway will still add ${qty} loads.` : ""}
+            {totalLoads > 1
+              ? ` Save anyway will still add ${totalLoads} loads.`
+              : ""}
           </p>
           <div className="overlay-footer">
             <button type="button" className="btn-ghost" onClick={() => setDuplicate(null)}>
@@ -260,8 +330,8 @@ export function LogLoadScreen({
           <p>
             {specialtyWarn.opens === 0
               ? `No specialty opens for ${specialtyWarn.pickup} → ${specialtyWarn.destination} on this day.`
-              : `Only ${specialtyWarn.opens} specialty open${specialtyWarn.opens === 1 ? "" : "s"} for ${specialtyWarn.pickup} → ${specialtyWarn.destination}, but you are logging ${qty}.`}{" "}
-            Add {qty === 1 ? "this load" : `these ${qty} loads`} to the daily tally
+              : `Only ${specialtyWarn.opens} specialty open${specialtyWarn.opens === 1 ? "" : "s"} for ${specialtyWarn.pickup} → ${specialtyWarn.destination}, but you are logging ${totalLoads}.`}{" "}
+            Add {totalLoads === 1 ? "this load" : `these ${totalLoads} loads`} to the daily tally
             anyway?
           </p>
           <div className="overlay-footer">
@@ -302,7 +372,7 @@ export function LogLoadScreen({
               })
             }
           >
-            {qty === 1 ? "Save" : `Save ${qty} loads`}
+            {totalLoads === 1 ? "Save" : `Save ${totalLoads} loads`}
           </button>
         </div>
       </div>
