@@ -294,7 +294,7 @@ export function buildEodReportPng(opts: {
   ctx.fillText("END OF DAY LOAD COUNT", L.pad, y + 40);
   ctx.font = canvasFont(500, EOD_IMAGE_TYPE.subtitle);
   ctx.fillStyle = "#6b7280";
-  ctx.fillText(`${formatHeaderDate(opts.date)}  ·  Keith's Load Tracker`, L.pad, y + 68);
+  ctx.fillText(formatHeaderDate(opts.date), L.pad, y + 68);
   y += L.titleH;
 
   // Top band: hour grid (left) + End-of-day stat bubbles (right) — fills upper-right.
@@ -332,10 +332,6 @@ export function buildEodReportPng(opts: {
   ctx.font = canvasFont(700, EOD_IMAGE_TYPE.section);
   ctx.fillText(`Landfill  ·  ${landfills.length} groups`, lfX, y + 24);
   drawLandfills(ctx, lfX, y + L.sectionTitleH, lfColW, landfills, L.lfRowH, L.lfGap);
-
-  ctx.fillStyle = "#9ca3af";
-  ctx.font = canvasFont(500, EOD_IMAGE_TYPE.footer);
-  ctx.fillText("For informational purposes only", L.pad, height - L.pad - 4);
 
   return canvas.toDataURL("image/png");
 }
