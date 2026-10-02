@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useMemo, useState } from "react";
 import { BrandMark } from "../components/BrandMark";
 import { CollapsibleRank } from "../components/CollapsibleRank";
 import { DayPicker } from "../components/DayPicker";
@@ -17,11 +16,6 @@ import {
   weekStartingSunday,
 } from "../lib/chicagoDate";
 import { readCheckedLoadIds, toggleCheckedLoad } from "../lib/loadCheckoff";
-import {
-  boardForDate,
-  readStationCallStore,
-  subscribeStationCallStore,
-} from "../lib/stationCalls";
 import {
   endOfDayCards,
   endOfDaySummary,
@@ -43,15 +37,6 @@ type TotalsScreenProps = {
   embedded?: boolean;
 };
 
-/** Read-only view of the shared station-call store (hydrated by StationCallsCard). */
-function useStationCallBoard(date: string) {
-  const [store, setStore] = useState(readStationCallStore);
-
-  useEffect(() => subscribeStationCallStore(() => setStore(readStationCallStore())), []);
-
-  return boardForDate(store, date);
-}
-
 export function TotalsScreen({
   date,
   onDateChange,
@@ -64,8 +49,6 @@ export function TotalsScreen({
   const { totalsOn } = useDailyEod();
   const { availabilityOn } = useDrivers();
   const [filter, setFilter] = useState<TotalsFilter | null>(null);
-  const [stationsOpen, setStationsOpen] = useState(false);
-  const board = useStationCallBoard(date);
   const snapshot = totalsOn(date);
 
   const dayLoads = loadsOn(date);
@@ -81,17 +64,12 @@ export function TotalsScreen({
   const byDestination = useMemo(() => rankDestinations(dayLoads), [dayLoads]);
   const byCommodity = useMemo(() => rankCommodities(dayLoads), [dayLoads]);
   const eod = useMemo(
-    () => applyDailyEodToSummary(endOfDaySummary(dayLoads, board), snapshot),
-    [dayLoads, board, snapshot],
+    () => applyDailyEodToSummary(endOfDaySummary(dayLoads, {}), snapshot),
+    [dayLoads, snapshot],
   );
 
   const matching = filter ? rankAccordionLoads(dayLoads, filter) : [];
   const dayPhrase = date === today ? "today" : `on ${formatShortDate(date)}`;
-  const stationWord = eod.stations.length === 1 ? "station" : "stations";
-
-  useEffect(() => {
-    setStationsOpen(false);
-  }, [date]);
 
   const toggle = (next: TotalsFilter) => {
     setFilter((prev) =>
@@ -157,57 +135,6 @@ export function TotalsScreen({
               </article>
             );
           })}
-        </div>
-        <div
-          className={
-            stationsOpen
-              ? "eod-stations-block"
-              : "eod-stations-block eod-stations-block-collapsed"
-          }
-        >
-          <button
-            type="button"
-            className="totals-toggle eod-stations-toggle"
-            aria-expanded={stationsOpen}
-            onClick={() => setStationsOpen((open) => !open)}
-          >
-            <span className="totals-toggle-copy">
-              <span className="totals-toggle-title">Stations</span>
-              <span className="totals-toggle-count">
-                {eod.stations.length} {stationWord}
-                {stationsOpen ? "" : " · tap to expand"}
-              </span>
-            </span>
-            <ChevronDown
-              size={18}
-              className={stationsOpen ? "totals-chevron open" : "totals-chevron"}
-              aria-hidden
-            />
-          </button>
-          {stationsOpen ? (
-            <div className="eod-table-wrap">
-              <table className="eod-table">
-                <thead>
-                  <tr>
-                    <th>Station</th>
-                    <th>Totals</th>
-                    <th>MSW</th>
-                    <th>Closed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {eod.stations.map((row) => (
-                    <tr key={row.id}>
-                      <th scope="row">{row.label}</th>
-                      <td>{row.pickedUp}</td>
-                      <td>{row.msw}</td>
-                      <td>{row.left === null ? "—" : row.left}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
         </div>
       </section>
 
