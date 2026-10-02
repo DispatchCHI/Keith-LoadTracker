@@ -383,6 +383,7 @@ export function CustomersScreen() {
                         <th className="num">T3</th>
                         <th className="num">T4</th>
                         <th className="num">T5</th>
+                        <th className="cust-gap" />
                         <th />
                       </tr>
                     </thead>
@@ -394,6 +395,7 @@ export function CustomersScreen() {
                           {[lane.tier1, lane.tier2, lane.tier3, lane.tier4, lane.tier5].map((n, i) => (
                             <td key={i} className="num">{formatTier(n)}</td>
                           ))}
+                          <td className="cust-gap" />
                           <td className="cust-actions">
                             <span className="cust-action-row">
                               <button type="button" className="cust-link" onClick={() => startLane(selected, lane)}>Edit</button>
