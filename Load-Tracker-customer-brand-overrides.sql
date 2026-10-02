@@ -1,6 +1,8 @@
 -- Customer brand / logo overrides. One row for the whole crew.
 -- Paste into Supabase SQL Editor and Run once.
--- Live project: bkwrqtlvybzbjdakdvka
+-- Paste into the Supabase project your desks actually use (SQL Editor → Run).
+-- Note: task said bkwrqtlvybzbjdakdvka; local .env is dwcwweublrsgcchkeydq;
+-- Cloudflare Pages bundle currently embeds xrjxxphqaqievawmluzl. Confirm first.
 
 create table if not exists public.customer_brand_overrides (
   id text primary key,
