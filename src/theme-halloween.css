@@ -188,7 +188,6 @@ html[data-theme="halloween"] .calloffs-table input {
 }
 
 html[data-theme="halloween"] .vac-table-wrap,
-html[data-theme="halloween"] .eod-table-wrap,
 html[data-theme="halloween"] .station-calls-scroll,
 html[data-theme="halloween"] .calloffs-table-wrap {
   background: rgba(28, 16, 20, 0.84) !important;
@@ -196,7 +195,6 @@ html[data-theme="halloween"] .calloffs-table-wrap {
 }
 
 html[data-theme="halloween"] .vac-table thead th,
-html[data-theme="halloween"] .eod-table thead th,
 html[data-theme="halloween"] .station-calls-table thead th,
 html[data-theme="halloween"] .calloffs-table thead th {
   background: #3a2018 !important;
@@ -205,8 +203,6 @@ html[data-theme="halloween"] .calloffs-table thead th {
 
 html[data-theme="halloween"] .vac-table th,
 html[data-theme="halloween"] .vac-table td,
-html[data-theme="halloween"] .eod-table tbody th,
-html[data-theme="halloween"] .eod-table tbody td,
 html[data-theme="halloween"] .station-calls-table tbody td,
 html[data-theme="halloween"] .station-calls-table tbody th,
 html[data-theme="halloween"] .calloffs-table th,
