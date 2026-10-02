@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
-import { BrandMark } from "../components/BrandMark";
 import { DriverNameInput } from "../components/DriverNameInput";
-import { addDays, chicagoToday, previousWorkingDay } from "../lib/chicagoDate";
+import { addDays, chicagoToday, formatHeaderDate, previousWorkingDay } from "../lib/chicagoDate";
 import {
   CALL_OFF_REASON_PRESETS,
   formatSheetStyleDate,
@@ -12,7 +11,6 @@ import {
 } from "../lib/callOffLog";
 import { cleanDriverName } from "../lib/driverRoster";
 import {
-  CALL_OFF_KIND_OPTIONS,
   callOffKindFromReason,
   type CallOffKind,
 } from "../lib/driverAvailability";
@@ -23,10 +21,24 @@ import "./calloffs-screen.css";
 
 type FilterId = "upcoming" | "today" | "yesterday" | "all";
 
-function kindLabel(reason: string): string {
-  const kind = kindForLogEntry({ reason });
-  return CALL_OFF_KIND_OPTIONS.find((row) => row.kind === kind)?.label ?? "Note";
-}
+const OFF_TODAY_KINDS: CallOffKind[] = [
+  "p-day",
+  "call-off",
+  "vacation",
+  "fmla",
+  "okd-off",
+  "ncns",
+];
+
+const KIND_TITLE: Record<CallOffKind, string> = {
+  "p-day": "P-Day",
+  "call-off": "Call Off",
+  vacation: "Vacation Day",
+  fmla: "FMLA Day",
+  "okd-off": "ok'd off",
+  ncns: "NCNS",
+  "late-early": "Late/Early",
+};
 
 function presetKind(reason: string): CallOffKind {
   return callOffKindFromReason(reason);
@@ -59,6 +71,52 @@ function lookupEmpNumber(
   if (byExact.has(exact)) return byExact.get(exact) ?? "";
   const flip = lastFirstKey(name);
   return byLastFirst.get(flip) ?? "";
+}
+
+function coversDay(row: CallOffLogEntry, day: string): boolean {
+  const last = row.end ?? row.start;
+  return row.start <= day && last >= day;
+}
+
+function sheetRank(row: CallOffLogEntry, day: string): number {
+  const last = row.end ?? row.start;
+  if (row.start <= day && last >= day) return 0;
+  if (row.start > day) return 1;
+  return 2;
+}
+
+function compareSheet(a: CallOffLogEntry, b: CallOffLogEntry, day: string): number {
+  const rank = sheetRank(a, day) - sheetRank(b, day);
+  if (rank) return rank;
+  const bucket = sheetRank(a, day);
+  if (bucket === 0) return a.name.localeCompare(b.name);
+  if (a.start !== b.start) {
+    return bucket === 2 ? b.start.localeCompare(a.start) : a.start.localeCompare(b.start);
+  }
+  return a.name.localeCompare(b.name);
+}
+
+function monthDay(iso: string): string {
+  return formatSheetStyleDate(iso).replace(/\/\d{2}$/, "");
+}
+
+function offMeta(row: CallOffLogEntry, emp: string): string {
+  const when = row.end ? `through ${monthDay(row.end)}` : monthDay(row.start);
+  return emp ? `${emp} · ${when}` : when;
+}
+
+function noteMeta(row: CallOffLogEntry, emp: string): string {
+  const reason = row.reason.trim();
+  return emp ? `${emp} · ${reason}` : reason;
+}
+
+function pillClass(row: CallOffLogEntry): string {
+  if (!logEntrySubtracts(row)) {
+    return kindForLogEntry(row) === "late-early"
+      ? "calloffs-kind calloff-chip calloff-chip-late-early"
+      : "calloffs-kind calloffs-note-pill";
+  }
+  return `calloffs-kind calloff-chip calloff-chip-${kindForLogEntry(row)}`;
 }
 
 export function CallOffsScreen() {
@@ -103,14 +161,35 @@ export function CallOffsScreen() {
   );
 
   const visible = useMemo(
-    () => rows.filter((row) => callOffLogRowVisible(row, filter, today, yesterday, cutoff)),
+    () =>
+      rows
+        .filter((row) => callOffLogRowVisible(row, filter, today, yesterday, cutoff))
+        .slice()
+        .sort((a, b) => compareSheet(a, b, today)),
     [rows, filter, today, yesterday, cutoff],
   );
 
-  const todayCount = rows.filter((row) => {
-    const last = row.end ?? row.start;
-    return row.start <= today && last >= today && logEntrySubtracts(row);
-  }).length;
+  const todayRows = useMemo(
+    () => rows.filter((row) => coversDay(row, today)),
+    [rows, today],
+  );
+  const offToday = todayRows.filter((row) => logEntrySubtracts(row));
+  const noteToday = todayRows.filter((row) => !logEntrySubtracts(row));
+  const todayCount = offToday.length;
+
+  const offGroups = OFF_TODAY_KINDS.flatMap((kind) => {
+    const grouped = offToday
+      .filter((row) => kindForLogEntry(row) === kind)
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return grouped.length ? [{ kind, rows: grouped }] : [];
+  });
+
+  const notes = noteToday.slice().sort((a, b) => a.name.localeCompare(b.name));
+
+  function empFor(row: CallOffLogEntry): string {
+    return lookupEmpNumber(row.name, empMaps.byExact, empMaps.byLastFirst);
+  }
 
   async function onAdd() {
     if (!name.trim()) {
@@ -135,23 +214,15 @@ export function CallOffsScreen() {
   return (
     <div className="screen calloffs-screen">
       <header className="page-header">
-        <div className="page-header-brand">
-          <BrandMark />
-          <div>
-            <p className="eyebrow">Dispatcher log</p>
-            <h1 className="page-title">Call-Off's</h1>
-          </div>
+        <div>
+          <p className="eyebrow">Dispatcher log</p>
+          <h1 className="page-title">Call-Off's</h1>
         </div>
         <p className="field-hint tight">
-          {activeRows.length} row{activeRows.length === 1 ? "" : "s"} · {todayCount} off today
+          {formatHeaderDate(today)} · {todayCount} off today
           {cloud ? " · synced" : " · this device"}
         </p>
       </header>
-
-      <p className="field-hint">
-        Same sheet as before: EMP #, Name, Call Off, Through Date, Reason. P-Day / Call Off /
-        Ok'd Off subtract from Available. Park-by and late notes do not.
-      </p>
 
       <form
         className="calloffs-add"
@@ -164,15 +235,15 @@ export function CallOffsScreen() {
           <DriverNameInput value={name} onChange={setName} placeholder="Driver name" aria-label="Driver name" />
           <input className="text-input" type="date" value={start} onChange={(event) => setStart(event.target.value)} aria-label="Call off date" />
           <input className="text-input" type="date" value={end} onChange={(event) => setEnd(event.target.value)} aria-label="Through date" />
+          <input
+            className="text-input calloffs-reason-input"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Reason"
+            aria-label="Reason"
+          />
+          <button type="submit" className="calloffs-add-btn">Add row</button>
         </div>
-
-        <input
-          className="text-input calloffs-reason-input"
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="Reason"
-          aria-label="Reason"
-        />
 
         <div className="calloffs-reason-row" role="group" aria-label="Reason presets">
           {CALL_OFF_REASON_PRESETS.map((item) => {
@@ -192,58 +263,114 @@ export function CallOffsScreen() {
         </div>
 
         {formError ? <p className="form-error">{formError}</p> : null}
-        <div className="vac-add-actions">
-          <button type="submit" className="text-btn amber">Add row</button>
-        </div>
       </form>
 
-      <div className="vac-year-row" role="tablist" aria-label="Call-off filter">
-        {(
-          [
-            ["all", `All (${activeRows.length})`],
-            ["upcoming", "Upcoming"],
-            ["today", `Today (${formatSheetStyleDate(today)})`],
-            ["yesterday", `Yesterday (${formatSheetStyleDate(yesterday)})`],
-          ] as const
-        ).map(([id, label]) => (
-          <button key={id} type="button" className={filter === id ? "day-chip day-chip-active" : "day-chip"} onClick={() => setFilter(id)}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <div className="calloffs-split">
+        <aside className="calloffs-board" aria-label="Off today">
+          <div className="calloffs-board-head">
+            <h2>Off today</h2>
+            <span className="num">{todayCount}</span>
+          </div>
+          <p className="calloffs-hint">These subtract from Available.</p>
+          {offGroups.length ? (
+            offGroups.map((group) => (
+              <section key={group.kind} className="calloffs-group">
+                <div className={`calloffs-group-label kind-${group.kind}`}>
+                  <span>{KIND_TITLE[group.kind]}</span>
+                  <span>{group.rows.length}</span>
+                </div>
+                {group.rows.map((row) => (
+                  <div key={row.id} className="calloffs-person">
+                    <b>{row.name}</b>
+                    <span>{offMeta(row, empFor(row))}</span>
+                  </div>
+                ))}
+              </section>
+            ))
+          ) : (
+            <p className="calloffs-hint">Nobody subtracting today.</p>
+          )}
 
-      {error ? <p className="field-hint">{error}</p> : null}
-      <div className="calloffs-table-wrap">
-        <table className="calloffs-table">
-          <thead>
-            <tr>
-              <th className="calloffs-emp">EMP #</th>
-              <th>Name</th>
-              <th>Call Off</th>
-              <th>Through Date</th>
-              <th>Reason</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((row) => (
-              <SheetRow
-                key={row.id}
-                row={row}
-                emp={lookupEmpNumber(row.name, empMaps.byExact, empMaps.byLastFirst)}
-                today={today}
-                onRemove={() => void removeRow(row.id)}
-              />
-            ))}
-            {!visible.length ? (
-              <tr>
-                <td colSpan={6}>
-                  <p className="oot-empty">No rows yet. Add a driver above to start the log.</p>
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+          <div className="calloffs-board-head calloffs-board-next">
+            <h2>Still available</h2>
+            <span className="num">{notes.length}</span>
+          </div>
+          <p className="calloffs-hint">Late and park-by notes stay on the log. They do not subtract.</p>
+          {notes.length ? (
+            <section className="calloffs-group">
+              <div className="calloffs-group-label kind-late-early">
+                <span>Notes only</span>
+                <span>{notes.length}</span>
+              </div>
+              {notes.map((row) => (
+                <div key={row.id} className="calloffs-person">
+                  <b>{row.name}</b>
+                  <span>{noteMeta(row, empFor(row))}</span>
+                </div>
+              ))}
+            </section>
+          ) : (
+            <p className="calloffs-hint">No notes today.</p>
+          )}
+        </aside>
+
+        <section className="calloffs-log" aria-label="Call-off sheet">
+          <div className="calloffs-log-head">
+            <h2>Sheet <span>{visible.length} row{visible.length === 1 ? "" : "s"}</span></h2>
+            <div className="vac-year-row" role="tablist" aria-label="Call-off filter">
+              {(
+                [
+                  ["all", `All (${activeRows.length})`],
+                  ["upcoming", "Upcoming"],
+                  ["today", `Today (${formatSheetStyleDate(today)})`],
+                  ["yesterday", `Yesterday (${formatSheetStyleDate(yesterday)})`],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={filter === id ? "day-chip day-chip-active" : "day-chip"}
+                  onClick={() => setFilter(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {error ? <p className="calloffs-hint">{error}</p> : null}
+          <div className="calloffs-table-wrap">
+            <table className="calloffs-table">
+              <thead>
+                <tr>
+                  <th className="calloffs-emp">EMP #</th>
+                  <th>Name</th>
+                  <th>Call Off</th>
+                  <th>Through Date</th>
+                  <th>Reason</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((row) => (
+                  <SheetRow
+                    key={row.id}
+                    row={row}
+                    emp={empFor(row)}
+                    today={today}
+                    onRemove={() => void removeRow(row.id)}
+                  />
+                ))}
+                {!visible.length ? (
+                  <tr>
+                    <td colSpan={6}>
+                      <p className="oot-empty">No rows yet. Add a driver above to start the log.</p>
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -271,13 +398,10 @@ function SheetRow({
       <td>{formatSheetStyleDate(row.start)}</td>
       <td>{row.end ? formatSheetStyleDate(row.end) : ""}</td>
       <td>
-        {row.reason}
-        <span className={`calloffs-kind calloff-chip calloff-chip-${kindForLogEntry(row)}`}>
-          {logEntrySubtracts(row) ? kindLabel(row.reason) : "Note"}
-        </span>
+        <span className={pillClass(row)}>{row.reason}</span>
       </td>
       <td className="calloffs-actions">
-        <button type="button" className="text-btn" onClick={onRemove} aria-label={`Remove ${row.name}`}>×</button>
+        <button type="button" className="calloff-remove" onClick={onRemove} aria-label={`Remove ${row.name}`}>×</button>
       </td>
     </tr>
   );
