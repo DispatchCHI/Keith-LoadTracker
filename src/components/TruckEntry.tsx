@@ -1,4 +1,4 @@
-import { sanitizeTruck } from "../lib/truck";
+import { sanitizeTruck, sanitizeTruckListInput } from "../lib/truck";
 
 type TruckEntryProps = {
   value: string;
@@ -8,6 +8,9 @@ type TruckEntryProps = {
   autoFocus?: boolean;
   hint?: string;
   driverPreview?: string;
+  /** When true, commas separate multiple trucks (Log Load only). */
+  allowMulti?: boolean;
+  error?: string | null;
 };
 
 export function TruckEntry({
@@ -18,6 +21,8 @@ export function TruckEntry({
   autoFocus = false,
   hint = "Type the unit number or broker code.",
   driverPreview,
+  allowMulti = false,
+  error = null,
 }: TruckEntryProps) {
   return (
     <div className="truck-entry">
@@ -32,15 +37,29 @@ export function TruckEntry({
           autoCorrect="off"
           spellCheck={false}
           autoFocus={autoFocus}
-          placeholder="e.g. 418 or VZ"
-          aria-label="Truck or broker code"
-          onChange={(e) => onChange(sanitizeTruck(e.target.value))}
+          placeholder={allowMulti ? "e.g. 207 or 207, 214" : "e.g. 418 or VZ"}
+          aria-label={
+            allowMulti
+              ? "Truck or broker codes, comma-separated"
+              : "Truck or broker code"
+          }
+          onChange={(e) =>
+            onChange(
+              allowMulti
+                ? sanitizeTruckListInput(e.target.value)
+                : sanitizeTruck(e.target.value),
+            )
+          }
           onKeyDown={(e) => {
             if (e.key === "Enter" && value) onSubmit();
           }}
         />
       </label>
-      {driverPreview ? (
+      {error ? (
+        <p className="field-hint tight" role="alert" style={{ color: "var(--amber)" }}>
+          {error}
+        </p>
+      ) : driverPreview ? (
         <p className="truck-driver-preview" aria-live="polite">
           {driverPreview}
         </p>

@@ -36,6 +36,7 @@ import {
 } from "../lib/logLoadRoute";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useLoads } from "../store/LoadsContext";
+import { parseTruckList } from "../lib/truck";
 import { Chip } from "./Chip";
 
 const CUSTOM_SPECIALTY_COMMODITIES: Record<string, string> = {
@@ -483,7 +484,7 @@ export function LoadForm({
 
 export function formComplete(value: FormState): boolean {
   return Boolean(
-    value.truck.trim() &&
+    parseTruckList(value.truck).trucks.length > 0 &&
       value.stationId &&
       pickupLabel(value.stationId, value.pickup) &&
       value.commodity.trim() &&
