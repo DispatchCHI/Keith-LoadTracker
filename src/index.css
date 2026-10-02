@@ -295,9 +295,33 @@ button {
   box-shadow: inset 0 0 0 1px var(--amber);
 }
 
+.load-row-checked {
+  background: #b8bec6;
+  border-color: #8e949e;
+  box-shadow: none;
+}
+
 .load-row-main {
   flex: 1;
   min-width: 0;
+}
+
+.load-row:has(.load-row-check-hit) {
+  cursor: pointer;
+}
+
+.load-row-check-hit {
+  display: block;
+  margin: -12px -4px -12px -14px;
+  padding: 12px 4px 12px 14px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+[data-layout="desktop"] .load-row-check-hit {
+  margin: -10px -4px -10px -12px;
+  padding: 10px 4px 10px 12px;
 }
 
 .load-row-top {

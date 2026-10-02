@@ -16,6 +16,7 @@ import {
   formatShortDate,
   weekStartingSunday,
 } from "../lib/chicagoDate";
+import { readCheckedLoadIds, toggleCheckedLoad } from "../lib/loadCheckoff";
 import {
   boardForDate,
   readStationCallStore,
@@ -237,7 +238,7 @@ export function TotalsScreen({
             emptyText="Nothing logged this day."
             expandedPanel={
               filter?.kind === "pickup" ? (
-                <RankLoadList loads={matching} onEdit={onEdit} />
+                <RankLoadList loads={matching} onEdit={onEdit} checkoff />
               ) : null
             }
           />
@@ -302,17 +303,37 @@ export function TotalsScreen({
 function RankLoadList({
   loads,
   onEdit,
+  checkoff = false,
 }: {
   loads: ReturnType<typeof rankAccordionLoads>;
   onEdit: (id: string) => void;
+  /** Click a load card to mark it while comparing against a spreadsheet. */
+  checkoff?: boolean;
 }) {
+  const [checkedIds, setCheckedIds] = useState(() => readCheckedLoadIds());
+
   if (loads.length === 0) {
     return <p className="field-hint">No loads in this group.</p>;
   }
   return (
     <div className="feed rank-accordion-feed">
+      {checkoff ? (
+        <p className="field-hint tight">
+          Click a load to shade the card. Click it again to clear it.
+        </p>
+      ) : null}
       {loads.map((load) => (
-        <LoadRow key={load.id} load={load} onEdit={() => onEdit(load.id)} />
+        <LoadRow
+          key={load.id}
+          load={load}
+          checked={checkoff && checkedIds.has(load.id)}
+          onToggleCheck={
+            checkoff
+              ? () => setCheckedIds(toggleCheckedLoad(load.id))
+              : undefined
+          }
+          onEdit={() => onEdit(load.id)}
+        />
       ))}
     </div>
   );
