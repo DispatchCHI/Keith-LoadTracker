@@ -98,7 +98,9 @@ html[data-theme="halloween"] .truck-display,
 html[data-theme="halloween"] .truck-summary,
 html[data-theme="halloween"] .drivers-card,
 html[data-theme="halloween"] .calloffs-add,
-html[data-theme="halloween"] .calloffs-board {
+html[data-theme="halloween"] .calloffs-board,
+html[data-theme="halloween"] .cust-board,
+html[data-theme="halloween"] .cust-lane-form {
   background: rgba(36, 20, 26, 0.76) !important;
   color: #f7ead6 !important;
   border-color: #6b3a22 !important;
