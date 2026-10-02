@@ -29,13 +29,15 @@ function previousAssignedTruck(
   const priorSame = previous.entries[id];
   const byId = cleanAssignedTruck(priorSame?.assignedTruck ?? null);
   if (byId) {
-    // A newer blank on this same card is a dispatcher clear (or a clear that
-    // already landed in cloud). Do not paste the old unit back on top.
+    // A newer blank on this same card is only a dispatcher clear when the
+    // blank came from cloud (see mergeAssignedTruckFields). Local status /
+    // hire / reorder bumps must not paste-null over a saved unit — that is
+    // handled by preferring remote/local non-null in merge, not here.
     if (blankIsAuthoritative && priorSame && row.updatedAt > priorSame.updatedAt) return null;
     return byId;
   }
   // This card already exists and its truck is blank. That blank is the value
-  // for this id — do not borrow a unit from a duplicate row.
+  // for this id — do not borrow a unit from a duplicate row when cloud said so.
   if (blankIsAuthoritative && priorSame) return null;
 
   const key = personKey(row);
@@ -50,6 +52,51 @@ function previousAssignedTruck(
     }
   }
   return null;
+}
+
+/**
+ * Field-level merge for Full Roster units.
+ *
+ * A whole-row timestamp winner can be a status / hire / reorder edit that
+ * never touched the truck field. Those blanks must not clobber a unit that
+ * already lives on the other side (local or cloud). Only an authoritative
+ * newer cloud blank (dispatcher clear that landed in Supabase) may wipe.
+ */
+export function mergeAssignedTruckFields(
+  local: DriverRosterStore,
+  remote: DriverRosterStore,
+  reconciled: DriverRosterStore,
+  opts?: { blankIsAuthoritative?: boolean },
+): DriverRosterStore {
+  const blankIsAuthoritative = opts?.blankIsAuthoritative === true;
+  const entries: Record<string, DriverRosterEntry> = { ...reconciled.entries };
+  for (const [id, row] of Object.entries(entries)) {
+    if (row.kind !== "full") continue;
+    if (cleanAssignedTruck(row.assignedTruck)) continue;
+
+    const localRow = local.entries[id];
+    const remoteRow = remote.entries[id];
+    const localTruck = cleanAssignedTruck(localRow?.assignedTruck ?? null);
+    const remoteTruck = cleanAssignedTruck(remoteRow?.assignedTruck ?? null);
+
+    // Other desk cleared in cloud: remote blank is newer than our saved unit.
+    if (
+      blankIsAuthoritative &&
+      remoteRow &&
+      !remoteTruck &&
+      localTruck &&
+      remoteRow.updatedAt > (localRow?.updatedAt ?? "")
+    ) {
+      continue;
+    }
+
+    // Prefer any known unit. Local-only blank (status bump, missing column,
+    // never-synced desk) must not erase cloud or the other copy.
+    const kept = remoteTruck ?? localTruck;
+    if (!kept) continue;
+    entries[id] = { ...row, assignedTruck: kept };
+  }
+  return { entries };
 }
 
 /**
@@ -94,9 +141,10 @@ export function preserveTruckNumbers(
 
 /**
  * Rows whose unit differs from cloud and should be upserted.
- * A newer local blank is included so a clear is written as JSON null
- * (omitting the column would leave the old unit in place).
- * A stale local unit is not pushed over a newer cloud blank.
+ * Non-null local units heal blank cloud rows (unless cloud clear is newer).
+ * Local blanks are NOT queued here — only `setDriverAssignedTruck(null)` or
+ * duplicate-resolution clears write JSON null. A status/hire bump must not
+ * wipe a unit that another desk already saved.
  */
 export function assignedTrucksNeedingUpload(
   store: DriverRosterStore,
@@ -109,12 +157,9 @@ export function assignedTrucksNeedingUpload(
     const localTruck = cleanAssignedTruck(row.assignedTruck);
     const remoteTruck = cleanAssignedTruck(remoteRow?.assignedTruck ?? null);
     if (localTruck === remoteTruck) continue;
-    if (localTruck) {
-      if (!remoteTruck && remoteRow && remoteRow.updatedAt > row.updatedAt) continue;
-      out.push(row);
-      continue;
-    }
-    if (remoteTruck && remoteRow && row.updatedAt > remoteRow.updatedAt) out.push(row);
+    if (!localTruck) continue;
+    if (!remoteTruck && remoteRow && remoteRow.updatedAt > row.updatedAt) continue;
+    out.push(row);
   }
   return out;
 }
@@ -174,21 +219,32 @@ export function syncAssignedTrucks(input: {
   reconciled: DriverRosterStore;
   assignedTruckKnown: boolean;
   at?: string;
-}): { store: DriverRosterStore; toUpload: DriverRosterEntry[] } {
-  const preserved = preserveAssignedTrucks(input.local, input.reconciled, {
+}): { store: DriverRosterStore; toUpload: DriverRosterEntry[]; clearIds: string[] } {
+  const merged = mergeAssignedTruckFields(input.local, input.remote, input.reconciled, {
+    blankIsAuthoritative: input.assignedTruckKnown,
+  });
+  const preserved = preserveAssignedTrucks(input.local, merged, {
+    // After field merge, a remaining blank is either a real cloud clear or
+    // never had a unit. Do not resurrect from a stale same-id local blank
+    // bump — person-key fallback still heals id changes when cloud omitted
+    // the column (assignedTruckKnown=false).
     blankIsAuthoritative: input.assignedTruckKnown,
   });
   const resolved = resolveDuplicateAssignedTrucks(preserved, input.at);
   const toUpload: DriverRosterEntry[] = [];
+  const clearIds: string[] = [];
   const seen = new Set<string>();
-  const push = (row: DriverRosterEntry | undefined) => {
+  const push = (row: DriverRosterEntry | undefined, asClear = false) => {
     if (!row || seen.has(row.id)) return;
     seen.add(row.id);
     toUpload.push(row);
+    if (asClear || !cleanAssignedTruck(row.assignedTruck)) clearIds.push(row.id);
   };
   for (const row of assignedTrucksNeedingUpload(resolved.store, input.remote)) {
-    push(resolved.store.entries[row.id] ?? row);
+    push(resolved.store.entries[row.id] ?? row, false);
   }
-  for (const row of resolved.cleared) push(resolved.store.entries[row.id] ?? row);
-  return { store: resolved.store, toUpload };
+  for (const row of resolved.cleared) {
+    push(resolved.store.entries[row.id] ?? row, true);
+  }
+  return { store: resolved.store, toUpload, clearIds };
 }

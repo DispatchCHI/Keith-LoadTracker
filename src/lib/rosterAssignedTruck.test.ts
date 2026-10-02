@@ -120,13 +120,11 @@ describe("preserveAssignedTrucks", () => {
     expect(assignedTrucksNeedingUpload(local, remote)).toEqual([]);
   });
 
-  it("uploads a newer local clear instead of leaving the old unit in cloud", () => {
+  it("does not queue a local blank as a cloud wipe (only setDriverAssignedTruck writes null)", () => {
     const local = hired("Alice Smith", "418");
     const id = Object.keys(local.entries)[0]!;
     const cleared = updateRosterEntry(local, id, { assignedTruck: null }, "2099-01-01T00:00:00.000Z");
-    expect(assignedTrucksNeedingUpload(cleared, local).map((row) => row.assignedTruck)).toEqual([
-      null,
-    ]);
+    expect(assignedTrucksNeedingUpload(cleared, local)).toEqual([]);
   });
 });
 
@@ -200,17 +198,68 @@ describe("syncAssignedTrucks", () => {
     expect(synced.store.entries.chris?.assignedTruck).toBe("418");
     expect(synced.store.entries.dave?.assignedTruck).toBeNull();
     expect(synced.toUpload.map((row) => row.id)).toEqual(["dave"]);
+    expect(synced.clearIds).toEqual(["dave"]);
     expect(synced.store.entries.dave?.updatedAt > "2026-09-01T00:00:00.000Z").toBe(true);
   });
 });
 
 describe("roster truck cloud wiring", () => {
-  it("sends JSON null for a cleared unit and does not prune Gone names", () => {
+  it("sends JSON null only when clearing and does not prune Gone names", () => {
     const src = readFileSync(new URL("../store/DriverRosterContext.tsx", import.meta.url), "utf8");
     expect(src).toContain("assigned_truck: entry.assignedTruck ?? null");
+    expect(src).toContain("clearAssignedTruckIds");
+    expect(src).toContain("delete row.assigned_truck");
     expect(src).toContain("syncAssignedTrucks");
     expect(src).toContain("assignedTruckKnown");
     expect(src).not.toContain("stripRosterEntriesMatchingGone");
+  });
+});
+
+describe("status-bump blank must not wipe cloud unit", () => {
+  it("keeps the remote unit when a newer local blank wins the row timestamp", () => {
+    const remote = hired("Alice Smith", "418");
+    const id = Object.keys(remote.entries)[0]!;
+    const local = {
+      entries: {
+        [id]: {
+          ...remote.entries[id]!,
+          assignedTruck: null,
+          status: "oot",
+          updatedAt: "2099-01-01T00:00:00.000Z",
+        },
+      },
+    };
+    const synced = syncAssignedTrucks({
+      local,
+      remote,
+      reconciled: local,
+      assignedTruckKnown: true,
+    });
+    expect(synced.store.entries[id]?.assignedTruck).toBe("418");
+    expect(synced.toUpload.map((row) => row.assignedTruck)).toEqual([]);
+    expect(synced.clearIds).toEqual([]);
+  });
+
+  it("still accepts a newer authoritative cloud clear", () => {
+    const local = hired("Alice Smith", "418");
+    const id = Object.keys(local.entries)[0]!;
+    const remote = {
+      entries: {
+        [id]: {
+          ...local.entries[id]!,
+          assignedTruck: null,
+          updatedAt: "2099-01-01T00:00:00.000Z",
+        },
+      },
+    };
+    const synced = syncAssignedTrucks({
+      local,
+      remote,
+      reconciled: remote,
+      assignedTruckKnown: true,
+    });
+    expect(synced.store.entries[id]?.assignedTruck).toBeNull();
+    expect(synced.toUpload).toEqual([]);
   });
 });
 

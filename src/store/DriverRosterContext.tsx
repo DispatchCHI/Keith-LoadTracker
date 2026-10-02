@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useCallback,
   useContext,
@@ -127,13 +127,19 @@ function rowsToStore(rows: EntryRow[]): DriverRosterStore {
   return store;
 }
 
-function entryToRow(entry: DriverRosterEntry, userId: string | null) {
-  return {
+function entryToRow(
+  entry: DriverRosterEntry,
+  userId: string | null,
+  opts?: { clearAssignedTruck?: boolean },
+) {
+  const row: Record<string, unknown> = {
     id: entry.id,
     kind: entry.kind,
     yard: entry.yard,
     truck_number: entry.truckNumber,
-    // JSON null clears the column. Omitting the key would leave the old unit.
+    // Non-null units always sync. JSON null clears the column — but only when
+    // the caller opts in (dispatcher clear or duplicate-truck resolution).
+    // Omitting the key on status/hire/reorder upserts leaves the saved unit.
     assigned_truck: entry.assignedTruck ?? null,
     name: entry.name,
     status: entry.status,
@@ -145,6 +151,10 @@ function entryToRow(entry: DriverRosterEntry, userId: string | null) {
     updated_at: entry.updatedAt,
     created_by: userId,
   };
+  if (row.assigned_truck == null && !opts?.clearAssignedTruck) {
+    delete row.assigned_truck;
+  }
+  return row;
 }
 
 function persistSnapshot(next: DriverRosterPersisted): DriverRosterStore {
@@ -253,16 +263,26 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     if (!ids.length) return;
     const supabase = getSupabase();
     if (!supabase) return;
-    // Explicit × and Sat Reset are the only paths that may DELETE a cloud roster row.
+    // Explicit Ã— and Sat Reset are the only paths that may DELETE a cloud roster row.
     const { error } = await supabase.from("driver_roster_entries").delete().in("id", ids);
     if (error) console.warn("driver roster delete failed", error.message);
   }, []);
 
   const cloudUpsert = useCallback(
-    async (entries: DriverRosterEntry[]) => {
+    async (
+      entries: DriverRosterEntry[],
+      opts?: { clearAssignedTruckIds?: Iterable<string> },
+    ) => {
       const supabase = getSupabase();
       if (!supabase || !session || !entries.length) return;
-      const rows = entries.map((entry) => entryToRow(entry, user?.id ?? null));
+      const clearIds = new Set(
+        [...(opts?.clearAssignedTruckIds ?? [])].filter((id) => typeof id === "string" && id),
+      );
+      const rows = entries.map((entry) =>
+        entryToRow(entry, user?.id ?? null, {
+          clearAssignedTruck: clearIds.has(entry.id),
+        }),
+      );
       const { error } = await supabase.from("driver_roster_entries").upsert(rows);
       if (!error) return;
       const msg = error.message ?? "";
@@ -381,10 +401,11 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       for (const row of phonesNeedingUpload(next, remote)) {
         if (!toUpload.some((item) => item.id === row.id)) toUpload.push(row);
       }
+      const clearAssignedTruckIds = new Set(truckSync.clearIds);
       if (toUpload.length && !uploadingRef.current) {
         uploadingRef.current = true;
         try {
-          await cloudUpsert(toUpload);
+          await cloudUpsert(toUpload, { clearAssignedTruckIds });
         } finally {
           uploadingRef.current = false;
         }
@@ -477,7 +498,12 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       const next = updateRosterEntry(storeRef.current, id, { assignedTruck });
       const entry = next.entries[id];
       persistLocal(next);
-      if (cloud && entry) await cloudUpsert([entry]);
+      if (cloud && entry) {
+        await cloudUpsert([entry], {
+          // Explicit dispatcher edit: write the unit, or JSON-null to clear it.
+          clearAssignedTruckIds: assignedTruck == null ? [id] : [],
+        });
+      }
       return { ok: true };
     },
     [cloud, cloudUpsert, persistLocal],
