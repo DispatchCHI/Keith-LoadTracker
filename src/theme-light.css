@@ -69,6 +69,13 @@ select {
   color-scheme: light;
 }
 
+.load-row.load-row-checked {
+  background: #dff6e8;
+  color: #111111;
+  border-color: #1b7a3d;
+  box-shadow: inset 4px 0 0 #1b7a3d;
+}
+
 .tally-card,
 .load-row,
 .empty,

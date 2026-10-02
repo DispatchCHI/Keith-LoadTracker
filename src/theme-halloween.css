@@ -315,3 +315,11 @@ html[data-theme="halloween"] .rank-accordion {
 html[data-theme="halloween"] .rank-accordion .load-row {
   background: rgba(36, 20, 26, 0.76) !important;
 }
+
+html[data-theme="halloween"] .load-row.load-row-checked,
+html[data-theme="halloween"] .rank-accordion .load-row.load-row-checked {
+  background: #143528 !important;
+  color: #f7ead6 !important;
+  border-color: #3ddc84 !important;
+  box-shadow: inset 4px 0 0 #3ddc84 !important;
+}
