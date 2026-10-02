@@ -1,49 +1,107 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { BrandMark } from "../components/BrandMark";
-import { CollapsibleRank } from "../components/CollapsibleRank";
-import { StationPie } from "../components/StationPie";
 import {
+  SAME_WEEK_LAST_YEAR_DAYS,
   chicagoYearLabel,
   dailyCounts,
+  formatPercentChange,
+  formatSignedCount,
   loadsYearToDate,
-  peakDailyCount,
-  pickupPieSlices,
+  sumDailyCounts,
 } from "../lib/analytics";
 import {
+  addDays,
   chicagoToday,
+  dayNumber,
   formatHeaderDate,
-  formatMonthDayYear,
   formatShortDate,
-  lastNDays,
   startOfYear,
-  weekdayLetter,
+  weekdayOfISO,
+  weekStartingSunday,
 } from "../lib/chicagoDate";
 import { rankCommodities, rankDestinations, rankPickups } from "../lib/totals";
-import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
+import type { Load } from "../types";
 
-const TREND_DAYS = 21;
+const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const WEEKS_TO_SHOW = 6;
+const RANK_LIMIT = 5;
+
+function loadsBetween(loads: Load[], start: string, end: string): Load[] {
+  return loads.filter((load) => load.date >= start && load.date <= end);
+}
+
+function tone(value: number): string {
+  if (value > 0) return "an-up";
+  if (value < 0) return "an-down";
+  return "an-flat";
+}
+
+function Delta({ value }: { value: number }) {
+  return <span className={tone(value)}>{formatSignedCount(value)}</span>;
+}
 
 export function AnalyticsScreen() {
   const today = chicagoToday();
   const { loads } = useLoads();
-  const { availabilityOn } = useDrivers();
+  const currentWeek = useMemo(() => weekStartingSunday(today), [today]);
+  const [selectedStart, setSelectedStart] = useState(currentWeek[0]);
 
-  const ytdLoads = useMemo(() => loadsYearToDate(loads, today), [loads, today]);
-  const trendDates = useMemo(() => lastNDays(today, TREND_DAYS), [today]);
-  const trend = useMemo(() => dailyCounts(loads, trendDates), [loads, trendDates]);
-  const peak = peakDailyCount(trend);
-  const byPickup = useMemo(() => rankPickups(ytdLoads), [ytdLoads]);
-  const byDestination = useMemo(() => rankDestinations(ytdLoads), [ytdLoads]);
-  const byCommodity = useMemo(() => rankCommodities(ytdLoads), [ytdLoads]);
-  const pickupPie = useMemo(() => pickupPieSlices(byPickup), [byPickup]);
+  const weeks = useMemo(
+    () =>
+      Array.from({ length: WEEKS_TO_SHOW }, (_, index) =>
+        weekStartingSunday(addDays(currentWeek[0], -7 * index)),
+      ),
+    [currentWeek],
+  );
+
+  const countByDate = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const load of loads) map.set(load.date, (map.get(load.date) ?? 0) + 1);
+    return map;
+  }, [loads]);
+  const countOn = (iso: string) => countByDate.get(iso) ?? 0;
+  const sumDates = (dates: string[]) => sumDailyCounts(dailyCounts(loads, dates));
+
+  const ytd = loadsYearToDate(loads, today).length;
+  const lastYearSameDate = addDays(today, -SAME_WEEK_LAST_YEAR_DAYS);
+  const ytdLastYear = loadsBetween(loads, startOfYear(lastYearSameDate), lastYearSameDate).length;
+  const ytdDelta = ytd - ytdLastYear;
+  const ytdPct = formatPercentChange(ytd, ytdLastYear);
+
+  const elapsed = currentWeek.filter((day) => day <= today);
+  const priorElapsed = elapsed.map((day) => addDays(day, -7));
+  const thisWeekSoFar = sumDates(elapsed);
+  const priorSameDays = sumDates(priorElapsed);
+  const weekDelta = thisWeekSoFar - priorSameDays;
+  const weekPct = formatPercentChange(thisWeekSoFar, priorSameDays);
+
+  const selectedWeek = weeks.find((week) => week[0] === selectedStart) ?? currentWeek;
+  const selectedIsCurrent = selectedWeek[0] === currentWeek[0];
+  const selectedLoads = useMemo(() => {
+    const end = addDays(selectedStart, 6);
+    return loadsBetween(loads, selectedStart, end < today ? end : today);
+  }, [loads, selectedStart, today]);
+  const byPickup = useMemo(() => rankPickups(selectedLoads).slice(0, RANK_LIMIT), [selectedLoads]);
+  const byDestination = useMemo(
+    () => rankDestinations(selectedLoads).slice(0, RANK_LIMIT),
+    [selectedLoads],
+  );
+  const byCommodity = useMemo(
+    () => rankCommodities(selectedLoads).slice(0, RANK_LIMIT),
+    [selectedLoads],
+  );
 
   const year = chicagoYearLabel(today);
-  const ytdWord = ytdLoads.length === 1 ? "load" : "loads";
-  const recentWithLoads = [...trend].reverse();
+  const through = formatHeaderDate(today);
+  const elapsedSpan =
+    elapsed.length > 1
+      ? `${WEEKDAY[weekdayOfISO(elapsed[0])]}–${WEEKDAY[weekdayOfISO(elapsed[elapsed.length - 1])]}`
+      : WEEKDAY[weekdayOfISO(today)];
+  const rankWhen = selectedIsCurrent ? "this week" : formatShortDate(selectedWeek[0]);
 
   return (
-    <div className="screen">
+    <div className="screen an-screen">
       <header className="page-header">
         <div className="page-header-brand">
           <BrandMark />
@@ -52,125 +110,158 @@ export function AnalyticsScreen() {
             <h1 className="page-title">{year} year to date</h1>
           </div>
         </div>
+        <p className="an-through">Through {through} · click a week for each day</p>
       </header>
 
-      <article className="grand-total">
-        <div>
-          <p className="grand-headline">
-            {ytdLoads.length} {ytdWord} year to date
+      <div className="an-tiles">
+        <article className="an-tile">
+          <p className="an-k">Year to date</p>
+          <p className="an-v">{ytd.toLocaleString("en-US")}</p>
+          <p className="an-d">
+            {formatShortDate(startOfYear(today))} – {formatShortDate(today)}
           </p>
-          <p className="grand-sub">
-            {formatMonthDayYear(startOfYear(today))} – {formatHeaderDate(today)} ·
-            America/Chicago
+        </article>
+        <article className="an-tile">
+          <p className="an-k">Last year, this date</p>
+          <p className="an-v">{ytdLastYear.toLocaleString("en-US")}</p>
+          <p className="an-d">
+            <Delta value={ytdDelta} />
+            {ytdPct ? <span className={tone(ytdDelta)}> · {ytdPct}</span> : null}{" "}
+            vs {yearOf(lastYearSameDate)}
           </p>
-        </div>
-        <span className="grand-value">{ytdLoads.length}</span>
-      </article>
+        </article>
+        <article className="an-tile">
+          <p className="an-k">This week so far</p>
+          <p className="an-v">{thisWeekSoFar.toLocaleString("en-US")}</p>
+          <p className="an-d">
+            {elapsedSpan} · {formatShortDate(elapsed[0])} – {formatShortDate(elapsed[elapsed.length - 1])}
+          </p>
+        </article>
+        <article className="an-tile">
+          <p className="an-k">Prior week, same days</p>
+          <p className="an-v">{priorSameDays.toLocaleString("en-US")}</p>
+          <p className="an-d">
+            <Delta value={weekDelta} />
+            {weekPct ? <span className={tone(weekDelta)}> · {weekPct}</span> : null}{" "}
+            {elapsedSpan}
+          </p>
+        </article>
+      </div>
 
       {loads.length === 0 ? (
         <div className="empty compact">
           <h2>No loads to chart</h2>
-          <p>
-            Day-to-day and year-to-date fill from whatever is already in this
-            device store — local or the shared crew cache.
-          </p>
+          <p>Day and year totals fill from the loads already on this desk.</p>
         </div>
       ) : (
         <>
-          <section className="totals-block">
-            <h2>Transfer station share</h2>
-            <p className="totals-hint">
-              Year-to-date pickup mix for this Chicago calendar year. Stations
-              with no loads are omitted.
-            </p>
-            {pickupPie.length === 0 ? (
-              <p className="field-hint">No YTD pickups to chart.</p>
-            ) : (
-              <StationPie slices={pickupPie} total={ytdLoads.length} />
-            )}
-          </section>
-
-          <section className="totals-block">
-            <h2>Day to day</h2>
-            <p className="totals-hint">
-              Last {TREND_DAYS} Chicago calendar days. Bar height is that day’s
-              load count. Available drivers are locked per day (weekdays use Full Roster; Saturdays use Sat Roster). Sundays have no driver tally.
-            </p>
-            <div
-              className="d2d-chart"
-              role="img"
-              aria-label={`Daily load counts for the last ${TREND_DAYS} days`}
-            >
-              {trend.map((day) => {
-                const height =
-                  peak === 0 ? 0 : Math.max(day.count > 0 ? 8 : 0, (day.count / peak) * 100);
-                const isToday = day.date === today;
-                return (
-                  <div
-                    key={day.date}
-                    className={isToday ? "d2d-col d2d-col-today" : "d2d-col"}
-                    title={`${formatHeaderDate(day.date)}: ${day.count}`}
-                  >
-                    <span className="d2d-n">{day.count || ""}</span>
-                    <div className="d2d-bar-wrap">
-                      <div className="d2d-bar" style={{ height: `${height}%` }} />
-                    </div>
-                    <span className="d2d-wd">{weekdayLetter(day.date)}</span>
-                  </div>
-                );
-              })}
+          <section className="an-weeks">
+            <div className="an-week-row an-week-head">
+              <span>Week</span>
+              <span>Loads</span>
+              <span>Vs prior week</span>
+              <span>Vs last year</span>
             </div>
-            <ol className="d2d-list">
-              {recentWithLoads.map((day) => {
-                const avail = availabilityOn(day.date);
-                const per =
-                  avail && avail.available > 0
-                    ? (day.count / avail.available).toFixed(2)
-                    : null;
-                return (
-                  <li key={day.date}>
-                    <span className="d2d-list-date">
-                      {day.date === today ? "Today" : formatShortDate(day.date)}
-                      <span className="d2d-list-wd">{weekdayLetter(day.date)}</span>
+            {weeks.map((week) => {
+              const isCurrent = week[0] === currentWeek[0];
+              const open = week[0] === selectedWeek[0];
+              const comparable = isCurrent ? week.filter((day) => day <= today) : week;
+              const total = sumDates(comparable);
+              const prior = sumDates(comparable.map((day) => addDays(day, -7)));
+              const lastYear = sumDates(
+                comparable.map((day) => addDays(day, -SAME_WEEK_LAST_YEAR_DAYS)),
+              );
+              return (
+                <div key={week[0]}>
+                  <button
+                    type="button"
+                    className={open ? "an-week-row an-week-on" : "an-week-row"}
+                    aria-expanded={open}
+                    onClick={() => setSelectedStart(week[0])}
+                  >
+                    <span>
+                      {formatShortDate(week[0])} – {formatShortDate(week[6])}
+                      {isCurrent ? " · this week" : ""}
                     </span>
-                    <span className="d2d-list-count">
-                      {day.count} {day.count === 1 ? "load" : "loads"}
-                      {avail
-                        ? ` · ${avail.available} drv${per ? ` · ${per}/drv` : ""}${avail.locked ? " · locked" : ""}`
-                        : ""}
+                    <span className="an-num">{total.toLocaleString("en-US")}</span>
+                    <span>
+                      <Delta value={total - prior} />
                     </span>
-                  </li>
-                );
-              })}
-            </ol>
+                    <span>
+                      <Delta value={total - lastYear} />
+                    </span>
+                  </button>
+                  {open ? (
+                    <div className="an-days">
+                      {week.map((iso) => {
+                        const future = iso > today;
+                        const isToday = iso === today;
+                        return (
+                          <article
+                            key={iso}
+                            className={isToday ? "an-day an-day-today" : "an-day"}
+                          >
+                            <span className="an-day-wd">
+                              {isToday
+                                ? formatHeaderDate(iso)
+                                : `${WEEKDAY[weekdayOfISO(iso)]} ${dayNumber(iso)}`}
+                            </span>
+                            <span className="an-day-n">{future ? "—" : countOn(iso)}</span>
+                            <span className="an-day-meta">
+                              {future
+                                ? "still ahead"
+                                : `prior ${countOn(addDays(iso, -7))} · last yr ${countOn(addDays(iso, -SAME_WEEK_LAST_YEAR_DAYS))}`}
+                            </span>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
           </section>
 
-          <CollapsibleRank
-            title="Transfer station"
-            hint="Year-to-date pickups, highest first."
-            rows={byPickup}
-            filterKind="pickup"
-            defaultOpen
-            emptyText="No pickups in this Chicago year."
-          />
-          <CollapsibleRank
-            title="Landfill"
-            hint="Year-to-date destinations."
-            rows={byDestination}
-            filterKind="destination"
-            defaultOpen={false}
-            emptyText="No destinations in this Chicago year."
-          />
-          <CollapsibleRank
-            title="Commodity"
-            hint="Year-to-date commodities."
-            rows={byCommodity}
-            filterKind="commodity"
-            defaultOpen={false}
-            emptyText="No commodities in this Chicago year."
-          />
+          <div className="an-ranks">
+            <RankList title="Transfer station" when={rankWhen} rows={byPickup} />
+            <RankList title="Landfill" when={rankWhen} rows={byDestination} />
+            <RankList title="Commodity" when={rankWhen} rows={byCommodity} />
+          </div>
         </>
       )}
     </div>
+  );
+}
+
+function yearOf(iso: string): number {
+  return Number(iso.slice(0, 4));
+}
+
+function RankList({
+  title,
+  when,
+  rows,
+}: {
+  title: string;
+  when: string;
+  rows: { key: string; label: string; count: number }[];
+}) {
+  return (
+    <article className="an-rank">
+      <h2>
+        {title}
+        {title === "Commodity" ? ` · ${when}` : ""}
+      </h2>
+      {rows.length === 0 ? (
+        <p className="an-day-meta">No loads {when}.</p>
+      ) : (
+        rows.map((row) => (
+          <div className="an-line" key={row.key}>
+            <span>{row.label}</span>
+            <b>{row.count.toLocaleString("en-US")}</b>
+          </div>
+        ))
+      )}
+    </article>
   );
 }
