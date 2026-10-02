@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dailyCounts } from "./analytics";
+import { dailyCounts, formatPercentChange, formatSignedCount, sumDailyCounts } from "./analytics";
 import type { Load } from "../types";
 
 function load(id: string, date: string): Load {
@@ -40,5 +40,25 @@ describe("dailyCounts", () => {
     expect(rows.find((row) => row.date === "2026-09-04")?.count).toBe(1);
     expect(rows.find((row) => row.date === "2026-09-06")?.count).toBe(0);
     expect(new Set(rows.map((row) => row.count)).size).toBeGreaterThan(1);
+  });
+});
+
+describe("week comparisons", () => {
+  it("sums a week's daily counts", () => {
+    expect(
+      sumDailyCounts([
+        { date: "2026-09-27", count: 18 },
+        { date: "2026-09-28", count: 47 },
+      ]),
+    ).toBe(65);
+  });
+
+  it("formats a signed count and a one-decimal percent", () => {
+    expect(formatSignedCount(538)).toBe("+538");
+    expect(formatSignedCount(-13)).toBe("-13");
+    expect(formatSignedCount(0)).toBe("0");
+    expect(formatPercentChange(8642, 8104)).toBe("+6.6%");
+    expect(formatPercentChange(208, 221)).toBe("-5.9%");
+    expect(formatPercentChange(5, 0)).toBeNull();
   });
 });

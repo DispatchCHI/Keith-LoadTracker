@@ -28,6 +28,26 @@ export function chicagoYearLabel(today: string): string {
   return String(yearOfISO(today));
 }
 
+/** Same weekday one year earlier. 52 weeks keeps Sunday on Sunday. */
+export const SAME_WEEK_LAST_YEAR_DAYS = 364;
+
+export function sumDailyCounts(counts: DailyCount[]): number {
+  return counts.reduce((sum, day) => sum + day.count, 0);
+}
+
+export function formatSignedCount(n: number): string {
+  if (n > 0) return `+${n.toLocaleString("en-US")}`;
+  return n.toLocaleString("en-US");
+}
+
+/** Percent change versus a baseline. Null when the baseline is zero. */
+export function formatPercentChange(current: number, baseline: number): string | null {
+  if (baseline === 0) return null;
+  const rounded = Math.round(((current - baseline) / baseline) * 1000) / 10;
+  const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return `${rounded > 0 ? "+" : ""}${text}%`;
+}
+
 export type PieSlice = {
   key: string;
   label: string;
