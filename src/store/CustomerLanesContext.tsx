@@ -11,7 +11,16 @@ import {
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
 import { attachCloudRefresh, scheduleCloudRefresh } from "../lib/cloudRefresh";
 import { CUSTOMER_LANES_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
-import { clearCustomerBrandOverride } from "../lib/customerBrands";
+import {
+  CUSTOMER_BRANDS_EVENT,
+  CUSTOMER_BRANDS_FLUSH_EVENT,
+  clearCustomerBrandOverride,
+  flushCustomerBrandOverrides,
+} from "../lib/customerBrands";
+import {
+  pullAndMergeCustomerBrandOverrides,
+  pushCustomerBrandOverridesIfLocalNewer,
+} from "../lib/customerBrandOverridesCloud";
 import {
   CUSTOMER_LANES_TABLE,
   customerLaneToRow,
@@ -36,6 +45,8 @@ import { useAuth } from "./AuthContext";
 
 type CustomerLanesContextValue = {
   store: CustomerLaneStore;
+  /** Bumps when brand overrides change so logo UI re-reads localStorage. */
+  brandsRevision: number;
   cloud: boolean;
   saveLane: (input: CustomerLaneInput) => Promise<CustomerLane | null>;
   deleteLane: (id: string) => Promise<void>;
@@ -49,6 +60,7 @@ const CustomerLanesContext = createContext<CustomerLanesContextValue | null>(nul
 export function CustomerLanesProvider({ children }: { children: ReactNode }) {
   const { configured, session, user } = useAuth();
   const cloud = configured && !!session;
+  const [brandsRevision, setBrandsRevision] = useState(0);
   const deletedCustomersRef = useRef<Set<string>>(
     new Set(readCustomerLanePersisted().deletedCustomerNames),
   );
@@ -106,6 +118,13 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     setStore(next);
   }, []);
 
+  const syncBrandOverrides = useCallback(async () => {
+    const supabase = getSupabase();
+    if (!supabase || !session) return;
+    await pullAndMergeCustomerBrandOverrides(supabase);
+    await pushCustomerBrandOverridesIfLocalNewer(supabase, user?.id ?? null);
+  }, [session, user?.id]);
+
   const pullRemote = useCallback(async (): Promise<CustomerLaneStore | null> => {
     const supabase = getSupabase();
     if (!supabase || !session) return null;
@@ -154,7 +173,10 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
   const refreshInner = useCallback(async () => {
     if (!cloud) return;
     const remote = await pullRemote();
-    if (!remote) return;
+    if (!remote) {
+      await syncBrandOverrides();
+      return;
+    }
     const local = storeRef.current;
     const merged: Record<string, CustomerLane> = { ...remote.lanes };
     const toUpload: CustomerLane[] = [];
@@ -191,7 +213,8 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       const extras = Object.values(seeded.lanes).filter((lane) => !remote.lanes[lane.id]);
       if (extras.length) await cloudUpsert(extras);
     }
-  }, [cloud, cloudDelete, cloudUpsert, persistLocal, pullRemote]);
+    await syncBrandOverrides();
+  }, [cloud, cloudDelete, cloudUpsert, persistLocal, pullRemote, syncBrandOverrides]);
 
   const refresh = useCallback(() => {
     const run = refreshTailRef.current.then(refreshInner, refreshInner);
@@ -215,6 +238,21 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       void refresh();
     }, { shouldPoll: pollWhenTabs(CUSTOMER_LANES_POLL_TABS) });
   }, [cloud, refresh]);
+
+  useEffect(() => {
+    if (!cloud) return;
+    const onFlush = () => {
+      void syncBrandOverrides();
+    };
+    window.addEventListener(CUSTOMER_BRANDS_FLUSH_EVENT, onFlush);
+    return () => window.removeEventListener(CUSTOMER_BRANDS_FLUSH_EVENT, onFlush);
+  }, [cloud, syncBrandOverrides]);
+
+  useEffect(() => {
+    const onBrands = () => setBrandsRevision((n) => n + 1);
+    window.addEventListener(CUSTOMER_BRANDS_EVENT, onBrands);
+    return () => window.removeEventListener(CUSTOMER_BRANDS_EVENT, onBrands);
+  }, []);
 
   const saveLane = useCallback(
     async (input: CustomerLaneInput) => {
@@ -248,6 +286,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       if (key) deletedCustomersRef.current.add(key);
       clearCustomerBrandOverride(name);
       persistLocal(result.store);
+      flushCustomerBrandOverrides();
       if (cloud && result.removedIds.length) void cloudDelete(result.removedIds);
     },
     [cloud, cloudDelete, persistLocal],
@@ -269,8 +308,26 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<CustomerLanesContextValue>(
-    () => ({ store, cloud, saveLane, deleteLane, deleteCustomer, renameCustomer, refresh }),
-    [store, cloud, saveLane, deleteLane, deleteCustomer, renameCustomer, refresh],
+    () => ({
+      store,
+      brandsRevision,
+      cloud,
+      saveLane,
+      deleteLane,
+      deleteCustomer,
+      renameCustomer,
+      refresh,
+    }),
+    [
+      store,
+      brandsRevision,
+      cloud,
+      saveLane,
+      deleteLane,
+      deleteCustomer,
+      renameCustomer,
+      refresh,
+    ],
   );
 
   return (

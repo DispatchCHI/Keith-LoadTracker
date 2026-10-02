@@ -20,6 +20,7 @@ import {
   brandCompanyIdForCustomer,
   brandForCompanyId,
   brandForCustomer,
+  flushCustomerBrandOverrides,
   setCustomerBrandOverride,
   type BrandCompanyId,
 } from "../lib/customerBrands";
@@ -78,7 +79,7 @@ type LaneFormState = {
 };
 
 export function CustomersScreen() {
-  const { store, saveLane, deleteLane, deleteCustomer, renameCustomer } = useCustomerLanes();
+  const { store, brandsRevision, saveLane, deleteLane, deleteCustomer, renameCustomer } = useCustomerLanes();
   const today = chicagoToday();
   const [filter, setFilter] = useState<string>("all");
   const [addingCustomer, setAddingCustomer] = useState(false);
@@ -94,6 +95,8 @@ export function CustomersScreen() {
 
   const names = useMemo(() => customerNames(store), [store]);
   const current = useMemo(() => currentLanesByCustomer(store, today), [store, today]);
+  // Re-read localStorage brand map whenever cloud/local edits bump revision.
+  void brandsRevision;
 
   const visibleNames = names.filter((name) => {
     if (filter === "all") return true;
@@ -198,6 +201,7 @@ export function CustomersScreen() {
       return;
     }
     assignCustomerBrand(editingCustomer, nextName, editBrand);
+    flushCustomerBrandOverrides();
     setOpenCustomer(nextName);
     setLaneForm((form) =>
       form && placesMatch(form.customer, editingCustomer) ? { ...form, customer: nextName } : form,
@@ -257,6 +261,7 @@ export function CustomersScreen() {
             const name = cleanPlaceName(newCustomer);
             if (!name) return;
             setCustomerBrandOverride(name, newCustomerBrand);
+            flushCustomerBrandOverrides();
             void saveLane({
               customer: name,
               destination: "",

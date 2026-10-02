@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   CUSTOMER_BRAND_OVERRIDES_KEY,
+  CUSTOMER_BRAND_OVERRIDES_META_KEY,
   LRS,
   REPUBLIC,
   TRI_STATE,
@@ -8,7 +9,9 @@ import {
   assignCustomerBrand,
   brandCompanyIdForCustomer,
   brandForCustomer,
+  applyCustomerBrandOverrides,
   clearCustomerBrandOverride,
+  readCustomerBrandOverridesUpdatedAt,
   setCustomerBrandOverride,
 } from "./customerBrands";
 
@@ -112,5 +115,20 @@ describe("clearCustomerBrandOverride", () => {
   it("is a no-op when no override exists", () => {
     clearCustomerBrandOverride("Apollo");
     expect(brandForCustomer("Apollo")).toEqual(REPUBLIC);
+  });
+});
+
+describe("customer brand cloud meta", () => {
+  it("stamps updatedAt when overrides change and apply replaces the map", () => {
+    expect(readCustomerBrandOverridesUpdatedAt()).toBe("");
+    setCustomerBrandOverride("New Yard", "republic");
+    const stamped = readCustomerBrandOverridesUpdatedAt();
+    expect(stamped).toMatch(/^\d{4}-/);
+    applyCustomerBrandOverrides({ apollo: "lrs" }, "2026-10-02T12:00:00.000Z");
+    expect(brandForCustomer("Apollo")).toEqual(LRS);
+    expect(brandForCustomer("New Yard")).toBeNull();
+    expect(readCustomerBrandOverridesUpdatedAt()).toBe("2026-10-02T12:00:00.000Z");
+    const raw = localStorage.getItem(CUSTOMER_BRAND_OVERRIDES_META_KEY) ?? "";
+    expect(raw).toContain("2026-10-02T12:00:00.000Z");
   });
 });
