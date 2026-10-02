@@ -216,9 +216,6 @@ export function CustomersScreen() {
           <p className="eyebrow">Lanes · 5-year contract book</p>
           <h1 className="page-title">Customers</h1>
         </div>
-        <p className="field-hint tight">
-          Per-load pay by customer, destination, and driver tier.
-        </p>
       </header>
 
       <div className="cust-toolbar">
@@ -398,13 +395,15 @@ export function CustomersScreen() {
                             <td key={i} className="num">{formatTier(n)}</td>
                           ))}
                           <td className="cust-actions">
-                            <button type="button" className="cust-link" onClick={() => startLane(selected, lane)}>Edit</button>
-                            <button type="button" className="cust-link" onClick={() => startLane(selected, lane, true)}>
-                              New contract
-                            </button>
-                            <button type="button" className="cust-link danger" onClick={() => void deleteLane(lane.id)}>
-                              Delete
-                            </button>
+                            <span className="cust-action-row">
+                              <button type="button" className="cust-link" onClick={() => startLane(selected, lane)}>Edit</button>
+                              <button type="button" className="cust-link" onClick={() => startLane(selected, lane, true)}>
+                                New contract
+                              </button>
+                              <button type="button" className="cust-link danger" onClick={() => void deleteLane(lane.id)}>
+                                Delete
+                              </button>
+                            </span>
                           </td>
                         </tr>
                       ))}

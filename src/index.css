@@ -4628,15 +4628,23 @@ body.app-ready .splash {
 
 .cust-table th.num,
 .cust-table td.num {
+  width: 4.75rem;
   text-align: right;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
 .cust-actions {
+  width: 1%;
+  text-align: right;
   white-space: nowrap;
-  display: flex;
-  gap: 10px;
+}
+
+.cust-action-row {
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
 }
 
 .cust-pill {
