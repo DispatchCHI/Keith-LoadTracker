@@ -4602,9 +4602,16 @@ body.app-ready .splash {
 
 .cust-table {
   width: 100%;
+  min-width: 960px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
 }
+
+.cust-col-dest { width: 132px; }
+.cust-col-commodity { width: 156px; }
+.cust-col-tier { width: 72px; }
+.cust-col-actions { width: 196px; }
 
 .cust-table th,
 .cust-table td {
@@ -4626,23 +4633,26 @@ body.app-ready .splash {
   font-weight: 800;
 }
 
+.cust-table th.cust-commodity,
+.cust-table td.cust-commodity {
+  white-space: nowrap;
+}
+
+.cust-slack {
+  padding: 0;
+}
+
 .cust-table th.num,
 .cust-table td.num {
-  width: 1%;
-  padding-left: 16px;
-  padding-right: 6px;
+  padding-left: 8px;
+  padding-right: 4px;
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-.cust-gap {
-  width: 99%;
-}
-
 .cust-actions {
-  width: 1%;
-  padding-left: 28px;
+  padding-left: 12px;
   text-align: right;
   white-space: nowrap;
 }
@@ -4662,6 +4672,7 @@ body.app-ready .splash {
   border-radius: 999px;
   font-size: 11px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .cust-pill.msw { background: #1d4f91; color: #ffffff; }

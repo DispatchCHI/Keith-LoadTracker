@@ -374,16 +374,26 @@ export function CustomersScreen() {
               {selectedLanes.length ? (
                 <div className="cust-table-wrap">
                   <table className="cust-table">
+                    <colgroup>
+                      <col className="cust-col-dest" />
+                      <col className="cust-col-commodity" />
+                      <col />
+                      <col />
+                      <col className="cust-col-tier" span={5} />
+                      <col />
+                      <col className="cust-col-actions" />
+                    </colgroup>
                     <thead>
                       <tr>
                         <th>Destination</th>
-                        <th>Commodity</th>
+                        <th className="cust-commodity">Commodity</th>
+                        <th className="cust-slack" colSpan={2} />
                         <th className="num">T1</th>
                         <th className="num">T2</th>
                         <th className="num">T3</th>
                         <th className="num">T4</th>
                         <th className="num">T5</th>
-                        <th className="cust-gap" />
+                        <th className="cust-slack" />
                         <th />
                       </tr>
                     </thead>
@@ -391,11 +401,12 @@ export function CustomersScreen() {
                       {selectedLanes.map((lane) => (
                         <tr key={lane.id}>
                           <td>{lane.destination}</td>
-                          <td><span className={commodityClass(lane.commodity)}>{lane.commodity}</span></td>
+                          <td className="cust-commodity"><span className={commodityClass(lane.commodity)}>{lane.commodity}</span></td>
+                          <td className="cust-slack" colSpan={2} />
                           {[lane.tier1, lane.tier2, lane.tier3, lane.tier4, lane.tier5].map((n, i) => (
                             <td key={i} className="num">{formatTier(n)}</td>
                           ))}
-                          <td className="cust-gap" />
+                          <td className="cust-slack" />
                           <td className="cust-actions">
                             <span className="cust-action-row">
                               <button type="button" className="cust-link" onClick={() => startLane(selected, lane)}>Edit</button>
