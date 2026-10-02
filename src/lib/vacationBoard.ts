@@ -34,6 +34,10 @@ export type VacationEntry = {
   weekOf: string;
   name: string;
   note: string;
+  /** First day off. Null means Sunday of weekOf. */
+  startOn: string | null;
+  /** Last day off. Null means Saturday of weekOf. */
+  endOn: string | null;
   status: VacationStatus;
   createdAt: string;
   updatedAt: string;
@@ -354,6 +358,104 @@ function cleanWeek(raw: unknown): VacationWeek | null {
   };
 }
 
+/** Packed into `note` so dates survive the existing cloud column. */
+const VACATION_DATE_MARK = /(?:^|\n)\[\[d:(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})\]\]\s*$/;
+
+export function splitVacationNote(note: string): {
+  note: string;
+  startOn: string | null;
+  endOn: string | null;
+} {
+  const match = note.match(VACATION_DATE_MARK);
+  if (!match || !isValidISODate(match[1]) || !isValidISODate(match[2])) {
+    return { note: note.trim(), startOn: null, endOn: null };
+  }
+  const user = note.slice(0, match.index).trim();
+  return { note: user, startOn: match[1], endOn: match[2] };
+}
+
+export function packVacationNote(
+  note: string,
+  startOn: string | null,
+  endOn: string | null,
+): string {
+  const base = splitVacationNote(note).note;
+  if (!startOn || !endOn || !isValidISODate(startOn) || !isValidISODate(endOn)) return base;
+  const mark = `[[d:${startOn}..${endOn}]]`;
+  return base ? `${base}\n${mark}` : mark;
+}
+
+/** Full Sunday-Saturday of the anchor week is stored as null dates. */
+export function normalizeVacationSpan(
+  weekOf: string,
+  startOn: string | null,
+  endOn: string | null,
+): { startOn: string | null; endOn: string | null } {
+  if (!startOn || !endOn || !isValidISODate(startOn) || !isValidISODate(endOn)) {
+    return { startOn: null, endOn: null };
+  }
+  let start = startOn;
+  let end = endOn;
+  if (end < start) {
+    start = endOn;
+    end = startOn;
+  }
+  if (start === weekOf && end === addDays(weekOf, 6)) return { startOn: null, endOn: null };
+  return { startOn: start, endOn: end };
+}
+
+export function vacationSpan(entry: Pick<VacationEntry, "weekOf" | "startOn" | "endOn">): {
+  start: string;
+  end: string;
+} {
+  const start = entry.startOn && isValidISODate(entry.startOn) ? entry.startOn : entry.weekOf;
+  const end = entry.endOn && isValidISODate(entry.endOn) ? entry.endOn : addDays(entry.weekOf, 6);
+  if (end < start) return { start: end, end: start };
+  return { start, end };
+}
+
+export function isCustomVacationSpan(entry: Pick<VacationEntry, "startOn" | "endOn">): boolean {
+  return Boolean(entry.startOn && entry.endOn);
+}
+
+export function entryOverlapsWeek(entry: Pick<VacationEntry, "weekOf" | "startOn" | "endOn">, weekOf: string): boolean {
+  const span = vacationSpan(entry);
+  return span.start <= addDays(weekOf, 6) && span.end >= weekOf;
+}
+
+export function entryCoversDate(entry: Pick<VacationEntry, "weekOf" | "startOn" | "endOn">, iso: string): boolean {
+  if (!isValidISODate(iso)) return false;
+  const span = vacationSpan(entry);
+  return iso >= span.start && iso <= span.end;
+}
+
+export function spanCrossesWeek(start: string, end: string): boolean {
+  if (!isValidISODate(start) || !isValidISODate(end)) return false;
+  const from = start <= end ? start : end;
+  const to = start <= end ? end : start;
+  return sundayOnOrBefore(from) !== sundayOnOrBefore(to);
+}
+
+const VACATION_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const VACATION_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export function formatVacationDay(iso: string, withWeekday = false): string {
+  if (!isValidISODate(iso)) return iso;
+  const { m, d } = parseISODate(iso);
+  const label = `${VACATION_MONTHS[m - 1]} ${d}`;
+  if (!withWeekday) return label;
+  return `${VACATION_WEEKDAYS[weekdayOfISO(iso)]} ${label}`;
+}
+
+export function formatVacationSpanLabel(entry: Pick<VacationEntry, "weekOf" | "startOn" | "endOn">): string {
+  const span = vacationSpan(entry);
+  return `${formatVacationDay(span.start)} - ${formatVacationDay(span.end)}`;
+}
+
+function readIsoDate(value: unknown): string | null {
+  return typeof value === "string" && isValidISODate(value) ? value : null;
+}
+
 function cleanEntry(raw: unknown): VacationEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const rec = raw as Record<string, unknown>;
@@ -364,16 +466,21 @@ function cleanEntry(raw: unknown): VacationEntry | null {
   if (typeof rec.name !== "string") return null;
   const name = rec.name.trim();
   if (!name) return null;
-  const note = typeof rec.note === "string" ? rec.note.trim() : "";
+  const packed = splitVacationNote(typeof rec.note === "string" ? rec.note : "");
   const status = isVacationStatus(rec.status) ? rec.status : "approved";
   const createdAt = typeof rec.createdAt === "string" ? rec.createdAt : nowIso();
   const updatedAt = typeof rec.updatedAt === "string" ? rec.updatedAt : createdAt;
+  const startOn = readIsoDate(rec.startOn) ?? packed.startOn;
+  const endOn = readIsoDate(rec.endOn) ?? packed.endOn;
+  const span = normalizeVacationSpan(weekOf, startOn, endOn);
   return {
     id: rec.id,
     yard: cleanVacationYard(rec.yard),
     weekOf,
     name,
-    note,
+    note: packed.note,
+    startOn: span.startOn,
+    endOn: span.endOn,
     status,
     createdAt,
     updatedAt,
@@ -553,7 +660,7 @@ export function entriesForWeek(
 ): VacationEntry[] {
   const key = normalizeWeekOf(weekOf) ?? weekOf;
   return Object.values(store.entries)
-    .filter((entry) => entry.weekOf === key && entry.yard === yard)
+    .filter((entry) => entry.yard === yard && entryOverlapsWeek(entry, key))
     .sort((a, b) => {
       const name = a.name.localeCompare(b.name, "en", { sensitivity: "base" });
       if (name) return name;
@@ -767,6 +874,8 @@ export function applySeedWeeks(
         weekOf,
         name: cell.name,
         note: cell.note ?? "",
+        startOn: null,
+        endOn: null,
         status: cell.status ?? inferSeedStatus(cell.name, cell.note ?? ""),
         createdAt: at,
         updatedAt: at,
@@ -824,6 +933,8 @@ export function addVacationEntry(
   opts: {
     note?: string;
     status?: VacationStatus;
+    startOn?: string | null;
+    endOn?: string | null;
     id?: string;
     at?: string;
     yard?: VacationYard;
@@ -834,12 +945,15 @@ export function addVacationEntry(
   if (!week || !trimmed) return { store, entry: null };
   const at = opts.at ?? nowIso();
   const note = opts.note?.trim() ?? "";
+  const span = normalizeVacationSpan(week, opts.startOn ?? null, opts.endOn ?? null);
   const entry: VacationEntry = {
     id: opts.id ?? newVacationId(),
     yard: cleanVacationYard(opts.yard),
     weekOf: week,
     name: trimmed,
     note,
+    startOn: span.startOn,
+    endOn: span.endOn,
     status: opts.status ?? "approved",
     createdAt: at,
     updatedAt: at,
@@ -853,17 +967,27 @@ export function addVacationEntry(
 export function updateVacationEntry(
   store: VacationStore,
   id: string,
-  patch: Partial<Pick<VacationEntry, "name" | "note" | "status">>,
+  patch: Partial<Pick<VacationEntry, "name" | "note" | "status" | "startOn" | "endOn">>,
   at = nowIso(),
 ): VacationStore {
   const prev = store.entries[id];
   if (!prev) return store;
   const name = patch.name !== undefined ? patch.name.trim() : prev.name;
   if (!name) return store;
+  const span =
+    patch.startOn !== undefined || patch.endOn !== undefined
+      ? normalizeVacationSpan(
+          prev.weekOf,
+          patch.startOn !== undefined ? patch.startOn : prev.startOn,
+          patch.endOn !== undefined ? patch.endOn : prev.endOn,
+        )
+      : { startOn: prev.startOn, endOn: prev.endOn };
   const next: VacationEntry = {
     ...prev,
     name,
-    note: patch.note !== undefined ? patch.note.trim() : prev.note,
+    note: patch.note !== undefined ? splitVacationNote(patch.note).note : prev.note,
+    startOn: span.startOn,
+    endOn: span.endOn,
     status: patch.status ?? prev.status,
     updatedAt: at,
   };

@@ -25,6 +25,7 @@ import {
 } from "./driverRoster";
 import {
   entriesForWeek,
+  entryCoversDate,
   sundayOnOrBefore,
   vacationNameKey,
   type VacationStore,
@@ -121,6 +122,7 @@ export function vacationNamesOnDateAllYards(
   const seen = new Set<string>();
   for (const yard of ["rockford", "chicago"] as const) {
     for (const entry of entriesForWeek(vacation, weekOf, yard)) {
+      if (!entryCoversDate(entry, date)) continue;
       const key = rosterNameKey(entry.name);
       if (!key || seen.has(key)) continue;
       seen.add(key);
@@ -140,6 +142,7 @@ export function vacationNamesOnDate(
   const seen = new Set<string>();
   for (const yard of vacationYardsForRosterYard(rosterYard)) {
     for (const entry of entriesForWeek(vacation, weekOf, yard)) {
+      if (!entryCoversDate(entry, date)) continue;
       const key = rosterNameKey(entry.name);
       if (!key || seen.has(key)) continue;
       seen.add(key);

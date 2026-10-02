@@ -3227,34 +3227,46 @@ body.app-ready .splash {
 }
 /* ——— Vacation calendar (desktop-first week table) ——— */
 .vac-screen {
-  gap: 12px;
+  gap: 10px;
 }
 
 .app-shell.is-desktop .vac-screen {
   max-width: none;
-  padding: 18px 22px 32px;
+  padding: 14px 16px 16px;
+}
+
+.vac-top {
+  align-items: flex-end;
+}
+
+.vac-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .vac-yard-switch {
   display: flex;
-  width: min(520px, 100%);
-  padding: 4px;
+  width: auto;
+  padding: 3px;
   gap: 4px;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  background: #fafaf9;
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 .vac-yard-btn {
-  flex: 1;
-  min-height: 44px;
-  padding: 8px 12px;
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: var(--muted);
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 750;
   letter-spacing: 0.01em;
 }
 
@@ -3265,13 +3277,17 @@ body.app-ready .splash {
 }
 
 .vac-yard-btn.is-active {
-  background: #fae6e7;
+  background: #1e3a8a;
   color: #fff;
-  box-shadow: inset 0 0 0 1px #d4a9a9;
+  box-shadow: none;
 }
 
-.app-shell.is-desktop .vac-yard-switch {
-  width: min(560px, 100%);
+.vac-screen .vac-year-row .day-chip {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
 .vac-toolbar {
@@ -3296,20 +3312,24 @@ body.app-ready .splash {
 
 .vac-year-input {
   margin-top: 0;
-  width: 88px;
-  min-height: 40px;
-  padding: 6px 10px;
+  width: 72px;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 8px;
+}
+
+.vac-year-create .text-btn {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px;
 }
 
 .vac-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 16px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
+  gap: 14px;
+  padding: 0 2px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 650;
@@ -3322,9 +3342,15 @@ body.app-ready .splash {
   color: var(--text);
 }
 
-.vac-legend-note {
+.vac-this-week {
   margin-left: auto;
-  font-weight: 600;
+  border: 0;
+  background: transparent;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 0;
+  min-height: 0;
 }
 
 .vac-dot {
@@ -3348,14 +3374,14 @@ body.app-ready .splash {
 
 .vac-table-wrap {
   overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: #f5f3f0;
+  border: 1px solid #d5d8e0;
+  border-radius: 12px;
+  background: #ffffff;
   max-height: min(70dvh, 820px);
 }
 
 .app-shell.is-desktop .vac-table-wrap {
-  max-height: calc(100dvh - 320px);
+  max-height: calc(100dvh - 196px);
 }
 
 .vac-table {
@@ -3367,19 +3393,19 @@ body.app-ready .splash {
 .vac-table th,
 .vac-table td {
   text-align: left;
-  vertical-align: top;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  padding: 6px 12px;
+  border-bottom: 1px solid #eef0f3;
 }
 
 .vac-table thead th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #fafaf9;
+  background: #f3f4f6;
   color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 800;
 }
@@ -3394,18 +3420,24 @@ body.app-ready .splash {
 }
 
 .vac-month-row th {
-  background: #ede9e4;
-  color: #8b3a3e;
-  font-size: 12px;
-  letter-spacing: 0.14em;
+  background: #d3d7df;
+  color: #374151;
+  font-size: 11px;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 800;
-  padding: 8px 12px;
+  padding: 5px 12px;
 }
 
 .vac-week-row.is-current {
-  background: #fae6e7;
-  box-shadow: inset 3px 0 0 var(--brand);
+  background: #eef2ff;
+  box-shadow: inset 3px 0 0 #1e3a8a;
+}
+
+.vac-week-row.is-current .vac-cap-chip {
+  border-color: #c7d2fe;
+  background: #ffffff;
+  color: #1e3a8a;
 }
 
 .vac-week-row.is-closed {
@@ -3414,13 +3446,13 @@ body.app-ready .splash {
 
 .vac-week-date {
   font-weight: 750;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .vac-now {
-  margin-top: 2px;
-  color: var(--brand);
-  font-size: 11px;
+  margin-top: 1px;
+  color: #1e3a8a;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -3429,14 +3461,15 @@ body.app-ready .splash {
 .vac-cap-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 4px 10px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid #d4a9a9;
-  background: #fae6e7;
-  color: #8b3a3e;
+  border: 1px solid #d5d8e0;
+  background: #f8fafc;
+  color: #374151;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .vac-cap-chip.is-holiday {
@@ -3462,14 +3495,15 @@ body.app-ready .splash {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 32px;
-  padding: 6px 8px 6px 12px;
-  border-radius: 14px;
+  height: 26px;
+  min-height: 26px;
+  padding: 0 4px 0 10px;
+  border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--text);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: 12.5px;
+  font-weight: 700;
 }
 
 .vac-pill-approved {
@@ -3514,18 +3548,76 @@ body.app-ready .splash {
   line-height: 1.2;
 }
 
+.vac-days {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid #1e3a8a;
+  background: #ffffff;
+  color: #1e3a8a;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.vac-pill-approved .vac-days {
+  border-color: #4b5563;
+  color: #1f2937;
+}
+
+.vac-pill-paid .vac-days {
+  border-color: #166534;
+  color: #14532d;
+}
+
+.vac-days.is-full {
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  border-width: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.vac-days.is-full svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+.vac-pill:hover .vac-days.is-full,
+.vac-days.is-full:focus-visible {
+  width: 18px;
+  min-width: 18px;
+  opacity: 1;
+  overflow: visible;
+  border-width: 1px;
+  border-color: currentColor;
+  background: #ffffff;
+}
+
 .vac-pill-x {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: inherit;
-  opacity: 0.8;
+  opacity: 0.7;
+  font-size: 14px;
+  line-height: 1;
 }
 
 .vac-pill-x:hover,
@@ -3536,14 +3628,113 @@ body.app-ready .splash {
 }
 
 .vac-add-link {
-  min-height: 28px;
-  padding: 4px 8px;
-  border: 1px dashed #d4a9a9;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px dashed #b7bdc8;
   border-radius: 999px;
   background: transparent;
-  color: #8b3a3e;
+  color: #4b5563;
   font-size: 12px;
   font-weight: 750;
+}
+
+.vac-date-pop {
+  position: fixed;
+  z-index: 40;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1px solid #c5cad3;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(17, 24, 39, 0.16);
+  padding: 10px 12px 12px;
+}
+
+.vac-date-pop b {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.vac-date-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.vac-date-fields label {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+}
+
+.vac-date-fields input,
+.vac-date-pop input[type="date"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: 30px;
+  margin: 0;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border: 1px solid #d5d8e0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.vac-date-pop p {
+  margin: 8px 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: #374151;
+  line-height: 1.35;
+}
+
+.vac-date-pop .vac-date-error,
+.vac-add-form .vac-date-error {
+  margin: 0 0 8px;
+  color: #9f1239;
+}
+
+.vac-date-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.vac-date-actions button {
+  height: 28px;
+  min-height: 28px;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.vac-date-ghost {
+  border: 1px solid #d5d8e0;
+  background: #ffffff;
+  color: #374151;
+}
+
+.vac-date-save {
+  border: 0;
+  background: #1e3a8a;
+  color: #ffffff;
 }
 
 .vac-add-form,
@@ -3551,11 +3742,14 @@ body.app-ready .splash {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: min(280px, 100%);
+  width: min(280px, 100%);
+  max-width: 100%;
+  min-width: 0;
   padding: 8px 10px;
   border-radius: 12px;
   border: 1px solid #d4cfc8;
   background: #ffffff;
+  box-sizing: border-box;
 }
 
 .vac-add-name,
@@ -3630,36 +3824,35 @@ body.app-ready .splash {
 
 .vac-status-pending {
   border-color: #5b8fc7;
-  color: #cfe4ff;
+  color: #123152;
 }
 
 .vac-status-approved {
   border-color: #9a9a9a;
-  color: #e8e4da;
+  color: #1a1a1a;
 }
 
 .vac-status-paid {
   border-color: #3d9a63;
-  color: #c8f5d6;
+  color: #14532d;
 }
 
 .vac-status-pending.selected {
   background: #d6e8fb;
   border-color: #7eb6ff;
-  color: #eaf3ff;
+  color: #123152;
 }
 
-.vac-status-approved.selected,
-.vac-status-btn.selected {
+.vac-status-approved.selected {
   background: #e6e6e8;
   border-color: #c4c0b6;
-  color: #fff;
+  color: #1a1a1a;
 }
 
 .vac-status-paid.selected {
   background: #c8f0d8;
   border-color: #6ee7a0;
-  color: #e8ffef;
+  color: #14532d;
 }
 
 .vac-add-actions {
@@ -3681,7 +3874,7 @@ body.app-ready .splash {
   .vac-col-drivers {
     width: auto;
   }
-  .vac-legend-note {
+  .vac-this-week {
     margin-left: 0;
   }
 }

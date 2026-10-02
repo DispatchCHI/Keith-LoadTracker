@@ -12,6 +12,7 @@ import {
   defaultCapacityForWeek,
   emptyVacationStore,
   entriesForWeek,
+  entryCoversDate,
   formatWeekRange,
   holidayLabelForWeek,
   inferSeedStatus,
@@ -20,11 +21,13 @@ import {
   mergeVacationStores,
   nextVacationStatus,
   normalizeWeekOf,
+  packVacationNote,
   parseDriverCell,
   parseVacationWeekKey,
   parseWeekCapacityLabel,
   reconcileVacationCloud,
   removeVacationEntry,
+  splitVacationNote,
   rosterNamesFromStore,
   statusTone,
   sundayOnOrBefore,
@@ -231,6 +234,63 @@ describe("seed + mutations", () => {
     const removed = removeVacationEntry(store, "ent-1");
     expect(removed.removed?.id).toBe("ent-1");
     expect(removed.store.entries["ent-1"]).toBeUndefined();
+  });
+
+  it("shows a custom span on every week it covers and keeps a full week on one row", () => {
+    let store = emptyVacationStore();
+    store = upsertWeek(store, { weekOf: "2026-10-04", year: 2026, capacity: 5 }, AT);
+    store = upsertWeek(store, { weekOf: "2026-10-11", year: 2026, capacity: 5 }, AT);
+    const partial = addVacationEntry(store, "2026-09-27", "Roberto Gonzalez", {
+      startOn: "2026-09-30",
+      endOn: "2026-10-02",
+      id: "rob",
+      at: AT,
+    });
+    store = partial.store;
+    expect(entriesForWeek(store, "2026-09-27").map((e) => e.name)).toEqual(["Roberto Gonzalez"]);
+    expect(entriesForWeek(store, "2026-10-04").map((e) => e.name)).toEqual([]);
+    expect(entryCoversDate(partial.entry!, "2026-09-29")).toBe(false);
+    expect(entryCoversDate(partial.entry!, "2026-09-30")).toBe(true);
+
+    const span = addVacationEntry(store, "2026-10-04", "Tim Rozzoni", {
+      startOn: "2026-10-08",
+      endOn: "2026-10-14",
+      id: "tim",
+      at: AT,
+    });
+    store = span.store;
+    expect(entriesForWeek(store, "2026-10-04").map((e) => e.name)).toEqual(["Tim Rozzoni"]);
+    expect(entriesForWeek(store, "2026-10-11").map((e) => e.name)).toEqual(["Tim Rozzoni"]);
+    expect(entryCoversDate(span.entry!, "2026-10-07")).toBe(false);
+    expect(entryCoversDate(span.entry!, "2026-10-12")).toBe(true);
+
+    store = updateVacationEntry(store, "tim", { startOn: null, endOn: null }, LATER);
+    expect(store.entries.tim?.startOn).toBeNull();
+    expect(entriesForWeek(store, "2026-10-11").map((e) => e.name)).toEqual([]);
+    expect(entriesForWeek(store, "2026-10-04").map((e) => e.name)).toEqual(["Tim Rozzoni"]);
+
+    const packed = packVacationNote("back Friday", "2026-10-08", "2026-10-14");
+    expect(splitVacationNote(packed)).toEqual({
+      note: "back Friday",
+      startOn: "2026-10-08",
+      endOn: "2026-10-14",
+    });
+    const cleaned = cleanVacationStore({
+      entries: {
+        tim: {
+          id: "tim",
+          weekOf: "2026-10-04",
+          name: "Tim Rozzoni",
+          note: packed,
+          status: "pending",
+          createdAt: AT,
+          updatedAt: AT,
+        },
+      },
+    });
+    expect(cleaned.entries.tim?.note).toBe("back Friday");
+    expect(cleaned.entries.tim?.startOn).toBe("2026-10-08");
+    expect(cleaned.entries.tim?.endOn).toBe("2026-10-14");
   });
 
   it("builds an empty future year with holidays and default capacities", () => {

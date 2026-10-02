@@ -1,15 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BrandMark } from "../components/BrandMark";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { DriverNameInput } from "../components/DriverNameInput";
-import { chicagoToday, yearOfISO } from "../lib/chicagoDate";
+import { addDays, chicagoToday, yearOfISO } from "../lib/chicagoDate";
 import {
   VACATION_YARDS,
   entriesForWeek,
+  formatVacationDay,
+  formatVacationSpanLabel,
   formatWeekRange,
   holidayLabelForWeek,
+  isCustomVacationSpan,
   monthKeyForWeek,
   monthLabelForKey,
+  spanCrossesWeek,
   sundaysForVacationYear,
+  vacationSpan,
   vacationStatusLabel,
   vacationWeekKey,
   vacationYardLabel,
@@ -50,22 +55,39 @@ function DriverPill({
   entry,
   onCycle,
   onRemove,
+  onEditDays,
 }: {
   entry: VacationEntry;
   onCycle: () => void;
   onRemove: () => void;
+  onEditDays: (anchor: HTMLButtonElement) => void;
 }) {
+  const custom = isCustomVacationSpan(entry);
+  const daysLabel = custom ? formatVacationSpanLabel(entry) : "Days";
   return (
     <span className={statusClass(entry.status)}>
       <button
         type="button"
         className="vac-pill-main"
         onClick={onCycle}
-        title={`${entry.name}${entry.note ? ` · ${entry.note}` : ""} · ${vacationStatusLabel(entry.status)}. Tap to cycle status.`}
-        aria-label={`${entry.name}${entry.note ? `, ${entry.note}` : ""}, ${vacationStatusLabel(entry.status)}. Tap to cycle status.`}
+        title={`${entry.name}${entry.note ? ` · ${entry.note}` : ""} · ${vacationStatusLabel(entry.status)}. Click to change status.`}
+        aria-label={`${entry.name}${entry.note ? `, ${entry.note}` : ""}, ${vacationStatusLabel(entry.status)}. Click to change status.`}
       >
         <span className="vac-pill-name">{entry.name}</span>
         {entry.note ? <span className="vac-pill-note">{entry.note}</span> : null}
+      </button>
+      <button
+        type="button"
+        className={custom ? "vac-days" : "vac-days is-full"}
+        aria-label={custom ? `Days off ${daysLabel}` : `Set days off for ${entry.name}`}
+        onClick={(event) => onEditDays(event.currentTarget)}
+      >
+        {custom ? daysLabel : (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="16" rx="2" />
+            <path d="M3 10h18M8 3v4M16 3v4" />
+          </svg>
+        )}
       </button>
       <button
         type="button"
@@ -79,16 +101,116 @@ function DriverPill({
   );
 }
 
+function DaysOffPopover({
+  entry,
+  anchor,
+  onClose,
+  onSave,
+}: {
+  entry: VacationEntry;
+  anchor: DOMRect;
+  onClose: () => void;
+  onSave: (start: string | null, end: string | null) => void;
+}) {
+  const span = vacationSpan(entry);
+  const [start, setStart] = useState(span.start);
+  const [end, setEnd] = useState(span.end);
+  const [error, setError] = useState("");
+  const popRef = useRef<HTMLFormElement>(null);
+  const [pos, setPos] = useState({ top: anchor.bottom + 6, left: anchor.left });
+
+  useLayoutEffect(() => {
+    const el = popRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    let left = anchor.left;
+    let top = anchor.bottom + 6;
+    if (left + rect.width > window.innerWidth - 8) left = window.innerWidth - rect.width - 8;
+    if (left < 8) left = 8;
+    if (top + rect.height > window.innerHeight - 8) top = Math.max(8, anchor.top - rect.height - 6);
+    setPos({ top, left });
+  }, [anchor, start, end, error]);
+
+  useEffect(() => {
+    function onPointer(event: MouseEvent) {
+      if (!popRef.current?.contains(event.target as Node)) onClose();
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  const crosses = spanCrossesWeek(start, end);
+  const startLabel = formatVacationDay(start, true);
+  const endLabel = formatVacationDay(end, true);
+
+  return createPortal(
+    <form
+      ref={popRef}
+      className="vac-date-pop"
+      style={{ top: pos.top, left: pos.left }}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!start || !end) {
+          setError("Enter a start and an end.");
+          return;
+        }
+        if (end < start) {
+          setError("End is before the start.");
+          return;
+        }
+        onSave(start, end);
+      }}
+    >
+      <b>Days off</b>
+      <div className="vac-date-fields">
+        <label>
+          Start
+          <input type="date" value={start} onChange={(event) => { setStart(event.target.value); setError(""); }} />
+        </label>
+        <label>
+          End
+          <input type="date" value={end} onChange={(event) => { setEnd(event.target.value); setError(""); }} />
+        </label>
+      </div>
+      <p>
+        {crosses
+          ? `${startLabel} through ${endLabel}. This crosses Saturday, so the name stays on each week it covers.`
+          : `${startLabel} through ${endLabel}.`}
+      </p>
+      {error ? <p className="vac-date-error">{error}</p> : null}
+      <div className="vac-date-actions">
+        <button type="button" className="vac-date-ghost" onClick={() => onSave(null, null)}>
+          Full week
+        </button>
+        <button type="submit" className="vac-date-save">Save</button>
+      </div>
+    </form>,
+    document.body,
+  );
+}
+
 function AddDriverForm({
+  weekOf,
   onCancel,
   onSave,
 }: {
+  weekOf: string;
   onCancel: () => void;
-  onSave: (name: string, status: VacationStatus, note: string) => void;
+  onSave: (name: string, status: VacationStatus, note: string, start: string, end: string) => void;
 }) {
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<VacationStatus>("approved");
+  const [start, setStart] = useState(weekOf);
+  const [end, setEnd] = useState(addDays(weekOf, 6));
+  const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -101,7 +223,11 @@ function AddDriverForm({
       onSubmit={(event) => {
         event.preventDefault();
         if (!name.trim()) return;
-        onSave(name.trim(), status, note.trim());
+        if (end < start) {
+          setError("End is before the start.");
+          return;
+        }
+        onSave(name.trim(), status, note.trim(), start, end);
       }}
     >
       <DriverNameInput
@@ -119,6 +245,17 @@ function AddDriverForm({
         placeholder="Note (optional)"
         autoComplete="off"
       />
+      <div className="vac-date-fields">
+        <label>
+          Start
+          <input type="date" value={start} onChange={(event) => { setStart(event.target.value); setError(""); }} />
+        </label>
+        <label>
+          End
+          <input type="date" value={end} onChange={(event) => { setEnd(event.target.value); setError(""); }} />
+        </label>
+      </div>
+      {error ? <p className="vac-date-error">{error}</p> : null}
       <div className="vac-status-row">
         {STATUS_OPTIONS.map((opt) => (
           <button
@@ -249,11 +386,12 @@ function WeekSettings({
 export function VacationScreen() {
   const today = chicagoToday();
   const currentYear = yearOfISO(today);
-  const { store, yard, setYard, addDriver, cycleDriverStatus, removeDriver, editWeek, createYear } =
+  const { store, yard, setYard, addDriver, editDriver, cycleDriverStatus, removeDriver, editWeek, createYear } =
     useVacation();
   const [year, setYear] = useState(currentYear);
   const [addingWeek, setAddingWeek] = useState<string | null>(null);
   const [editingWeek, setEditingWeek] = useState<string | null>(null);
+  const [daysEdit, setDaysEdit] = useState<{ id: string; rect: DOMRect } | null>(null);
   const [newYear, setNewYear] = useState("");
   const [yearError, setYearError] = useState<string | null>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
@@ -331,78 +469,71 @@ export function VacationScreen() {
 
   return (
     <div className="screen vac-screen">
-      <div className="vac-yard-switch" role="tablist" aria-label="Vacation yard">
-        {VACATION_YARDS.map((item) => {
-          const selected = yard === item;
-          return (
-            <button
-              key={item}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              className={selected ? "vac-yard-btn is-active" : "vac-yard-btn"}
-              onClick={() => {
-                setYard(item);
-                setYear(2026);
-                setAddingWeek(null);
-                setEditingWeek(null);
-              }}
-            >
-              {vacationYardLabel(item, 2026)}
-            </button>
-          );
-        })}
-      </div>
-
-      <header className="page-header">
-        <div className="page-header-brand">
-          <BrandMark />
-          <div>
-            <p className="eyebrow">Vacation calendar</p>
-            <h1 className="page-title">{vacationYardLabel(yard, year)}</h1>
+      <header className="page-header vac-top">
+        <div>
+          <p className="eyebrow">Vacation calendar</p>
+          <h1 className="page-title">{vacationYardLabel(yard, year)}</h1>
+        </div>
+        <div className="vac-tools">
+          <div className="vac-yard-switch" role="tablist" aria-label="Vacation yard">
+            {VACATION_YARDS.map((item) => {
+              const selected = yard === item;
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  role="tab"
+                  aria-selected={selected}
+                  className={selected ? "vac-yard-btn is-active" : "vac-yard-btn"}
+                  onClick={() => {
+                    setYard(item);
+                    setYear(2026);
+                    setAddingWeek(null);
+                    setEditingWeek(null);
+                    setDaysEdit(null);
+                  }}
+                >
+                  {vacationYardLabel(item)}
+                </button>
+              );
+            })}
           </div>
-        </div>
-        <button type="button" className="text-btn amber" onClick={jumpThisWeek}>
-          This week
-        </button>
-      </header>
-
-      <div className="vac-toolbar">
-        <div className="vac-year-row" role="tablist" aria-label="Calendar year">
-          {knownYears.map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={year === item ? "day-chip day-chip-active" : "day-chip"}
-              onClick={() => setYear(item)}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-        <form
-          className="vac-year-create"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void onCreateYear();
-          }}
-        >
-          <input
-            className="text-input vac-year-input"
-            inputMode="numeric"
-            placeholder="2027"
-            value={newYear}
-            onChange={(event) => {
-              setNewYear(event.target.value);
-              setYearError(null);
+          <div className="vac-year-row" role="tablist" aria-label="Calendar year">
+            {knownYears.map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={year === item ? "day-chip day-chip-active" : "day-chip"}
+                onClick={() => setYear(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+          <form
+            className="vac-year-create"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void onCreateYear();
             }}
-            aria-label="New year"
-          />
-          <button type="submit" className="text-btn amber">
-            + Year
-          </button>
-        </form>
-      </div>
+          >
+            <input
+              className="text-input vac-year-input"
+              inputMode="numeric"
+              placeholder="2027"
+              value={newYear}
+              onChange={(event) => {
+                setNewYear(event.target.value);
+                setYearError(null);
+              }}
+              aria-label="New year"
+            />
+            <button type="submit" className="text-btn amber">
+              + Year
+            </button>
+          </form>
+        </div>
+      </header>
       {yearError ? <p className="form-error">{yearError}</p> : null}
 
       <div className="vac-legend" aria-label="Status colors">
@@ -411,7 +542,9 @@ export function VacationScreen() {
             <i className={`vac-dot vac-dot-${opt.id}`} /> {opt.label}
           </span>
         ))}
-        <span className="vac-legend-note">Tap a name to cycle color. × removes.</span>
+        <button type="button" className="vac-this-week" onClick={jumpThisWeek}>
+          This week
+        </button>
       </div>
 
       {!yearExists ? (
@@ -497,13 +630,18 @@ export function VacationScreen() {
                             entry={entry}
                             onCycle={() => void cycleDriverStatus(entry.id)}
                             onRemove={() => void removeDriver(entry.id)}
+                            onEditDays={(anchor) => {
+                              setDaysEdit({ id: entry.id, rect: anchor.getBoundingClientRect() });
+                              setAddingWeek(null);
+                            }}
                           />
                         ))}
                         {adding ? (
                           <AddDriverForm
+                            weekOf={week.weekOf}
                             onCancel={() => setAddingWeek(null)}
-                            onSave={(name, status, note) => {
-                              void addDriver(week.weekOf, name, { status, note });
+                            onSave={(name, status, note, start, end) => {
+                              void addDriver(week.weekOf, name, { status, note, startOn: start, endOn: end });
                               setAddingWeek(null);
                             }}
                           />
@@ -528,6 +666,17 @@ export function VacationScreen() {
           </table>
         </div>
       )}
+      {daysEdit && store.entries[daysEdit.id] ? (
+        <DaysOffPopover
+          entry={store.entries[daysEdit.id]}
+          anchor={daysEdit.rect}
+          onClose={() => setDaysEdit(null)}
+          onSave={(start, end) => {
+            void editDriver(daysEdit.id, { startOn: start, endOn: end });
+            setDaysEdit(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

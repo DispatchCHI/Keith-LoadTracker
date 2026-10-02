@@ -23,9 +23,12 @@ import {
   DEFAULT_VACATION_YARD,
   emptyVacationStore,
   readSelectedVacationYard,
+  normalizeVacationSpan,
+  packVacationNote,
   readVacationPersisted,
   reconcileVacationCloud,
   removeVacationEntry,
+  splitVacationNote,
   updateVacationEntry,
   upsertWeek,
   vacationWeekKey,
@@ -73,11 +76,11 @@ type VacationContextValue = {
   addDriver: (
     weekOf: string,
     name: string,
-    opts?: { note?: string; status?: VacationStatus },
+    opts?: { note?: string; status?: VacationStatus; startOn?: string | null; endOn?: string | null },
   ) => Promise<VacationEntry | null>;
   editDriver: (
     id: string,
-    patch: Partial<Pick<VacationEntry, "name" | "note" | "status">>,
+    patch: Partial<Pick<VacationEntry, "name" | "note" | "status" | "startOn" | "endOn">>,
   ) => Promise<void>;
   cycleDriverStatus: (id: string) => Promise<void>;
   removeDriver: (id: string) => Promise<void>;
@@ -106,12 +109,16 @@ function rowsToStore(weeks: WeekRow[], entries: EntryRow[]): VacationStore {
     };
   }
   for (const row of entries) {
+    const packed = splitVacationNote(row.note ?? "");
+    const span = normalizeVacationSpan(row.week_of, packed.startOn, packed.endOn);
     store.entries[row.id] = {
       id: row.id,
       yard: cleanVacationYard(row.yard),
       weekOf: row.week_of,
       name: row.name,
-      note: row.note ?? "",
+      note: packed.note,
+      startOn: span.startOn,
+      endOn: span.endOn,
       status: (row.status as VacationStatus) ?? "approved",
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -140,7 +147,7 @@ function entryToRow(entry: VacationEntry, userId: string | null) {
     yard: entry.yard,
     week_of: entry.weekOf,
     name: entry.name,
-    note: entry.note,
+    note: packVacationNote(entry.note, entry.startOn, entry.endOn),
     status: entry.status,
     created_at: entry.createdAt,
     updated_at: entry.updatedAt,
@@ -380,7 +387,7 @@ export function VacationProvider({ children }: { children: ReactNode }) {
     async (
       weekOf: string,
       name: string,
-      opts?: { note?: string; status?: VacationStatus },
+      opts?: { note?: string; status?: VacationStatus; startOn?: string | null; endOn?: string | null },
     ) => {
       epochRef.current += 1;
       const result = addVacationEntry(storeRef.current, weekOf, name, {
@@ -398,7 +405,7 @@ export function VacationProvider({ children }: { children: ReactNode }) {
   const editDriver = useCallback(
     async (
       id: string,
-      patch: Partial<Pick<VacationEntry, "name" | "note" | "status">>,
+      patch: Partial<Pick<VacationEntry, "name" | "note" | "status" | "startOn" | "endOn">>,
     ) => {
       epochRef.current += 1;
       const next = updateVacationEntry(storeRef.current, id, patch);
