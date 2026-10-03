@@ -5,6 +5,7 @@ import {
   CalendarDays,
   PhoneOff,
   PieChart,
+  Radio,
   Search,
   Users,
 } from "lucide-react";
@@ -19,6 +20,7 @@ const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
   { id: "trucks", label: "Search", Icon: Search },
   { id: "customers", label: "Customers", Icon: Building2 },
   { id: "analytics", label: "Analytics", Icon: PieChart },
+  { id: "dispatch", label: "Dispatch", Icon: Radio },
 ];
 
 export function TabBar({

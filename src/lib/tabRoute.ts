@@ -10,6 +10,7 @@ const TAB_SLUGS: Record<Exclude<TabId, "today">, string> = {
   driver: "driver",
   vacation: "vacation",
   calloffs: "calloffs",
+  dispatch: "dispatch",
 };
 
 const SLUG_TO_TAB: Record<string, TabId> = {
@@ -19,6 +20,7 @@ const SLUG_TO_TAB: Record<string, TabId> = {
   driver: "driver",
   vacation: "vacation",
   calloffs: "calloffs",
+  dispatch: "dispatch",
 };
 
 type LocationBits = {
@@ -106,12 +108,12 @@ export function replaceTabLocation(
   historyApi: Pick<History, "replaceState"> = history,
 ): void {
   const segment = lastPathSegment(loc.pathname);
-  const pathTabs = new Set<TabId>(["driver", "customers"]);
+  const pathTabs = new Set<TabId>(["driver", "customers", "dispatch"]);
   if (pathTabs.has(tab) && segment !== tab) {
     historyApi.replaceState(null, "", hrefForTab(tab));
     return;
   }
-  if (!pathTabs.has(tab) && (segment === "driver" || segment === "customers")) {
+  if (!pathTabs.has(tab) && (segment === "driver" || segment === "customers" || segment === "dispatch")) {
     historyApi.replaceState(null, "", "/");
   }
 }

@@ -26,6 +26,8 @@ export const VACATION_POLL_TABS = ["vacation", "driver"] as const satisfies read
 
 export const DRIVER_GONE_POLL_TABS = ["driver"] as const satisfies readonly TabId[];
 
+export const DISPATCH_POLL_TABS = ["dispatch"] as const satisfies readonly TabId[];
+
 export function pollWhenTabs(tabs: readonly TabId[]): () => boolean {
   return () => isActiveTabOneOf(tabs);
 }

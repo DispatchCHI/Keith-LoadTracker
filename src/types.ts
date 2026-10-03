@@ -30,4 +30,5 @@ export type TabId =
   | "analytics"
   | "driver"
   | "vacation"
-  | "calloffs";
+  | "calloffs"
+  | "dispatch";

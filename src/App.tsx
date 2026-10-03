@@ -16,6 +16,7 @@ import { LogLoadScreen } from "./screens/LogLoadScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { SearchScreen } from "./screens/SearchScreen";
+import { DispatchScreen } from "./screens/DispatchScreen";
 import { TodayScreen } from "./screens/TodayScreen";
 import { TotalsScreen } from "./screens/TotalsScreen";
 import { VacationScreen } from "./screens/VacationScreen";
@@ -24,6 +25,7 @@ import { CallOffLogProvider } from "./store/CallOffLogContext";
 import { CustomerLanesProvider } from "./store/CustomerLanesContext";
 import { DailyEodProvider } from "./store/DailyEodContext";
 import { DayNotesProvider } from "./store/DayNotesContext";
+import { SaturdayCrewProvider } from "./store/SaturdayCrewContext";
 import { DispatchTalliesProvider } from "./store/DispatchTalliesContext";
 import { DriverGoneProvider } from "./store/DriverGoneContext";
 import { DriverRosterProvider } from "./store/DriverRosterContext";
@@ -88,7 +90,7 @@ function Shell() {
     setJustEditedId(id);
     setOverlay(null);
     if (date) setFeedDate(date);
-    if (tab === "analytics" || tab === "vacation" || tab === "driver" || tab === "calloffs" || tab === "customers") return;
+    if (tab === "analytics" || tab === "vacation" || tab === "driver" || tab === "calloffs" || tab === "customers" || tab === "dispatch") return;
     setTab("today");
   };
 
@@ -191,6 +193,8 @@ function Shell() {
           {tab === "calloffs" ? <CallOffsScreen /> : null}
 
           {tab === "vacation" ? <VacationScreen /> : null}
+
+          {tab === "dispatch" ? <DispatchScreen /> : null}
         </div>
       </div>
 
@@ -257,9 +261,11 @@ export default function App() {
                     <DailyEodProvider>
                     <DispatchTalliesProvider>
                     <DayNotesProvider>
+                      <SaturdayCrewProvider>
                       <Gate>
                         <Shell />
                       </Gate>
+                      </SaturdayCrewProvider>
                     </DayNotesProvider>
                     </DispatchTalliesProvider>
                     </DailyEodProvider>
