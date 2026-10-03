@@ -86,7 +86,10 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
         }
         onCancelPicker={() => setAddingFor(null)}
         onAdd={(dests) => {
-          void addOpen(date, station.id, dests);
+          const labels = dests.map((label) => label.trim()).filter((label) => label.length > 0);
+          if (!labels.length) return;
+          void addOpen(date, station.id, labels);
+          setAddingFor(null);
         }}
         onRemove={() => void removeOpen(date, station.id)}
         onRemoveDest={(dest) => void removeOpen(date, station.id, dest)}
