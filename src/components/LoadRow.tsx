@@ -1,6 +1,17 @@
 import { formatCreatedStamp } from "../lib/chicagoDate";
+import { editorInitials } from "../lib/loadEdited";
 import type { Load } from "../types";
 import { CommodityTag } from "./CommodityTag";
+
+export function LoadEditedMark({ name }: { name?: string | null }) {
+  const initials = editorInitials(name);
+  if (!initials || !name?.trim()) return null;
+  return (
+    <span className="load-edited" title={`Edited by ${name.trim()}`}>
+      Edited · {initials}
+    </span>
+  );
+}
 
 type LoadRowProps = {
   load: Load;
@@ -73,6 +84,7 @@ export function LoadRow({
       ) : (
         <div className="load-row-main">{main}</div>
       )}
+      <LoadEditedMark name={load.editedBy} />
       <div className="load-row-actions">
         {createdStamp ? (
           <time className="load-created" dateTime={load.createdAt}>

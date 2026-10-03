@@ -50,11 +50,18 @@ export type LoadRow = {
   display_name: string | null;
   /** Absent when the column is not on the project yet. */
   driver_name?: string | null;
+  /** Absent when the column is not on the project yet. */
+  edited_by?: string | null;
 };
 
 export function isMissingDriverNameColumn(error: unknown): boolean {
   const message = pagedErrorMessage(error) ?? "";
   return /driver_name/i.test(message);
+}
+
+export function isMissingEditedByColumn(error: unknown): boolean {
+  const message = pagedErrorMessage(error) ?? "";
+  return /edited_by/i.test(message);
 }
 
 export function rowToLoad(row: LoadRow): Load {
@@ -72,6 +79,12 @@ export function rowToLoad(row: LoadRow): Load {
     displayName: row.display_name ?? undefined,
     driverName:
       "driver_name" in row ? cleanLoggedDriverName(row.driver_name) ?? null : undefined,
+    editedBy:
+      "edited_by" in row
+        ? typeof row.edited_by === "string" && row.edited_by.trim()
+          ? row.edited_by.trim()
+          : null
+        : undefined,
   };
 }
 
@@ -95,6 +108,7 @@ export function loadToRow(
     created_by: load.createdBy ?? userId,
     display_name: load.displayName ?? null,
     driver_name: load.driverName ?? null,
+    ...(load.editedBy !== undefined ? { edited_by: load.editedBy } : {}),
   };
 }
 

@@ -12,6 +12,7 @@ import type { Load } from "../types";
 import {
   fetchAllPaged,
   isMissingDriverNameColumn,
+  isMissingEditedByColumn,
   loadsIncrementalSince,
   pagedErrorMessage,
   loadToRow,
@@ -311,10 +312,16 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
 
     const upsertRows = async (batch: Extract<QueueOp, { kind: "upsert" }>[]) => {
       const rows = batch.map((op) => loadToRow(op.load, user?.id ?? null));
-      let { error } = await supabase.from("loads").upsert(rows);
+      let payload: Record<string, unknown>[] = rows;
+      let { error } = await supabase.from("loads").upsert(payload);
       if (error && isMissingDriverNameColumn(error)) {
-        const fallback = rows.map(({ driver_name: _name, ...rest }) => rest);
-        const retry = await supabase.from("loads").upsert(fallback);
+        payload = payload.map(({ driver_name: _name, ...rest }) => rest);
+        const retry = await supabase.from("loads").upsert(payload);
+        error = retry.error;
+      }
+      if (error && isMissingEditedByColumn(error)) {
+        payload = payload.map(({ edited_by: _editor, ...rest }) => rest);
+        const retry = await supabase.from("loads").upsert(payload);
         error = retry.error;
       }
       if (error) throw error;

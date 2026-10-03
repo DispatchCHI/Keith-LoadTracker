@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { BrandMark } from "../components/BrandMark";
 import { CommodityTag } from "../components/CommodityTag";
 import { DayPicker } from "../components/DayPicker";
-import { LoadRow } from "../components/LoadRow";
+import { LoadEditedMark, LoadRow } from "../components/LoadRow";
 import { chicagoToday, formatShortDate, yearOfISO } from "../lib/chicagoDate";
 import {
   driverTimeOffRows,
@@ -345,9 +345,14 @@ export function SearchScreen({
                       <tr key={load.id}>
                         <td>{formatShortDate(load.date)}</td>
                         <td>
-                          {load.truck} · {load.pickup} → {load.destination}
-                          <div className="search-load-tag">
-                            <CommodityTag commodity={load.commodity} />
+                          <div className="search-load-line">
+                            <div>
+                              {load.truck} · {load.pickup} → {load.destination}
+                              <div className="search-load-tag">
+                                <CommodityTag commodity={load.commodity} />
+                              </div>
+                            </div>
+                            <LoadEditedMark name={load.editedBy} />
                           </div>
                         </td>
                         <td>

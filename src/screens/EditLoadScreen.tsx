@@ -26,6 +26,8 @@ import {
   snapshotDriverNameForTruck,
 } from "../lib/loadDriver";
 import { useDriverRoster } from "../store/DriverRosterContext";
+import { editorNameForUser } from "../lib/loadEdited";
+import { useAuth } from "../store/AuthContext";
 import { useLoads } from "../store/LoadsContext";
 import type { Load } from "../types";
 
@@ -53,6 +55,7 @@ export function EditLoadScreen({
   onDeleted,
 }: EditLoadScreenProps) {
   const { saveLoad, deleteLoad, loads } = useLoads();
+  const { displayName, user } = useAuth();
   const { store: rosterStore } = useDriverRoster();
   const { opensFor, consumeOpens } = useSpecialty();
   const original = useMemo(() => loadToForm(load), [load]);
@@ -96,6 +99,7 @@ export function EditLoadScreen({
       date,
       updatedAt: now,
       seeded: false,
+      editedBy: editorNameForUser(displayName, user?.email),
       driverName: !loadTruckEquals(nextTruck, load.truck)
         ? snapshotDriverNameForTruck(rosterStore, nextTruck)
         : load.driverName,

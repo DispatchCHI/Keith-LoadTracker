@@ -5,6 +5,7 @@ import {
   LOADS_INCREMENTAL_OVERLAP_MS,
   fetchAllPaged,
   isMissingDriverNameColumn,
+  isMissingEditedByColumn,
   loadToRow,
   loadsIncrementalSince,
   pagedErrorMessage,
@@ -101,6 +102,23 @@ describe("load driver_name mapping", () => {
   it("writes driver_name on upsert rows", () => {
     expect(loadToRow(load, null).driver_name).toBe("Alice Smith");
     expect(loadToRow({ ...load, driverName: undefined }, null).driver_name).toBeNull();
+  });
+
+  it("maps edited_by when the column is present and omits it when absent", () => {
+    expect(rowToLoad({ ...row, edited_by: "K Lawson" }).editedBy).toBe("K Lawson");
+    expect(rowToLoad({ ...row, edited_by: null }).editedBy).toBeNull();
+    expect(rowToLoad(row).editedBy).toBeUndefined();
+    expect(loadToRow({ ...load, editedBy: "T Reyling" }, null).edited_by).toBe("T Reyling");
+    expect(loadToRow(load, null).edited_by).toBeUndefined();
+  });
+
+  it("detects a missing edited_by column", () => {
+    expect(
+      isMissingEditedByColumn({
+        message: "Could not find the 'edited_by' column of 'loads' in the schema cache",
+      }),
+    ).toBe(true);
+    expect(isMissingEditedByColumn({ message: "permission denied" })).toBe(false);
   });
 
   it("detects a missing driver_name column", () => {

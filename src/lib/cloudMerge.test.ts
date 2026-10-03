@@ -42,6 +42,7 @@ function load(
     createdBy: extra.createdBy,
     displayName: extra.displayName,
     driverName: extra.driverName,
+    editedBy: extra.editedBy,
   };
 }
 
@@ -169,6 +170,25 @@ describe("mergeCloudLoads", () => {
 
     expect(merged).toHaveLength(1);
     expect(merged[0].driverName).toBe("Alice Smith");
+  });
+
+  it("keeps a device editedBy name when a newer remote row omitted the field", () => {
+    const device = load("snap", "2026-09-13", {
+      editedBy: "K Lawson",
+      updatedAt: "2026-09-13T10:00:00.000Z",
+    });
+    const remote = load("snap", "2026-09-13", {
+      updatedAt: "2026-09-13T12:00:00.000Z",
+    });
+
+    const { merged } = mergeCloudLoads({
+      remote: [remote],
+      cache: store([device]),
+      local: store([]),
+      pending: [],
+    });
+
+    expect(merged[0].editedBy).toBe("K Lawson");
   });
 
   it("drops stale cache-only rows that are not in the pending queue when remote is complete", () => {

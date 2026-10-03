@@ -16,6 +16,11 @@ export type Load = {
   createdBy?: string;
   displayName?: string;
   /**
+   * Display name of the dispatcher who last saved an edit.
+   * Omitted when the cloud row has no column yet. Null means never edited.
+   */
+  editedBy?: string | null;
+  /**
    * Full Roster driver name snapshotted at log / truck-edit time.
    * `string` = name frozen on this load; `null` = logged with no assignee;
    * omitted = pre-feature / unknown (do not invent from live roster).

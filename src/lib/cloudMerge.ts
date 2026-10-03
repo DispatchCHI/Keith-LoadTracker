@@ -1,6 +1,7 @@
 import type { Load } from "../types";
 import { isIsoAfter, pickNewerByUpdatedAt } from "./isoTime";
 import { keepLoadDriverName } from "./loadDriver";
+import { keepLoadEditedBy } from "./loadEdited";
 import {
   isExplicitDeleteOp,
   warnNonExplicitRemoteDelete,
@@ -17,7 +18,7 @@ import {
 function newerWins(a: Load, b: Load): Load {
   const winner = pickNewerByUpdatedAt(a, b);
   const loser = winner === a ? b : a;
-  return keepLoadDriverName(winner, loser);
+  return keepLoadEditedBy(keepLoadDriverName(winner, loser), loser);
 }
 
 function putUnseeded(map: Map<string, Load>, loads: Load[]): void {
