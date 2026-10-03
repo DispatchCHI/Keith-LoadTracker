@@ -5552,11 +5552,99 @@ body.app-ready .splash {
 }
 
 .dispatch-who {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 800;
   font-size: 16px;
+  min-width: 0;
+}
+
+.dispatch-name {
+  position: relative;
+}
+
+.dispatch-name-tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 4;
+  white-space: nowrap;
+  background: #1e3a8a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.dispatch-name:hover .dispatch-name-tip {
+  display: block;
+}
+
+.dispatch-tenure {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e3a8a;
+  white-space: nowrap;
+}
+
+.dispatch-pencil {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dispatch-pencil:hover,
+.dispatch-pencil:focus-visible {
+  background: #e8eefc;
+  color: #1e3a8a;
+}
+
+.dispatch-start-pop {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 6;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  padding: 8px;
+}
+
+.dispatch-start-pop label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dispatch-start-pop input {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: #fff;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .dispatch-swatch {
@@ -5617,7 +5705,6 @@ body.app-ready .splash {
 }
 
 .dispatch-weeks button,
-.dispatch-start input,
 .dispatch-weeks input {
   height: 28px;
   border: 1px solid var(--line);
@@ -5650,33 +5737,11 @@ body.app-ready .splash {
 }
 
 .dispatch-weeks input:focus,
-.dispatch-start input:focus,
+.dispatch-start-pop input:focus,
 .dispatch-add input:focus,
 .dispatch-note-field input:focus {
   outline: 2px solid #1e3a8a;
   background: #e8eefc;
-}
-
-.dispatch-start {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.dispatch-start input {
-  flex: 1;
-  min-width: 0;
-  padding: 0 8px;
-  font-weight: 700;
-}
-
-.dispatch-start span {
-  min-width: 58px;
-  text-align: right;
-  color: #1e3a8a;
 }
 
 .dispatch-chips {

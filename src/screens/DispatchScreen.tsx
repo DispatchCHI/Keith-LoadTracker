@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Pencil } from "lucide-react";
 import { chicagoToday, formatShortDate, parseISODate } from "../lib/chicagoDate";
 import {
   DISPATCH_CREW,
@@ -35,6 +36,19 @@ export function DispatchScreen() {
     mike: "",
   });
   const [noteDraft, setNoteDraft] = useState<string | null>(null);
+  const [startEdit, setStartEdit] = useState<DispatchPerson | null>(null);
+
+  useEffect(() => {
+    if (!startEdit) return;
+    function onPointer(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(".dispatch-start-pop, .dispatch-pencil")) return;
+      setStartEdit(null);
+    }
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, [startEdit]);
 
   const board = boardFor(year);
   const thisSaturday = saturdayOnOrAfter(today);
@@ -100,7 +114,7 @@ export function DispatchScreen() {
             <h2>Vacation days</h2>
           </div>
           <p className="dispatch-hint">
-            A week is {DAYS_PER_WEEK} days. Change the weeks when someone earns more, and add a start date.
+            A week is {DAYS_PER_WEEK} days. Change the weeks when someone earns more.
           </p>
           <div className="dispatch-cards">
             {DISPATCH_CREW.map((person) => {
@@ -115,7 +129,48 @@ export function DispatchScreen() {
                   <div className="dispatch-card-top">
                     <div className="dispatch-who">
                       <i className={`dispatch-swatch is-${person.id}`} />
-                      {person.name}
+                      <span className="dispatch-name">
+                        {person.name}
+                        {member.startDate ? (
+                          <span className="dispatch-name-tip">
+                            Started {formatShortDate(member.startDate)}, {parseISODate(member.startDate).y}
+                          </span>
+                        ) : null}
+                      </span>
+                      {tenure !== null ? (
+                        <span className="dispatch-tenure">
+                          {tenure} {tenure === 1 ? "year" : "years"}
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="dispatch-pencil"
+                        aria-label={`Edit ${person.name} start date`}
+                        onClick={() =>
+                          setStartEdit((current) => (current === person.id ? null : person.id))
+                        }
+                      >
+                        <Pencil size={14} strokeWidth={2} aria-hidden />
+                      </button>
+                      {startEdit === person.id ? (
+                        <div className="dispatch-start-pop">
+                          <label>
+                            Start date
+                            <input
+                              type="date"
+                              autoFocus
+                              aria-label={`${person.name} start date`}
+                              value={member.startDate ?? ""}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                if (!value) return;
+                                setStartDate(year, person.id, value);
+                                setStartEdit(null);
+                              }}
+                            />
+                          </label>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="dispatch-weeks">
                       <button
@@ -149,16 +204,6 @@ export function DispatchScreen() {
                       </button>
                     </div>
                   </div>
-                  <label className="dispatch-start">
-                    Start date
-                    <input
-                      type="date"
-                      aria-label={`${person.name} start date`}
-                      value={member.startDate ?? ""}
-                      onChange={(event) => setStartDate(year, person.id, event.target.value || null)}
-                    />
-                    <span>{tenure === null ? "" : `${tenure} ${tenure === 1 ? "year" : "years"}`}</span>
-                  </label>
                   <div className="dispatch-left-row">
                     <div className="dispatch-left-num">
                       {left}
