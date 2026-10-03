@@ -65,7 +65,7 @@ describe("day-only odd-ball cards", () => {
     expect(visibleOddCardIds(saturday, ["custom-9", "elgin"])).toEqual(["custom-9"]);
   });
 
-  it("puts the add button immediately left of Liberty, then that day's cards", () => {
+  it("puts the add button immediately right of Liberty, then that day's cards", () => {
     const named = SPECIALTY_STATIONS.filter((station) => !isCustomSpecialtyId(station.id));
     const slots = specialtyGridSlots(named, [
       { id: "custom-5", name: "Odd-ball" },
@@ -75,9 +75,9 @@ describe("day-only odd-ball cards", () => {
     const libertyAt = slots.findIndex(
       (slot) => slot.kind === "station" && slot.id === "liberty-tank",
     );
-    expect(libertyAt).toBe(addAt + 1);
-    expect(slots[libertyAt + 1]).toMatchObject({ id: "custom-5" });
-    expect(slots[libertyAt + 2]).toMatchObject({ id: "custom-6" });
+    expect(addAt).toBe(libertyAt + 1);
+    expect(slots[addAt + 1]).toMatchObject({ id: "custom-5" });
+    expect(slots[addAt + 2]).toMatchObject({ id: "custom-6" });
     expect(slots.some((slot) => slot.kind === "station" && slot.id === "custom-1")).toBe(false);
   });
 });

@@ -113,7 +113,7 @@ export type SpecialtyGridSlot =
   | { kind: "add" }
   | { kind: "station"; id: string; name: string };
 
-/** Named yards, with the add button immediately left of Liberty, then this day's odd-balls. */
+/** Named yards, with the add button immediately right of Liberty, then this day's odd-balls. */
 export function specialtyGridSlots(
   named: readonly { id: string; name: string }[],
   odd: readonly { id: string; name: string }[],
@@ -127,8 +127,8 @@ export function specialtyGridSlots(
     id: station.id,
     name: station.name,
   }));
-  slots.push({ kind: "add" });
   if (liberty) slots.push({ kind: "station", id: liberty.id, name: liberty.name });
+  slots.push({ kind: "add" });
   for (const station of odd) {
     slots.push({ kind: "station", id: station.id, name: station.name });
   }
