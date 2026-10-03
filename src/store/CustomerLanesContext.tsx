@@ -27,6 +27,7 @@ import {
   mergeSeededLanes,
   normalizePlaceName,
   readCustomerLanePersisted,
+  reconcileCustomerLanes,
   removeCustomerByName,
   removeCustomerLane,
   renameCustomerLanes,
@@ -64,18 +65,24 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
   const deletedCustomersRef = useRef<Set<string>>(
     new Set(readCustomerLanePersisted().deletedCustomerNames),
   );
+  const deletedLanesRef = useRef<Set<string>>(
+    new Set(readCustomerLanePersisted().deletedLaneIds),
+  );
   const [store, setStore] = useState<CustomerLaneStore>(() => {
     const persisted = readCustomerLanePersisted();
     deletedCustomersRef.current = new Set(persisted.deletedCustomerNames);
+    deletedLanesRef.current = new Set(persisted.deletedLaneIds);
     // Always merge catalog seed upgrades (e.g. Medill stub → real routes) so
     // Log Load chips/defaults work before the first cloud refresh.
     // Empty lanes (even with seededAt / tombstones) must re-seed — otherwise
     // offline Log Load has no customer chips and Save stays disabled.
+    // Deleted lane ids stay gone — seed must not put Willow Ranch back.
     if (Object.keys(persisted.lanes).length) {
       const seeded = mergeSeededLanes(
         { lanes: persisted.lanes },
         undefined,
         deletedCustomersRef.current,
+        deletedLanesRef.current,
       );
       if (Object.keys(seeded.lanes).length !== Object.keys(persisted.lanes).length) {
         writeCustomerLanePersisted({
@@ -90,6 +97,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       { lanes: {} },
       undefined,
       deletedCustomersRef.current,
+      deletedLanesRef.current,
     );
     writeCustomerLanePersisted({
       version: 1,
@@ -97,6 +105,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       seenRemoteIds: persisted.seenRemoteIds,
       seededAt: persisted.seededAt ?? new Date().toISOString(),
       deletedCustomerNames: [...deletedCustomersRef.current],
+      deletedLaneIds: [...deletedLanesRef.current],
     });
     return seeded;
   });
@@ -112,6 +121,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       seenRemoteIds: [...seenRef.current],
       seededAt: readCustomerLanePersisted().seededAt,
       deletedCustomerNames: [...deletedCustomersRef.current],
+      deletedLaneIds: [...deletedLanesRef.current],
     };
     writeCustomerLanePersisted(snapshot);
     storeRef.current = next;
@@ -177,42 +187,27 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       await syncBrandOverrides();
       return;
     }
-    const local = storeRef.current;
-    const merged: Record<string, CustomerLane> = { ...remote.lanes };
-    const toUpload: CustomerLane[] = [];
-    for (const lane of Object.values(local.lanes)) {
-      const other = remote.lanes[lane.id];
-      if (!other) {
-        merged[lane.id] = lane;
-        toUpload.push(lane);
-        continue;
-      }
-      if (lane.updatedAt > other.updatedAt) {
-        merged[lane.id] = lane;
-        toUpload.push(lane);
-      }
-    }
-    const tombstoneIds: string[] = [];
-    for (const [id, lane] of Object.entries(merged)) {
-      if (deletedCustomersRef.current.has(normalizePlaceName(lane.customer))) {
-        delete merged[id];
-        tombstoneIds.push(id);
-      }
-    }
+    const reconciled = reconcileCustomerLanes({
+      local: storeRef.current,
+      remote,
+      seenRemoteIds: seenRef.current,
+      deletedCustomerNames: deletedCustomersRef.current,
+      deletedLaneIds: deletedLanesRef.current,
+    });
+    for (const id of reconciled.deletedLaneIds) deletedLanesRef.current.add(id);
     for (const id of Object.keys(remote.lanes)) seenRef.current.add(id);
-    persistLocal({ lanes: merged });
-    if (toUpload.length) await cloudUpsert(toUpload);
-    if (tombstoneIds.length) await cloudDelete(tombstoneIds);
-    const seeded = mergeSeededLanes(
-      storeRef.current,
-      undefined,
-      deletedCustomersRef.current,
-    );
-    if (Object.keys(seeded.lanes).length !== Object.keys(storeRef.current.lanes).length) {
-      persistLocal(seeded);
-      const extras = Object.values(seeded.lanes).filter((lane) => !remote.lanes[lane.id]);
-      if (extras.length) await cloudUpsert(extras);
-    }
+    const upload = reconciled.upload.filter((lane) => !deletedLanesRef.current.has(lane.id));
+    const lanes = { ...reconciled.lanes };
+    for (const id of deletedLanesRef.current) delete lanes[id];
+    persistLocal({ lanes });
+    if (upload.length) await cloudUpsert(upload);
+    const deleteIds = [
+      ...new Set([
+        ...reconciled.deleteIds,
+        ...upload.filter((lane) => deletedLanesRef.current.has(lane.id)).map((lane) => lane.id),
+      ]),
+    ];
+    if (deleteIds.length) await cloudDelete(deleteIds);
     await syncBrandOverrides();
   }, [cloud, cloudDelete, cloudUpsert, persistLocal, pullRemote, syncBrandOverrides]);
 
@@ -262,6 +257,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       if (key && deletedCustomersRef.current.has(key)) {
         deletedCustomersRef.current.delete(key);
       }
+      deletedLanesRef.current.delete(result.lane.id);
       persistLocal(result.store);
       if (cloud) void cloudUpsert([result.lane]);
       return result.lane;
@@ -273,6 +269,7 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     async (id: string) => {
       const result = removeCustomerLane(storeRef.current, id);
       if (!result.removed) return;
+      deletedLanesRef.current.add(id);
       persistLocal(result.store);
       if (cloud) void cloudDelete([id]);
     },

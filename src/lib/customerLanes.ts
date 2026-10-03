@@ -61,6 +61,8 @@ export type CustomerLanePersisted = {
   seenRemoteIds: string[];
   seededAt: string | null;
   deletedCustomerNames: string[];
+  /** Lane ids the dispatcher deleted. Seed and cloud refresh must not put them back. */
+  deletedLaneIds: string[];
 };
 
 export type CustomerLaneRow = {
@@ -295,10 +297,28 @@ export function cleanCustomerLane(raw: unknown): CustomerLane | null {
   };
 }
 
+function emptyCustomerLanePersisted(): CustomerLanePersisted {
+  return {
+    version: 1,
+    lanes: {},
+    seenRemoteIds: [],
+    seededAt: null,
+    deletedCustomerNames: [],
+    deletedLaneIds: [],
+  };
+}
+
+function parseIdList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [
+    ...new Set(raw.filter((id): id is string => typeof id === "string" && id.length > 0)),
+  ];
+}
+
 export function readCustomerLanePersisted(): CustomerLanePersisted {
   try {
     const raw = localStorage.getItem(CUSTOMER_LANES_STORE_KEY);
-    if (!raw) return { version: 1, lanes: {}, seenRemoteIds: [], seededAt: null, deletedCustomerNames: [] };
+    if (!raw) return emptyCustomerLanePersisted();
     const parsed = JSON.parse(raw) as Partial<CustomerLanePersisted>;
     const lanes: Record<string, CustomerLane> = {};
     if (parsed.lanes && typeof parsed.lanes === "object") {
@@ -307,9 +327,7 @@ export function readCustomerLanePersisted(): CustomerLanePersisted {
         if (cleaned) lanes[cleaned.id] = cleaned;
       }
     }
-    const seen = Array.isArray(parsed.seenRemoteIds)
-      ? parsed.seenRemoteIds.filter((id): id is string => typeof id === "string")
-      : [];
+    const seen = parseIdList(parsed.seenRemoteIds);
     const deleted = Array.isArray(parsed.deletedCustomerNames)
       ? parsed.deletedCustomerNames
           .filter((name): name is string => typeof name === "string")
@@ -322,9 +340,10 @@ export function readCustomerLanePersisted(): CustomerLanePersisted {
       seenRemoteIds: seen,
       seededAt: typeof parsed.seededAt === "string" ? parsed.seededAt : null,
       deletedCustomerNames: [...new Set(deleted)],
+      deletedLaneIds: parseIdList(parsed.deletedLaneIds),
     };
   } catch {
-    return { version: 1, lanes: {}, seenRemoteIds: [], seededAt: null, deletedCustomerNames: [] };
+    return emptyCustomerLanePersisted();
   }
 }
 
@@ -565,19 +584,97 @@ export function mergeSeededLanes(
   store: CustomerLaneStore,
   at?: string,
   deletedCustomerNames?: Iterable<string>,
+  deletedLaneIds?: Iterable<string>,
 ): CustomerLaneStore {
   const deleted = new Set(
     [...(deletedCustomerNames ?? [])]
       .map((name) => normalizePlaceName(name))
       .filter(Boolean),
   );
+  const droppedLanes = new Set(deletedLaneIds ?? []);
   const seeded = lanesFromSeed(at);
   const lanes = { ...store.lanes };
   for (const row of seeded) {
+    if (droppedLanes.has(row.id)) continue;
     if (deleted.has(normalizePlaceName(row.customer))) continue;
     if (!lanes[row.id]) lanes[row.id] = row;
   }
   return { lanes };
+}
+
+export type CustomerLaneReconcile = {
+  local: CustomerLaneStore;
+  remote: CustomerLaneStore;
+  seenRemoteIds: Iterable<string>;
+  deletedCustomerNames: Iterable<string>;
+  deletedLaneIds: Iterable<string>;
+};
+
+/**
+ * Merge a cloud pull with this device.
+ * A deleted lane stays deleted: seed rows do not return, a remote copy is
+ * deleted again, and a lane that disappeared from the cloud is not uploaded.
+ */
+export function reconcileCustomerLanes(input: CustomerLaneReconcile): {
+  lanes: Record<string, CustomerLane>;
+  upload: CustomerLane[];
+  deleteIds: string[];
+  deletedLaneIds: string[];
+} {
+  const deletedCustomers = new Set(
+    [...input.deletedCustomerNames].map((name) => normalizePlaceName(name)).filter(Boolean),
+  );
+  const deletedLanes = new Set(input.deletedLaneIds);
+  const seen = new Set(input.seenRemoteIds);
+  const customerGone = (lane: CustomerLane) =>
+    deletedCustomers.has(normalizePlaceName(lane.customer));
+
+  const lanes: Record<string, CustomerLane> = {};
+  const upload: CustomerLane[] = [];
+  const deleteIds: string[] = [];
+
+  for (const [id, lane] of Object.entries(input.remote.lanes)) {
+    if (deletedLanes.has(id) || customerGone(lane)) {
+      deleteIds.push(id);
+      continue;
+    }
+    lanes[id] = lane;
+  }
+
+  for (const lane of Object.values(input.local.lanes)) {
+    if (deletedLanes.has(lane.id) || customerGone(lane)) {
+      if (!deleteIds.includes(lane.id)) deleteIds.push(lane.id);
+      continue;
+    }
+    const remoteLane = input.remote.lanes[lane.id];
+    if (!remoteLane) {
+      if (seen.has(lane.id)) {
+        deletedLanes.add(lane.id);
+        continue;
+      }
+      lanes[lane.id] = lane;
+      upload.push(lane);
+      continue;
+    }
+    if (lane.updatedAt > remoteLane.updatedAt) {
+      lanes[lane.id] = lane;
+      upload.push(lane);
+    }
+  }
+
+  const beforeSeed = new Set(Object.keys(lanes));
+  const seeded = mergeSeededLanes({ lanes }, undefined, deletedCustomers, deletedLanes);
+  for (const lane of Object.values(seeded.lanes)) {
+    if (beforeSeed.has(lane.id) || input.remote.lanes[lane.id]) continue;
+    upload.push(lane);
+  }
+
+  return {
+    lanes: seeded.lanes,
+    upload,
+    deleteIds,
+    deletedLaneIds: [...deletedLanes],
+  };
 }
 
 export function currentLanesByCustomer(store: CustomerLaneStore, asOf: string): CustomerLane[] {

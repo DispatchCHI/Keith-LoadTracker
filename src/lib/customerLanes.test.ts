@@ -7,6 +7,8 @@ import {
   defaultCustomerLaneRoute,
   destinationsForCustomer,
   mergeSeededLanes,
+  reconcileCustomerLanes,
+  seedLaneId,
   laneDestinationsMatch,
   placesMatch,
   rateForLoad,
@@ -169,6 +171,78 @@ describe("mergeSeededLanes tombstones", () => {
     const merged = mergeSeededLanes(wiped, undefined, ["Melrose"]);
     expect(Object.values(merged.lanes).some((lane) => lane.customer === "Melrose")).toBe(false);
     expect(Object.values(merged.lanes).some((lane) => lane.customer === "Batavia")).toBe(true);
+  });
+
+  it("does not put a deleted Medill lane back from seed", () => {
+    const willow = seedLaneId("Medill", "Willow Ranch", "Yard Waste", "2021-01-01");
+    const store = seededCustomerLaneStore();
+    expect(store.lanes[willow]?.destination).toBe("Willow Ranch");
+    const lanes = { ...store.lanes };
+    delete lanes[willow];
+    const merged = mergeSeededLanes({ lanes }, undefined, [], [willow]);
+    expect(merged.lanes[willow]).toBeUndefined();
+    expect(merged.lanes[seedLaneId("Medill", "Organix", "Yard Waste", "2021-01-01")]).toBeTruthy();
+  });
+});
+
+describe("reconcileCustomerLanes", () => {
+  const willow = () => seedLaneId("Medill", "Willow Ranch", "Yard Waste", "2021-01-01");
+
+  it("deletes a tombstoned lane that is still on the cloud and does not upload it", () => {
+    const id = willow();
+    const store = seededCustomerLaneStore();
+    const lane = store.lanes[id];
+    const local = { lanes: { ...store.lanes } };
+    delete local.lanes[id];
+    const result = reconcileCustomerLanes({
+      local,
+      remote: { lanes: { [id]: lane } },
+      seenRemoteIds: [id],
+      deletedCustomerNames: [],
+      deletedLaneIds: [id],
+    });
+    expect(result.lanes[id]).toBeUndefined();
+    expect(result.upload.some((row) => row.id === id)).toBe(false);
+    expect(result.deleteIds).toContain(id);
+  });
+
+  it("does not re-upload a lane that disappeared from the cloud", () => {
+    const id = willow();
+    const store = seededCustomerLaneStore();
+    const result = reconcileCustomerLanes({
+      local: store,
+      remote: { lanes: {} },
+      seenRemoteIds: [id],
+      deletedCustomerNames: [],
+      deletedLaneIds: [],
+    });
+    expect(result.lanes[id]).toBeUndefined();
+    expect(result.upload.some((row) => row.id === id)).toBe(false);
+    expect(result.deletedLaneIds).toContain(id);
+  });
+
+  it("still uploads a lane that has never been on the cloud", () => {
+    const created = upsertCustomerLane(
+      { lanes: {} },
+      {
+        customer: "Medill",
+        destination: "Homewood",
+        commodity: "Trash (MSW)",
+        effectiveDate: "2026-10-03",
+        tier1: 10,
+      },
+    );
+    const lane = created.lane;
+    expect(lane).toBeTruthy();
+    const result = reconcileCustomerLanes({
+      local: created.store,
+      remote: { lanes: {} },
+      seenRemoteIds: [],
+      deletedCustomerNames: [],
+      deletedLaneIds: [],
+    });
+    expect(result.upload.some((row) => row.id === lane?.id)).toBe(true);
+    expect(result.lanes[lane!.id]).toBeTruthy();
   });
 });
 
