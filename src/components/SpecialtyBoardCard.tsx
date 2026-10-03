@@ -1,20 +1,27 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Minus, Plus } from "lucide-react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { ChevronDown, Minus, Plus, X } from "lucide-react";
 import { formatHeaderDate } from "../lib/chicagoDate";
 import { MAX_LOAD_QTY } from "../lib/quantity";
 import {
-  CUSTOM_SPECIALTY_DEFAULT_NAMES,
   CUSTOM_SPECIALTY_LOAD_TYPES,
   SPECIALTY_CUSTOM_NAMES_EVENT,
   SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT,
+  customSpecialtyDefaultName,
   customSpecialtyDisplayName,
   formatCustomSpecialtyChip,
   isCustomSpecialtyId,
   readCustomSpecialtyNameField,
   writeCustomSpecialtyName,
-  type CustomSpecialtyId,
   type CustomSpecialtyLoadType,
 } from "../lib/customSpecialty";
+import {
+  addOddCard,
+  oddIdsSnapshot,
+  removeOddCard,
+  specialtyGridSlots,
+  subscribeOddDays,
+  visibleOddCardIds,
+} from "../lib/specialtyOddDays";
 import {
   SPECIALTY_STATIONS,
   destSummary,
@@ -31,21 +38,72 @@ import { QuantityStepper } from "./QuantityStepper";
 import "./specialty-board.css";
 
 export function SpecialtyBoardCard({ date }: { date: string }) {
-  const { boardOn, addOpen, removeOpen, cloud } = useSpecialty();
+  const { boardOn, addOpen, removeOpen, clearStation, cloud } = useSpecialty();
   const { store: customerLanes } = useCustomerLanes();
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [open, setOpen] = useState(true);
+  const [fresh, setFresh] = useState<{ date: string; id: string } | null>(null);
+  const freshId = fresh?.date === date ? fresh.id : null;
+  const pinnedIds = useSyncExternalStore(
+    subscribeOddDays,
+    () => oddIdsSnapshot(date),
+    () => oddIdsSnapshot(date),
+  );
 
   const board = useMemo(() => boardOn(date), [boardOn, date]);
   const totalOpen = board.length;
-  const regularStations = useMemo(
-    () => SPECIALTY_STATIONS.filter((station) => !isCustomSpecialtyId(station.id)),
-    [],
-  );
-  const extraStations = useMemo(
-    () => SPECIALTY_STATIONS.filter((station) => isCustomSpecialtyId(station.id)),
-    [],
-  );
+  const gridSlots = useMemo(() => {
+    const named = SPECIALTY_STATIONS.filter((station) => !isCustomSpecialtyId(station.id));
+    const odd = visibleOddCardIds(
+      date,
+      board.map((slot) => slot.stationId),
+      pinnedIds,
+    ).map((id) => ({ id, name: customSpecialtyDisplayName(id) }));
+    return specialtyGridSlots(named, odd);
+  }, [board, date, pinnedIds]);
+
+  function renderStation(station: SpecialtyStation) {
+    const custom = isCustomSpecialtyId(station.id);
+    const laneDestinations = custom
+      ? undefined
+      : (() => {
+          const fromLanes = specialtyChipsFromCustomerLanes(
+            customerLanes,
+            station.name,
+            station.id,
+          );
+          return fromLanes.length ? fromLanes : [...specialtyDestinationsFor(station.id)];
+        })();
+    return (
+      <StationRow
+        key={station.id}
+        station={station}
+        board={board}
+        picking={addingFor === station.id}
+        nameAutoFocus={station.id === freshId}
+        onTogglePicker={() =>
+          setAddingFor((prev) => (prev === station.id ? null : station.id))
+        }
+        onCancelPicker={() => setAddingFor(null)}
+        onAdd={(dests) => {
+          void addOpen(date, station.id, dests);
+        }}
+        onRemove={() => void removeOpen(date, station.id)}
+        onRemoveDest={(dest) => void removeOpen(date, station.id, dest)}
+        onDismiss={
+          custom
+            ? () => {
+                removeOddCard(date, station.id);
+                void clearStation(date, station.id);
+                setAddingFor((prev) => (prev === station.id ? null : prev));
+                setFresh((prev) => (prev?.id === station.id ? null : prev));
+              }
+            : undefined
+        }
+        laneDestinations={laneDestinations}
+      />
+    );
+  }
 
   return (
     <article className={`specialty-card${open ? "" : " specialty-card-collapsed"}`}>
@@ -72,53 +130,23 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
       {open ? (
         <div className="specialty-body">
           <ul className="specialty-list">
-            {regularStations.map((station) => (
-              <StationRow
-                key={station.id}
-                station={station}
-                board={board}
-                picking={addingFor === station.id}
-                onTogglePicker={() =>
-                  setAddingFor((prev) => (prev === station.id ? null : station.id))
-                }
-                onCancelPicker={() => setAddingFor(null)}
-                onAdd={(dests) => {
-                  void addOpen(date, station.id, dests);
-                }}
-                onRemove={() => void removeOpen(date, station.id)}
-                onRemoveDest={(dest) => void removeOpen(date, station.id, dest)}
-                laneDestinations={(() => {
-                  const fromLanes = specialtyChipsFromCustomerLanes(
-                    customerLanes,
-                    station.name,
-                    station.id,
-                  );
-                  return fromLanes.length
-                    ? fromLanes
-                    : [...specialtyDestinationsFor(station.id)];
-                })()}
-              />
-            ))}
-          </ul>
-          <p className="specialty-extra-label">Extra names</p>
-          <ul className="specialty-extra-list">
-            {extraStations.map((station) => (
-              <StationRow
-                key={station.id}
-                station={station}
-                board={board}
-                picking={addingFor === station.id}
-                onTogglePicker={() =>
-                  setAddingFor((prev) => (prev === station.id ? null : station.id))
-                }
-                onCancelPicker={() => setAddingFor(null)}
-                onAdd={(dests) => {
-                  void addOpen(date, station.id, dests);
-                }}
-                onRemove={() => void removeOpen(date, station.id)}
-                onRemoveDest={(dest) => void removeOpen(date, station.id, dest)}
-              />
-            ))}
+            {gridSlots.map((slot) =>
+              slot.kind === "add" ? (
+                <li key="add-odd-ball" className="specialty-add-slot">
+                  <button
+                    type="button"
+                    className="specialty-add-card"
+                    aria-label="Add odd-ball specialty card"
+                    title="Add an odd-ball card for this day"
+                    onClick={() => setFresh({ date, id: addOddCard(date) })}
+                  >
+                    <Plus size={18} strokeWidth={2.6} />
+                  </button>
+                </li>
+              ) : (
+                renderStation(slot)
+              ),
+            )}
           </ul>
         </div>
       ) : null}
@@ -140,21 +168,25 @@ function StationRow({
   station,
   board,
   picking,
+  nameAutoFocus,
   onTogglePicker,
   onCancelPicker,
   onAdd,
   onRemove,
   onRemoveDest,
+  onDismiss,
   laneDestinations,
 }: {
   station: SpecialtyStation;
   board: SpecialtyDayBoard;
   picking: boolean;
+  nameAutoFocus?: boolean;
   onTogglePicker: () => void;
   onCancelPicker: () => void;
   onAdd: (destinations: readonly string[]) => void;
   onRemove: () => void;
   onRemoveDest: (dest: string) => void;
+  onDismiss?: () => void;
   laneDestinations?: string[];
 }) {
   const slots = slotsForStation(board, station.id);
@@ -180,10 +212,21 @@ function StationRow({
     >
       <div className="specialty-head">
         {custom ? (
-          <CustomSpecialtyNameInput id={station.id as CustomSpecialtyId} />
+          <CustomSpecialtyNameInput id={station.id} autoFocus={nameAutoFocus} />
         ) : (
           <span className="specialty-station">{station.name}</span>
         )}
+        {onDismiss ? (
+          <button
+            type="button"
+            className="specialty-dismiss"
+            aria-label={`Remove ${label} card`}
+            title="Remove this card from this day"
+            onClick={onDismiss}
+          >
+            <X size={14} strokeWidth={2.6} />
+          </button>
+        ) : null}
         <span className={`specialty-count${count ? " has-open" : ""}`}>{count}</span>
       </div>
       <div className="specialty-pad">
@@ -255,8 +298,14 @@ function StepperButtons({
   );
 }
 
-function CustomSpecialtyNameInput({ id }: { id: CustomSpecialtyId }) {
-  const example = CUSTOM_SPECIALTY_DEFAULT_NAMES[id];
+function CustomSpecialtyNameInput({
+  id,
+  autoFocus,
+}: {
+  id: string;
+  autoFocus?: boolean;
+}) {
+  const example = customSpecialtyDefaultName(id);
   const [value, setValue] = useState(() => readCustomSpecialtyNameField(id));
   const focusedRef = useState(false);
 
@@ -275,6 +324,7 @@ function CustomSpecialtyNameInput({ id }: { id: CustomSpecialtyId }) {
       value={value}
       placeholder={example}
       aria-label={`Pickup name for ${id}`}
+      autoFocus={autoFocus}
       onFocus={(event) => {
         focusedRef[0] = true;
         if (value === example) event.currentTarget.select();

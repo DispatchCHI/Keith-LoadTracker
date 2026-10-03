@@ -3,10 +3,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   applyCustomSpecialtyNames,
+  customSpecialtyNumber,
   namesHaveCustomLabels,
   readCustomSpecialtyNames,
   readCustomSpecialtyNamesUpdatedAt,
 } from "./customSpecialty";
+import {
+  ODD_DAYS_FIELD,
+  oddDaysHaveCards,
+  readOddDays,
+  replaceOddDays,
+} from "./specialtyOddDays";
 
 export const SPECIALTY_CUSTOM_NAMES_TABLE = "specialty_custom_names";
 export const SPECIALTY_CUSTOM_NAMES_ROW_ID = "crew";
@@ -21,6 +28,24 @@ function newer(a: string, b: string): boolean {
   if (!a) return false;
   if (!b) return true;
   return Date.parse(a) > Date.parse(b);
+}
+
+function shouldPushNames(): boolean {
+  if (namesHaveCustomLabels()) return true;
+  if (oddDaysHaveCards()) return true;
+  return Object.keys(readCustomSpecialtyNames()).some((id) => customSpecialtyNumber(id) > 4);
+}
+
+function splitRemoteNames(raw: Record<string, unknown>): {
+  names: Record<string, unknown>;
+  days: unknown;
+  hasDays: boolean;
+} {
+  const names = { ...raw };
+  const hasDays = Object.prototype.hasOwnProperty.call(names, ODD_DAYS_FIELD);
+  const days = names[ODD_DAYS_FIELD];
+  delete names[ODD_DAYS_FIELD];
+  return { names, days, hasDays };
 }
 
 export async function pullAndMergeCustomNames(
@@ -42,7 +67,9 @@ export async function pullAndMergeCustomNames(
   const localAt = readCustomSpecialtyNamesUpdatedAt();
   const remoteNames = row?.names && typeof row.names === "object" ? row.names : null;
   if (remoteNames && (!localAt || !newer(localAt, remoteAt))) {
-    applyCustomSpecialtyNames(remoteNames, remoteAt || new Date().toISOString());
+    const split = splitRemoteNames(remoteNames);
+    applyCustomSpecialtyNames(split.names, remoteAt || new Date().toISOString());
+    if (split.hasDays) replaceOddDays(split.days);
   }
 }
 
@@ -50,8 +77,11 @@ export async function pushCustomNamesIfLocalNewer(
   supabase: SupabaseClient,
   userId: string | null,
 ): Promise<void> {
-  const local = readCustomSpecialtyNames();
-  if (!namesHaveCustomLabels(local)) return;
+  if (!shouldPushNames()) return;
+  const local = {
+    ...readCustomSpecialtyNames(),
+    [ODD_DAYS_FIELD]: readOddDays(),
+  };
   const localAt = readCustomSpecialtyNamesUpdatedAt() || new Date().toISOString();
   const { data, error } = await supabase
     .from(SPECIALTY_CUSTOM_NAMES_TABLE)

@@ -93,7 +93,8 @@ describe("custom odd-ball specialty cards", () => {
       "utf8",
     );
     expect(src).toContain("specialty-name-input");
-    expect(src).toContain("specialty-extra-list");
+    expect(src).toContain("specialty-add-card");
+    expect(src).not.toContain("Extra names");
     expect(src).toContain("is-custom");
     expect(src).toContain("is-picking");
     expect(src).toContain("specialty-add-open");

@@ -12,8 +12,8 @@ import {
 import { pickupLabel } from "../lib/cascade";
 import { chicagoToday } from "../lib/chicagoDate";
 import {
-  CUSTOM_SPECIALTY_IDS,
   CUSTOM_SPECIALTY_LOAD_TYPES,
+  isCustomSpecialtyId,
   isCustomSpecialtyRenamed,
   lookupCustomSpecialtyIdByName,
   readCustomSpecialtyNames,
@@ -149,8 +149,8 @@ export function LoadForm({
     ? rankedPickups
     : rankedPickups.slice(0, visibleCount);
   const customNames = readCustomSpecialtyNames();
-  const namedOddballs = CUSTOM_SPECIALTY_IDS.filter((id) =>
-    isCustomSpecialtyRenamed(id, customNames[id]),
+  const namedOddballs = Object.keys(customNames).filter(
+    (id) => isCustomSpecialtyId(id) && isCustomSpecialtyRenamed(id, customNames[id]),
   );
   const customPickupId = lookupCustomSpecialtyIdByName(value.pickup);
   const isCustom = value.stationId === CUSTOM_ID;

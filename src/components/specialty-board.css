@@ -26,11 +26,59 @@
   z-index: auto;
 }
 
+.specialty-add-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 74px;
+  padding: 0;
+}
+
+.specialty-add-card {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1.5px dashed #57534e;
+  background: #fff;
+  color: #57534e;
+  cursor: pointer;
+}
+
+.specialty-add-card:hover,
+.specialty-add-card:focus-visible {
+  background: #57534e;
+  color: #fff;
+  outline: none;
+}
+
+.specialty-dismiss {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  padding: 0;
+}
+
+.specialty-dismiss:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
 .specialty-head .text-input.specialty-name-input {
   grid-column: auto;
   grid-row: auto;
+  flex: 1 1 auto;
   margin-top: 0;
-  width: 100%;
+  width: auto;
   min-width: 0;
   min-height: 26px;
   height: 26px;

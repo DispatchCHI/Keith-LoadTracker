@@ -3195,8 +3195,9 @@ body.app-ready .splash {
   overflow: hidden;
 }
 .specialty-head .text-input.specialty-name-input {
+  flex: 1 1 auto;
   margin-top: 0;
-  width: 100%;
+  width: auto;
   min-width: 0;
   min-height: 26px;
   height: 26px;

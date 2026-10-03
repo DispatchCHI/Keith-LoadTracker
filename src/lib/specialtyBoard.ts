@@ -518,7 +518,9 @@ export function removeSpecialtySlot(
 }
 
 export function isSpecialtyStationId(stationId: string): boolean {
-  return SPECIALTY_STATIONS.some((s) => s.id === stationId);
+  return (
+    SPECIALTY_STATIONS.some((s) => s.id === stationId) || isCustomSpecialtyId(stationId)
+  );
 }
 
 export function countSpecialtyOpens(
@@ -1037,10 +1039,14 @@ function slotsVisibleOnDate(store: SpecialtyStore, date: string): SpecialtySlot[
   const days = Object.keys(store).sort((a, b) =>
     specialtyDateKey(a).localeCompare(specialtyDateKey(b)),
   );
+  const viewing = specialtyDateKey(date);
   for (const day of days) {
     if (!slotDayCountsOn(day, date)) continue;
+    const stored = specialtyDateKey(day);
     for (const slot of store[day] ?? []) {
       if (seen.has(slot.id)) continue;
+      // Odd-ball cards are for the day they were added. Named yards still carry.
+      if (isCustomSpecialtyId(slot.stationId) && stored !== viewing) continue;
       seen.add(slot.id);
       out.push(slot);
     }
@@ -1072,6 +1078,25 @@ function writeDay(
   }
   if (slots.length) next[key] = slots;
   return next;
+}
+
+/** Drop every open for one station that is visible on `date`. */
+export function clearSpecialtyStation(
+  store: SpecialtyStore,
+  date: string,
+  stationId: string,
+): { store: SpecialtyStore; removed: SpecialtySlot[] } {
+  const removed = boardForDate(store, date).filter((slot) =>
+    sameSpecialtyStation(slot.stationId, stationId),
+  );
+  if (!removed.length) return { store, removed };
+  return {
+    store: omitSpecialtyIds(
+      store,
+      removed.map((slot) => slot.id),
+    ),
+    removed,
+  };
 }
 
 export function omitSpecialtyIds(

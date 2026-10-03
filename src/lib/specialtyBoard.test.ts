@@ -1550,6 +1550,14 @@ describe("specialty chips carry across days", () => {
     expect(countSpecialtyOpens(store, today, "melrose", "Hodgkins")).toBe(1);
   });
 
+  it("keeps an odd-ball open on the day it was added only", () => {
+    const store = addSpecialtySlot({}, today, "custom-5", "Recycle · Acme");
+    expect(countSpecialtyOpens(store, today, "custom-5", "Recycle · Acme")).toBe(1);
+    expect(countSpecialtyOpens(store, tomorrow, "custom-5", "Recycle · Acme")).toBe(0);
+    expect(boardForDate(store, tomorrow)).toEqual([]);
+    expect(boardForDate(store, today)).toHaveLength(1);
+  });
+
   it("does not show a chip on days before it was added", () => {
     const store = addSpecialtySlot({}, tomorrow, "melrose", "RSI");
     expect(countSpecialtyOpens(store, today, "melrose", "RSI")).toBe(0);

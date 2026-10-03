@@ -22,6 +22,7 @@ import {
   applySpecialtyTombstones,
   boardForDate,
   consumeSpecialtyOpensTracked,
+  clearSpecialtyStation,
   countSpecialtyOpensAny,
   destKeepAfterChange,
   notifySpecialtyBoardChanged,
@@ -67,6 +68,7 @@ type SpecialtyContextValue = {
     stationId: string,
     destination?: string,
   ) => Promise<void>;
+  clearStation: (date: string, stationId: string) => Promise<void>;
   consumeOpens: (
     date: string,
     stationId: string,
@@ -421,6 +423,48 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
     ],
   );
 
+  const clearStation = useCallback(
+    async (date: string, stationId: string) => {
+      const cleared = clearSpecialtyStation(storeRef.current, date, stationId);
+      if (!cleared.removed.length) return;
+      bumpEpoch();
+      const ids = cleared.removed.map((slot) => slot.id);
+      rememberDeleted(ids);
+      const seen = new Set<string>();
+      for (const slot of cleared.removed) {
+        const home =
+          specialtySlotHomeDate(storeRef.current, slot.id) ?? specialtyDateKey(date);
+        const key = `${home}\0${slot.destination}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        rememberDestKeep(
+          destKeepAfterChange(cleared.store, home, stationId, slot.destination),
+        );
+      }
+      persistLocal(cleared.store);
+      if (!cloud) return;
+      await cloudDeleteIds(ids);
+      for (const key of seen) {
+        const [home, destination] = key.split("\0");
+        await cloudDeleteUnkept(
+          home,
+          stationId,
+          destination,
+          remainingSpecialtySlotIds(cleared.store, home, stationId, destination),
+        );
+      }
+    },
+    [
+      bumpEpoch,
+      cloud,
+      cloudDeleteIds,
+      cloudDeleteUnkept,
+      persistLocal,
+      rememberDeleted,
+      rememberDestKeep,
+    ],
+  );
+
   const consumeOpens = useCallback(
     async (
       date: string,
@@ -488,6 +532,7 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
       boardOn: (date) => boardForDate(store, date),
       addOpen,
       removeOpen,
+      clearStation,
       consumeOpens,
       opensFor: (date, stationId, destination) =>
         countSpecialtyOpensAny(
@@ -499,7 +544,7 @@ export function SpecialtyProvider({ children }: { children: ReactNode }) {
       refresh,
       cloud,
     }),
-    [store, addOpen, removeOpen, consumeOpens, refresh, cloud],
+    [store, addOpen, removeOpen, clearStation, consumeOpens, refresh, cloud],
   );
 
   return (

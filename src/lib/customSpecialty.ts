@@ -31,26 +31,47 @@ export const SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT = "klt-specialty-names-flush";
 const NAMES_KEY = "chitrader.load-tracker.specialty-custom-names.v1";
 const NAMES_META_KEY = "chitrader.load-tracker.specialty-custom-names.meta.v1";
 
-export function isCustomSpecialtyId(id: string): id is CustomSpecialtyId {
-  return (CUSTOM_SPECIALTY_IDS as readonly string[]).includes(id);
+const CUSTOM_ID_RE = /^custom-([1-9]\d*)$/;
+
+/** Original four slots plus any later card added from the specialty board. */
+export function isCustomSpecialtyId(id: string): boolean {
+  return CUSTOM_ID_RE.test(id);
+}
+
+export function customSpecialtyNumber(id: string): number {
+  const match = CUSTOM_ID_RE.exec(id);
+  return match ? Number(match[1]) : 0;
+}
+
+export function customSpecialtyDefaultName(id: string): string {
+  if ((CUSTOM_SPECIALTY_IDS as readonly string[]).includes(id)) {
+    return CUSTOM_SPECIALTY_DEFAULT_NAMES[id as CustomSpecialtyId];
+  }
+  return "Odd-ball";
+}
+
+export function nextCustomSpecialtyId(extra: readonly string[] = []): string {
+  let max = 0;
+  for (const id of [...Object.keys(readCustomSpecialtyNames()), ...extra]) {
+    const n = customSpecialtyNumber(id);
+    if (n > max) max = n;
+  }
+  return `custom-${max + 1}`;
 }
 
 function cleanLabel(raw: string): string {
   return raw.replace(/\s+/g, " ").trim();
 }
 
-export function readCustomSpecialtyNames(): Record<CustomSpecialtyId, string> {
-  const next: Record<CustomSpecialtyId, string> = { ...CUSTOM_SPECIALTY_DEFAULT_NAMES };
+export function readCustomSpecialtyNames(): Record<string, string> {
+  const next: Record<string, string> = { ...CUSTOM_SPECIALTY_DEFAULT_NAMES };
   try {
     const raw = localStorage.getItem(NAMES_KEY);
     if (!raw) return next;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    for (const id of CUSTOM_SPECIALTY_IDS) {
-      if (!Object.prototype.hasOwnProperty.call(parsed, id)) continue;
-      const value = parsed[id];
-      if (typeof value === "string") {
-        next[id] = value;
-      }
+    for (const [id, value] of Object.entries(parsed)) {
+      if (!isCustomSpecialtyId(id) || typeof value !== "string") continue;
+      next[id] = value;
     }
   } catch {
     /* keep defaults */
@@ -78,19 +99,26 @@ function writeNamesMeta(updatedAt: string): void {
 }
 
 export function namesHaveCustomLabels(
-  names: Record<CustomSpecialtyId, string> = readCustomSpecialtyNames(),
+  names: Record<string, string> = readCustomSpecialtyNames(),
 ): boolean {
-  return CUSTOM_SPECIALTY_IDS.some((id) => isCustomSpecialtyRenamed(id, names[id]));
+  return Object.keys(names).some(
+    (id) => isCustomSpecialtyId(id) && isCustomSpecialtyRenamed(id, names[id]),
+  );
+}
+
+/** Bump the shared clock so a day-pin change uploads with the name book. */
+export function touchCustomSpecialtyNamesClock(): void {
+  writeNamesMeta(new Date().toISOString());
 }
 
 export function applyCustomSpecialtyNames(
   incoming: Record<string, unknown>,
   updatedAt: string,
-): Record<CustomSpecialtyId, string> {
-  const next: Record<CustomSpecialtyId, string> = { ...CUSTOM_SPECIALTY_DEFAULT_NAMES };
-  for (const id of CUSTOM_SPECIALTY_IDS) {
-    const value = incoming[id];
-    next[id] = typeof value === "string" ? value : next[id];
+): Record<string, string> {
+  const next: Record<string, string> = { ...CUSTOM_SPECIALTY_DEFAULT_NAMES };
+  for (const [id, value] of Object.entries(incoming)) {
+    if (!isCustomSpecialtyId(id) || typeof value !== "string") continue;
+    next[id] = value;
   }
   try {
     localStorage.setItem(NAMES_KEY, JSON.stringify(next));
@@ -104,11 +132,14 @@ export function applyCustomSpecialtyNames(
   return next;
 }
 
-export function readCustomSpecialtyNameField(id: CustomSpecialtyId): string {
-  return readCustomSpecialtyNames()[id] ?? CUSTOM_SPECIALTY_DEFAULT_NAMES[id];
+export function readCustomSpecialtyNameField(id: string): string {
+  const names = readCustomSpecialtyNames();
+  if (Object.prototype.hasOwnProperty.call(names, id)) return names[id] ?? "";
+  return customSpecialtyDefaultName(id);
 }
 
-export function writeCustomSpecialtyName(id: CustomSpecialtyId, name: string): void {
+export function writeCustomSpecialtyName(id: string, name: string): void {
+  if (!isCustomSpecialtyId(id)) return;
   const names = readCustomSpecialtyNames();
   names[id] = name;
   try {
@@ -120,27 +151,37 @@ export function writeCustomSpecialtyName(id: CustomSpecialtyId, name: string): v
 }
 
 export function isCustomSpecialtyRenamed(
-  id: CustomSpecialtyId,
+  id: string,
   name = readCustomSpecialtyNames()[id],
 ): boolean {
-  const cleaned = cleanLabel(name);
+  if (!isCustomSpecialtyId(id)) return false;
+  const cleaned = cleanLabel(name ?? "");
   if (!cleaned) return false;
-  return cleaned.toLowerCase() !== CUSTOM_SPECIALTY_DEFAULT_NAMES[id].toLowerCase();
+  return cleaned.toLowerCase() !== customSpecialtyDefaultName(id).toLowerCase();
 }
 
 export function customSpecialtyDisplayName(id: string): string {
   if (!isCustomSpecialtyId(id)) return id;
-  return cleanLabel(readCustomSpecialtyNames()[id]) || CUSTOM_SPECIALTY_DEFAULT_NAMES[id];
+  return cleanLabel(readCustomSpecialtyNames()[id] ?? "") || customSpecialtyDefaultName(id);
 }
 
-export function lookupCustomSpecialtyIdByName(raw: string): CustomSpecialtyId | null {
+export function lookupCustomSpecialtyIdByName(raw: string): string | null {
   const name = cleanLabel(raw).toLowerCase();
   if (!name) return null;
   if (isCustomSpecialtyId(name)) return name;
   const names = readCustomSpecialtyNames();
-  for (const id of CUSTOM_SPECIALTY_IDS) {
-    if (cleanLabel(names[id]).toLowerCase() === name) return id;
-    if (CUSTOM_SPECIALTY_DEFAULT_NAMES[id].toLowerCase() === name) return id;
+  const ids = Object.keys(names)
+    .filter((id) => isCustomSpecialtyId(id))
+    .sort((a, b) => customSpecialtyNumber(a) - customSpecialtyNumber(b));
+  for (const id of ids) {
+    const stored = cleanLabel(names[id] ?? "");
+    if (stored.toLowerCase() === name) return id;
+    if (
+      !isCustomSpecialtyRenamed(id, stored) &&
+      customSpecialtyDefaultName(id).toLowerCase() === name
+    ) {
+      return id;
+    }
   }
   return null;
 }
