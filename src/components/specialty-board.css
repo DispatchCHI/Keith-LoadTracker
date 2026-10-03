@@ -26,46 +26,30 @@
   z-index: auto;
 }
 
-.specialty-extra-main {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-}
-
-.specialty-extra-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.specialty-extra-controls .specialty-count {
-  grid-column: auto;
-  grid-row: auto;
-  min-width: 1.2rem;
-  text-align: left;
-}
-
-.specialty-extra-controls .specialty-stepper {
-  grid-column: auto;
-  grid-row: auto;
-  justify-content: flex-end;
-}
-
-.specialty-extra-list .text-input.specialty-name-input {
+.specialty-head .text-input.specialty-name-input {
   grid-column: auto;
   grid-row: auto;
   margin-top: 0;
   width: 100%;
   min-width: 0;
-  min-height: 28px;
-  height: 28px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 650;
+  min-height: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
   line-height: 1.2;
+}
+
+.specialty-head .text-input.specialty-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.specialty-head .text-input.specialty-name-input:focus {
+  outline: none;
 }
 
 .specialty-extra-picker {
@@ -175,9 +159,15 @@
 }
 
 .specialty-list {
-  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: start;
-  gap: 6px;
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .specialty-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .specialty-row,
@@ -190,7 +180,7 @@
 }
 
 .specialty-picker {
-  margin-top: 6px;
+  margin: 0 8px 8px;
   padding: 6px 0 0;
   border: 0;
   border-radius: 0;

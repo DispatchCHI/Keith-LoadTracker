@@ -126,6 +126,16 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
   );
 }
 
+function destChipTone(destination: string): string {
+  const name = destination.toLowerCase();
+  if (name.includes("recycle")) return " is-recycle";
+  if (name.includes("yard")) return " is-yard";
+  if (name.includes("cardboard")) return " is-cardboard";
+  if (name.includes("wood")) return " is-wood";
+  if (name.includes("c&d") || name.includes("c & d")) return " is-cd";
+  return "";
+}
+
 function StationRow({
   station,
   board,
@@ -161,51 +171,42 @@ function StationRow({
     <li
       className={[
         "specialty-row",
+        `tone-${station.id}`,
         custom ? "is-custom" : "",
         picking ? "is-picking" : "",
       ]
         .filter(Boolean)
         .join(" ")}
     >
-      <div className={custom ? "specialty-row-main specialty-extra-main" : "specialty-row-main"}>
+      <div className="specialty-head">
         {custom ? (
           <CustomSpecialtyNameInput id={station.id as CustomSpecialtyId} />
         ) : (
           <span className="specialty-station">{station.name}</span>
         )}
-        {custom ? (
-          <div className="specialty-extra-controls">
-            <span className={`specialty-count${count ? " has-open" : ""}`}>{count}</span>
-            <div className="specialty-stepper">
-              <StepperButtons label={label} count={count} onRemove={onRemove} onAdd={onTogglePicker} />
-            </div>
-          </div>
-        ) : (
-          <>
-            <span className={`specialty-count${count ? " has-open" : ""}`}>{count}</span>
-            <div className="specialty-stepper">
-              <StepperButtons label={label} count={count} onRemove={onRemove} onAdd={onTogglePicker} />
-            </div>
-          </>
-        )}
+        <span className={`specialty-count${count ? " has-open" : ""}`}>{count}</span>
       </div>
-
-      {summary.length > 0 ? (
-        <div className="specialty-dests">
-          {summary.map((row) => (
-            <button
-              key={row.destination}
-              type="button"
-              className="specialty-dest-chip"
-              title={`Remove one ${row.destination}`}
-              onClick={() => onRemoveDest(row.destination)}
-            >
-              {row.destination}
-              {row.count > 1 ? ` x${row.count}` : ""}
-            </button>
-          ))}
+      <div className="specialty-pad">
+        {summary.length > 0 ? (
+          <div className="specialty-dests">
+            {summary.map((row) => (
+              <button
+                key={row.destination}
+                type="button"
+                className={`specialty-dest-chip${destChipTone(row.destination)}`}
+                title={`Remove one ${row.destination}`}
+                onClick={() => onRemoveDest(row.destination)}
+              >
+                {row.destination}
+                {row.count > 1 ? ` x${row.count}` : ""}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="specialty-stepper">
+          <StepperButtons label={label} count={count} onRemove={onRemove} onAdd={onTogglePicker} />
         </div>
-      ) : null}
+      </div>
 
       {picking && custom ? (
         <CustomSpecialtyPicker onCancel={onCancelPicker} onAdd={onAdd} />
@@ -358,7 +359,7 @@ function SpecialtyDestQueue({
               <button
                 key={row.dest}
                 type="button"
-                className="specialty-dest-chip"
+                className={`specialty-dest-chip${destChipTone(row.dest)}`}
                 title={`Remove one queued ${row.dest}`}
                 onClick={() => drop(row.dest)}
               >
