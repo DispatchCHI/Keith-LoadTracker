@@ -23,11 +23,20 @@ export type DispatchLogEntry = {
   text: string;
 };
 
+export type CrewMember = {
+  id: DispatchPerson;
+  /** First day on the job, `YYYY-MM-DD`, or null until it is entered. */
+  startDate: string | null;
+  /** Vacation weeks granted for this calendar year. A week is 5 days. */
+  weeks: number;
+};
+
 export type DispatchBoard = {
   year: number;
   saturdays: SaturdayRow[];
   vacations: VacationUse[];
   log: DispatchLogEntry[];
+  crew: CrewMember[];
   updatedAt: string;
 };
 
@@ -36,15 +45,17 @@ export type DispatchStore = {
   years: Record<string, DispatchBoard>;
 };
 
+export const DAYS_PER_WEEK = 5;
+export const MAX_VACATION_WEEKS = 8;
+
 export const DISPATCH_CREW: {
   id: DispatchPerson;
   name: string;
   weeks: number;
-  days: number;
 }[] = [
-  { id: "tim", name: "Tim", weeks: 3, days: 15 },
-  { id: "keith", name: "Keith", weeks: 3, days: 15 },
-  { id: "mike", name: "Mike", weeks: 2, days: 10 },
+  { id: "tim", name: "Tim", weeks: 3 },
+  { id: "keith", name: "Keith", weeks: 3 },
+  { id: "mike", name: "Mike", weeks: 2 },
 ];
 
 const DUTY_LABEL: Record<SaturdayDuty, string> = {
@@ -156,6 +167,14 @@ function rowFromSeed(date: string, seed: Seed | undefined): SaturdayRow {
   return { date, duty: seed[1], note: seed[2], with: seed[3] };
 }
 
+export function defaultCrew(): CrewMember[] {
+  return DISPATCH_CREW.map((person) => ({
+    id: person.id,
+    startDate: null,
+    weeks: person.weeks,
+  }));
+}
+
 export function seedBoard(year: number, updatedAt = "1970-01-01T00:00:00.000Z"): DispatchBoard {
   const known = new Map(year === 2026 ? SHEET_2026.map((row) => [row[0], row] as const) : []);
   return {
@@ -163,12 +182,86 @@ export function seedBoard(year: number, updatedAt = "1970-01-01T00:00:00.000Z"):
     saturdays: saturdaysOfYear(year).map((date) => rowFromSeed(date, known.get(date))),
     vacations: [],
     log: year === 2026 ? SHEET_2026_LOG.map((entry) => ({ ...entry })) : [],
+    crew: defaultCrew(),
     updatedAt,
   };
 }
 
+export function crewMember(board: DispatchBoard, person: DispatchPerson): CrewMember {
+  return (
+    board.crew.find((member) => member.id === person) ?? {
+      id: person,
+      startDate: null,
+      weeks: DISPATCH_CREW.find((crew) => crew.id === person)?.weeks ?? 0,
+    }
+  );
+}
+
+export function bankDays(weeks: number): number {
+  return Math.max(0, Math.round(weeks)) * DAYS_PER_WEEK;
+}
+
+/** Full years from the start date through `asOf`. */
+export function yearsEmployed(startDate: string | null, asOf: string): number | null {
+  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
+  const start = parseISODate(startDate);
+  const end = parseISODate(asOf);
+  if (!start.y || !end.y) return null;
+  let years = end.y - start.y;
+  if (end.m < start.m || (end.m === start.m && end.d < start.d)) years -= 1;
+  return Math.max(0, years);
+}
+
+function clampWeeks(weeks: number): number {
+  if (!Number.isFinite(weeks)) return 0;
+  return Math.min(MAX_VACATION_WEEKS, Math.max(0, Math.round(weeks)));
+}
+
+export function setCrewWeeks(board: DispatchBoard, person: DispatchPerson, weeks: number): DispatchBoard {
+  const nextWeeks = clampWeeks(weeks);
+  const current = crewMember(board, person);
+  if (current.weeks === nextWeeks && board.crew.some((member) => member.id === person)) return board;
+  const crew = DISPATCH_CREW.map((slot) => {
+    const member = crewMember(board, slot.id);
+    return slot.id === person ? { ...member, weeks: nextWeeks } : member;
+  });
+  return { ...board, crew };
+}
+
+export function setCrewStart(
+  board: DispatchBoard,
+  person: DispatchPerson,
+  startDate: string | null,
+): DispatchBoard {
+  const nextDate = startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : null;
+  const current = crewMember(board, person);
+  if (current.startDate === nextDate && board.crew.some((member) => member.id === person)) return board;
+  const crew = DISPATCH_CREW.map((slot) => {
+    const member = crewMember(board, slot.id);
+    return slot.id === person ? { ...member, startDate: nextDate } : member;
+  });
+  return { ...board, crew };
+}
+
+function latestStartDate(store: DispatchStore, person: DispatchPerson): string | null {
+  const boards = Object.values(store.years).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  for (const board of boards) {
+    const start = board.crew?.find((member) => member.id === person)?.startDate;
+    if (start) return start;
+  }
+  return null;
+}
+
 export function boardForYear(store: DispatchStore, year: number): DispatchBoard {
-  return store.years[String(year)] ?? seedBoard(year);
+  const board = store.years[String(year)] ?? seedBoard(year);
+  const crew = (board.crew?.length ? board.crew : defaultCrew()).map((member) => {
+    if (member.startDate) return member;
+    const shared = latestStartDate(store, member.id);
+    return shared ? { ...member, startDate: shared } : member;
+  });
+  const same = crew.every((member, index) => member.startDate === board.crew?.[index]?.startDate);
+  if (same && board.crew?.length) return board;
+  return { ...board, crew };
 }
 
 function eachDay(start: string, end: string): string[] {
@@ -196,14 +289,14 @@ export function daysUsed(vacations: VacationUse[], person: DispatchPerson): numb
   return vacationDates(vacations, person).length;
 }
 
-export function daysLeft(vacations: VacationUse[], person: DispatchPerson): number {
-  const bank = DISPATCH_CREW.find((crew) => crew.id === person)?.days ?? 0;
-  return Math.max(0, bank - daysUsed(vacations, person));
+export function daysLeft(board: DispatchBoard, person: DispatchPerson): number {
+  return Math.max(0, bankDays(crewMember(board, person).weeks) - daysUsed(board.vacations, person));
 }
 
-export function usedPercent(vacations: VacationUse[], person: DispatchPerson): number {
-  const bank = DISPATCH_CREW.find((crew) => crew.id === person)?.days ?? 1;
-  return Math.min(100, Math.round((daysUsed(vacations, person) / bank) * 100));
+export function usedPercent(board: DispatchBoard, person: DispatchPerson): number {
+  const bank = bankDays(crewMember(board, person).weeks);
+  if (bank <= 0) return daysUsed(board.vacations, person) > 0 ? 100 : 0;
+  return Math.min(100, Math.round((daysUsed(board.vacations, person) / bank) * 100));
 }
 
 export function vacationChipLabel(use: VacationUse): string {
@@ -348,6 +441,20 @@ export function normalizeBoard(value: unknown, year: number): DispatchBoard | nu
       log.push({ id: entry.id, text: entry.text });
     }
   }
+  const crew = defaultCrew().map((slot) => {
+    if (!Array.isArray(record.crew)) return slot;
+    const match = record.crew
+      .map(asRecord)
+      .find((member) => member?.id === slot.id);
+    if (!match) return slot;
+    const weeks = typeof match.weeks === "number" ? match.weeks : slot.weeks;
+    const startDate = typeof match.startDate === "string" ? match.startDate : null;
+    return {
+      id: slot.id,
+      weeks: Math.min(MAX_VACATION_WEEKS, Math.max(0, Math.round(weeks))),
+      startDate: startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : null,
+    };
+  });
   const updatedAt = typeof record.updatedAt === "string" ? record.updatedAt : "";
-  return { year, saturdays, vacations, log, updatedAt };
+  return { year, saturdays, vacations, log, crew, updatedAt };
 }

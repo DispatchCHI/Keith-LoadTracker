@@ -14,6 +14,9 @@ import {
   addVacationDay,
   boardForYear,
   removeVacation,
+  seedBoard,
+  setCrewStart,
+  setCrewWeeks,
   setSaturdayDuty,
   setSaturdayNote,
   type DispatchBoard,
@@ -36,6 +39,8 @@ type DispatchBoardContextValue = {
   removeDay: (year: number, id: string) => void;
   setDuty: (year: number, date: string, duty: SaturdayDuty) => void;
   setNote: (year: number, date: string, note: string) => void;
+  setWeeks: (year: number, person: DispatchPerson, weeks: number) => void;
+  setStartDate: (year: number, person: DispatchPerson, startDate: string | null) => void;
 };
 
 const DispatchBoardContext = createContext<DispatchBoardContextValue | null>(null);
@@ -142,6 +147,21 @@ export function SaturdayCrewProvider({ children }: { children: ReactNode }) {
         const current = boardForYear(storeRef.current, year);
         const next = setSaturdayNote(current, date, note);
         if (next !== current) saveBoard(next);
+      },
+      setWeeks: (year, person, weeks) => {
+        const current = boardForYear(storeRef.current, year);
+        const next = setCrewWeeks(current, person, weeks);
+        if (next !== current) saveBoard(next);
+      },
+      setStartDate: (year, person, startDate) => {
+        const keys = new Set(Object.keys(storeRef.current.years));
+        keys.add(String(year));
+        const boards = [...keys].flatMap((key) => {
+          const current = storeRef.current.years[key] ?? seedBoard(Number(key));
+          const next = setCrewStart(current, person, startDate);
+          return next === current ? [] : [next];
+        });
+        for (const board of boards) saveBoard(board);
       },
     }),
     [saveBoard, store],

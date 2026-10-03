@@ -5566,7 +5566,7 @@ body.app-ready .splash {
 }
 
 .dispatch-swatch.is-tim { background: #1d4ed8; }
-.dispatch-swatch.is-keith { background: #b45309; }
+.dispatch-swatch.is-keith { background: #4b5563; }
 .dispatch-swatch.is-mike { background: #0f766e; }
 
 .dispatch-bank {
@@ -5604,8 +5604,80 @@ body.app-ready .splash {
 }
 
 .dispatch-track i.is-tim { background: #1d4ed8; }
-.dispatch-track i.is-keith { background: #b45309; }
+.dispatch-track i.is-keith { background: #4b5563; }
 .dispatch-track i.is-mike { background: #0f766e; }
+
+.dispatch-weeks {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dispatch-weeks button,
+.dispatch-start input,
+.dispatch-weeks input {
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f4f5f7;
+  color: #111;
+  font-weight: 800;
+}
+
+.dispatch-weeks button {
+  width: 28px;
+  padding: 0;
+}
+
+.dispatch-weeks button:disabled {
+  opacity: 0.4;
+}
+
+.dispatch-weeks input {
+  width: 42px;
+  padding: 0 4px;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.dispatch-weeks input::-webkit-outer-spin-button,
+.dispatch-weeks input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.dispatch-weeks input:focus,
+.dispatch-start input:focus,
+.dispatch-add input:focus,
+.dispatch-note-field input:focus {
+  outline: 2px solid #1e3a8a;
+  background: #e8eefc;
+}
+
+.dispatch-start {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dispatch-start input {
+  flex: 1;
+  min-width: 0;
+  padding: 0 8px;
+  font-weight: 700;
+}
+
+.dispatch-start span {
+  min-width: 58px;
+  text-align: right;
+  color: #1e3a8a;
+}
 
 .dispatch-chips {
   display: flex;
@@ -5655,8 +5727,8 @@ body.app-ready .splash {
   height: 32px;
   border: 0;
   border-radius: 8px;
-  background: #b8860b;
-  color: #fff;
+  background: #e5e7eb;
+  color: #111;
   font-weight: 800;
   padding: 0 12px;
   font-size: 13px;
@@ -5681,15 +5753,15 @@ body.app-ready .splash {
 }
 
 .dispatch-months button.is-on {
-  background: #1e3a8a;
-  border-color: #1e3a8a;
-  color: #fff;
+  background: #e8eefc;
+  border-color: #c7d2fe;
+  color: #1e3a8a;
 }
 
 .dispatch-callout {
   margin: 0 0 8px;
-  background: #fffbeb;
-  border: 1px solid #e7d7a8;
+  background: #f4f5f7;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 8px 10px;
   font-size: 12px;
@@ -5730,8 +5802,8 @@ body.app-ready .splash {
 }
 
 .dispatch-sat-list button.is-selected {
-  background: #fffbeb;
-  box-shadow: inset 3px 0 0 #b8860b;
+  background: #e8eefc;
+  box-shadow: inset 3px 0 0 #1e3a8a;
 }
 
 .dispatch-date {
@@ -5751,7 +5823,7 @@ body.app-ready .splash {
 
 .dispatch-pill.is-mike { color: #0f766e; background: #ccfbf1; }
 .dispatch-pill.is-tim { color: #1d4ed8; background: #dbeafe; }
-.dispatch-pill.is-keith { color: #9a3412; background: #ffedd5; }
+.dispatch-pill.is-keith { color: #374151; background: #e5e7eb; }
 .dispatch-pill.is-everyone { color: #1e3a8a; background: #e0e7ff; }
 .dispatch-pill.is-open {
   color: #57534e;
@@ -5772,7 +5844,7 @@ body.app-ready .splash {
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #9a3412;
+  color: #1e3a8a;
 }
 
 .dispatch-menu {
@@ -5808,7 +5880,8 @@ body.app-ready .splash {
 }
 
 .dispatch-menu > button.is-pick {
-  background: #ffedd5;
+  background: #e8eefc;
+  color: #1e3a8a;
 }
 
 .dispatch-note-field {

@@ -2,6 +2,10 @@ import { useMemo, useState } from "react";
 import { chicagoToday, formatShortDate, parseISODate } from "../lib/chicagoDate";
 import {
   DISPATCH_CREW,
+  DAYS_PER_WEEK,
+  MAX_VACATION_WEEKS,
+  bankDays,
+  crewMember,
   daysLeft,
   daysUsed,
   dutyLabel,
@@ -10,6 +14,7 @@ import {
   saturdayOnOrAfter,
   usedPercent,
   vacationChipLabel,
+  yearsEmployed,
   type DispatchPerson,
   type SaturdayDuty,
   type SaturdayRow,
@@ -20,7 +25,7 @@ const DUTY_CHOICES: SaturdayDuty[] = ["mike", "tim", "keith", "everyone", "open"
 
 export function DispatchScreen() {
   const today = chicagoToday();
-  const { boardFor, addDay, removeDay, setDuty, setNote } = useSaturdayCrew();
+  const { boardFor, addDay, removeDay, setDuty, setNote, setWeeks, setStartDate } = useSaturdayCrew();
   const [year, setYear] = useState(() => parseISODate(today).y);
   const [month, setMonth] = useState(() => parseISODate(today).m - 1);
   const [selected, setSelected] = useState(() => saturdayOnOrAfter(today));
@@ -95,12 +100,15 @@ export function DispatchScreen() {
             <h2>Vacation days</h2>
           </div>
           <p className="dispatch-hint">
-            Tim and Keith get 3 weeks. Mike gets 2. A week is 5 days. Use one day at a time.
+            A week is {DAYS_PER_WEEK} days. Change the weeks when someone earns more, and add a start date.
           </p>
           <div className="dispatch-cards">
             {DISPATCH_CREW.map((person) => {
+              const member = crewMember(board, person.id);
+              const weeks = member.weeks;
               const used = daysUsed(board.vacations, person.id);
-              const left = daysLeft(board.vacations, person.id);
+              const left = daysLeft(board, person.id);
+              const tenure = yearsEmployed(member.startDate, today);
               const chips = board.vacations.filter((use) => use.person === person.id);
               return (
                 <article key={person.id} className="dispatch-card">
@@ -109,19 +117,59 @@ export function DispatchScreen() {
                       <i className={`dispatch-swatch is-${person.id}`} />
                       {person.name}
                     </div>
-                    <div className="dispatch-bank">
-                      {person.weeks} weeks · {person.days} days
+                    <div className="dispatch-weeks">
+                      <button
+                        type="button"
+                        aria-label={`Fewer weeks for ${person.name}`}
+                        disabled={weeks <= 0}
+                        onClick={() => setWeeks(year, person.id, weeks - 1)}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min={0}
+                        max={MAX_VACATION_WEEKS}
+                        aria-label={`${person.name} vacation weeks`}
+                        value={weeks}
+                        onChange={(event) => {
+                          const next = Number(event.target.value);
+                          if (!Number.isFinite(next)) return;
+                          setWeeks(year, person.id, next);
+                        }}
+                      />
+                      <span>weeks</span>
+                      <button
+                        type="button"
+                        aria-label={`More weeks for ${person.name}`}
+                        disabled={weeks >= MAX_VACATION_WEEKS}
+                        onClick={() => setWeeks(year, person.id, weeks + 1)}
+                      >
+                        +
+                      </button>
                     </div>
                   </div>
+                  <label className="dispatch-start">
+                    Start date
+                    <input
+                      type="date"
+                      aria-label={`${person.name} start date`}
+                      value={member.startDate ?? ""}
+                      onChange={(event) => setStartDate(year, person.id, event.target.value || null)}
+                    />
+                    <span>{tenure === null ? "" : `${tenure} ${tenure === 1 ? "year" : "years"}`}</span>
+                  </label>
                   <div className="dispatch-left-row">
                     <div className="dispatch-left-num">
                       {left}
                       <span>days left</span>
                     </div>
-                    <div className="dispatch-bank">{used} used</div>
+                    <div className="dispatch-bank">
+                      {used} used · {bankDays(weeks)} days
+                    </div>
                   </div>
                   <div className="dispatch-track">
-                    <i className={`is-${person.id}`} style={{ width: `${usedPercent(board.vacations, person.id)}%` }} />
+                    <i className={`is-${person.id}`} style={{ width: `${usedPercent(board, person.id)}%` }} />
                   </div>
                   <div className="dispatch-chips">
                     {chips.map((use) => (

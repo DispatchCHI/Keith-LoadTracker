@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   addVacationDay,
+  bankDays,
   daysLeft,
   daysUsed,
   dutyLabel,
   removeVacation,
   saturdaysOfYear,
   seedBoard,
+  setCrewStart,
+  setCrewWeeks,
   setSaturdayDuty,
   setSaturdayNote,
   vacationChipLabel,
+  yearsEmployed,
 } from "./saturdayCrew";
 
 describe("2026 Saturday sheet", () => {
@@ -49,8 +53,8 @@ describe("vacation days", () => {
     board = addVacationDay(board, "tim", "2026-03-17");
     board = addVacationDay(board, "tim", "2026-03-16");
     expect(daysUsed(board.vacations, "tim")).toBe(2);
-    expect(daysLeft(board.vacations, "tim")).toBe(13);
-    expect(daysLeft(board.vacations, "mike")).toBe(10);
+    expect(daysLeft(board, "tim")).toBe(13);
+    expect(daysLeft(board, "mike")).toBe(10);
     expect(vacationChipLabel(board.vacations[0])).toBe("Mar 16");
   });
 
@@ -58,7 +62,7 @@ describe("vacation days", () => {
     let board = addVacationDay(seedBoard(2026), "keith", "2026-04-06", "k1");
     board = removeVacation(board, "k1");
     expect(daysUsed(board.vacations, "keith")).toBe(0);
-    expect(daysLeft(board.vacations, "keith")).toBe(15);
+    expect(daysLeft(board, "keith")).toBe(15);
   });
 
   it("rejects a date outside the board year", () => {
@@ -81,5 +85,22 @@ describe("saturday edits", () => {
     expect(next.saturdays.find((row) => row.date === "2026-10-03")?.note).toBe("Coverage");
     expect(next.log.at(-1)?.text).toBe("Oct 3 note: Coverage");
     expect(dutyLabel("everyone")).toBe("Everyone");
+  });
+});
+
+describe("crew vacation bank", () => {
+  it("turns extra weeks into 5 days each and keeps the start date", () => {
+    let board = seedBoard(2026);
+    board = setCrewWeeks(board, "mike", 3);
+    board = setCrewStart(board, "mike", "2014-03-01");
+    expect(bankDays(3)).toBe(15);
+    expect(daysLeft(board, "mike")).toBe(15);
+    expect(yearsEmployed("2014-03-01", "2026-10-02")).toBe(12);
+    expect(yearsEmployed("2014-11-01", "2026-10-02")).toBe(11);
+    expect(board.crew.find((member) => member.id === "mike")).toMatchObject({
+      weeks: 3,
+      startDate: "2014-03-01",
+    });
+    expect(setCrewWeeks(board, "mike", 3)).toBe(board);
   });
 });
