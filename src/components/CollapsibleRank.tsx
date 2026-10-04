@@ -17,6 +17,8 @@ type CollapsibleRankProps = {
   expandedPanel?: ReactNode;
   /** Number of side-by-side columns for the row list. Defaults to 1 (stacked). */
   columns?: number;
+  /** Table used on the desktop Today totals panel. Cards stay the default. */
+  layout?: "cards" | "sheet";
 };
 
 export function CollapsibleRank({
@@ -31,10 +33,29 @@ export function CollapsibleRank({
   compact = false,
   expandedPanel,
   columns = 1,
+  layout = "cards",
 }: CollapsibleRankProps) {
   const [open, setOpen] = useState(defaultOpen);
   const max = rows[0]?.count ?? 0;
   const keys = rows.length;
+
+  if (layout === "sheet") {
+    return (
+      <SheetRank
+        title={title}
+        hint={hint}
+        rows={rows}
+        filterKind={filterKind}
+        active={active}
+        onSelect={onSelect}
+        open={open}
+        setOpen={setOpen}
+        emptyText={emptyText}
+        expandedPanel={expandedPanel}
+        columns={columns}
+      />
+    );
+  }
 
   return (
     <section className={open ? "totals-block" : "totals-block totals-block-collapsed"}>
@@ -107,6 +128,179 @@ export function CollapsibleRank({
         </>
       ) : null}
     </section>
+  );
+}
+
+function SheetRank({
+  title,
+  hint,
+  rows,
+  filterKind,
+  active,
+  onSelect,
+  open,
+  setOpen,
+  emptyText,
+  expandedPanel,
+  columns,
+}: {
+  title: string;
+  hint?: string;
+  rows: RankRow[];
+  filterKind: TotalsFilter["kind"];
+  active: TotalsFilter | null;
+  onSelect?: (filter: TotalsFilter) => void;
+  open: boolean;
+  setOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
+  emptyText: string;
+  expandedPanel?: ReactNode;
+  columns: number;
+}) {
+  const commodity = filterKind === "commodity";
+  const span = columns * 3;
+  const pairs: RankRow[][] = [];
+  for (let i = 0; i < rows.length; i += columns) {
+    pairs.push(rows.slice(i, i + columns));
+  }
+  const head = commodity ? ["Site", "Loads", ""] : ["Site", "MSW", "Total"];
+
+  return (
+    <section
+      className={
+        open
+          ? "totals-block totals-sheet-block"
+          : "totals-block totals-sheet-block totals-block-collapsed"
+      }
+    >
+      <button
+        type="button"
+        className="totals-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <span className="totals-toggle-copy">
+          <span className="totals-toggle-title">{title}</span>
+        </span>
+        {hint ? <span className="totals-toggle-count">{hint}</span> : null}
+        <ChevronDown
+          size={16}
+          className={open ? "totals-chevron open" : "totals-chevron"}
+          aria-hidden
+        />
+      </button>
+      {open ? (
+        rows.length === 0 ? (
+          <p className="field-hint">{emptyText}</p>
+        ) : (
+          <table className="sheet-sites">
+            <thead>
+              <tr>
+                {Array.from({ length: columns }, (_, col) =>
+                  head.map((label, index) => (
+                    <th key={`${col}-${label}-${index}`} className={index === 0 ? "" : "num"}>
+                      {label}
+                    </th>
+                  )),
+                )}
+              </tr>
+            </thead>
+            {pairs.map((pair) => {
+              const openHere = pair.some(
+                (row) => active?.kind === filterKind && active.key === row.key,
+              );
+              return (
+                <tbody key={pair[0]?.key}>
+                  <tr>
+                    {pair.map((row) => {
+                      const selected = active?.kind === filterKind && active.key === row.key;
+                      const full = !commodity && row.count > 0 && row.trashCount === row.count;
+                      const choose = () => onSelect?.({ kind: filterKind, key: row.key });
+                      return (
+                        <SiteCells
+                          key={row.key}
+                          row={row}
+                          commodity={commodity}
+                          selected={selected}
+                          full={full}
+                          onChoose={onSelect ? choose : undefined}
+                        />
+                      );
+                    })}
+                    {pair.length < columns
+                      ? Array.from({ length: (columns - pair.length) * 3 }, (_, index) => (
+                          <td key={`pad-${index}`} />
+                        ))
+                      : null}
+                  </tr>
+                  {openHere && expandedPanel ? (
+                    <tr className="sheet-expand">
+                      <td colSpan={span}>{expandedPanel}</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              );
+            })}
+          </table>
+        )
+      ) : null}
+    </section>
+  );
+}
+
+function SiteCells({
+  row,
+  commodity,
+  selected,
+  full,
+  onChoose,
+}: {
+  row: RankRow;
+  commodity: boolean;
+  selected: boolean;
+  full: boolean;
+  onChoose?: () => void;
+}) {
+  const mark = selected ? "is-on" : "";
+  const nums = full ? `num full ${mark}` : `num ${mark}`;
+  return (
+    <>
+      <td className={mark}>
+        {onChoose ? (
+          <button
+            type="button"
+            className="site-hit"
+            aria-expanded={selected}
+            onClick={onChoose}
+          >
+            {row.label}
+            {row.custom ? <span className="custom-pill">Custom</span> : null}
+          </button>
+        ) : (
+          <span className="site-hit">
+            {row.label}
+            {row.custom ? <span className="custom-pill">Custom</span> : null}
+          </span>
+        )}
+      </td>
+      <td className={nums}>
+        {onChoose ? (
+          <button type="button" className="site-hit num-hit" onClick={onChoose}>
+            {commodity ? row.count : row.trashCount}
+          </button>
+        ) : (
+          commodity ? row.count : row.trashCount
+        )}
+      </td>
+      <td className={nums}>
+        {commodity ? null : onChoose ? (
+          <button type="button" className="site-hit num-hit" onClick={onChoose}>
+            {row.count}
+          </button>
+        ) : (
+          row.count
+        )}
+      </td>
+    </>
   );
 }
 

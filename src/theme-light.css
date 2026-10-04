@@ -99,6 +99,16 @@ select {
   color: #111111;
 }
 
+.screen.totals-sheet {
+  background: #f7f8fa !important;
+}
+
+.totals-sheet .eod-stat-loads {
+  background: #d6e8fb !important;
+  border-color: #7eb6ff !important;
+  color: #123152 !important;
+}
+
 .drivers-card {
   background: #eeeeee !important;
   border-color: #d0d3d9 !important;

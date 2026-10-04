@@ -83,18 +83,30 @@ export function TotalsScreen({
   };
 
   return (
-    <div className={embedded ? "screen screen-panel" : "screen"}>
-      <header className="page-header">
-        <div className="page-header-brand">
-          {!embedded ? <BrandMark /> : null}
-          <div>
-            <p className="eyebrow">Day totals</p>
-            {!embedded ? (
-              <h1 className="page-title">{formatHeaderDate(date)}</h1>
-            ) : null}
-          </div>
+    <div className={embedded ? "screen screen-panel totals-sheet" : "screen"}>
+      {embedded ? (
+        <div className="sheet-top">
+          <p className="eyebrow">Day totals</p>
+          <label className="date-pick sheet-cal">
+            <input
+              type="date"
+              value={date}
+              aria-label="Calendar"
+              onChange={(event) => {
+                if (event.target.value) changeDate(event.target.value);
+              }}
+            />
+          </label>
         </div>
-        {!embedded ? (
+      ) : (
+        <header className="page-header">
+          <div className="page-header-brand">
+            <BrandMark />
+            <div>
+              <p className="eyebrow">Day totals</p>
+              <h1 className="page-title">{formatHeaderDate(date)}</h1>
+            </div>
+          </div>
           <button
             type="button"
             className="text-btn amber"
@@ -103,23 +115,28 @@ export function TotalsScreen({
           >
             Export CSV
           </button>
-        ) : null}
-      </header>
+        </header>
+      )}
 
       <DayPicker
         date={date}
         onChange={changeDate}
+        variant={embedded ? "sheet" : "default"}
+        showCalendar={!embedded}
         loadCountFor={(iso) => countByDate.get(iso) ?? 0}
         driverCountFor={(iso) => availabilityOn(iso)?.available ?? null}
       />
 
       <section className="eod-block">
-        <div className="eod-head">
-          <h2 className="section-title">End of day</h2>
-        </div>
+        {embedded ? null : (
+          <div className="eod-head">
+            <h2 className="section-title">End of day</h2>
+          </div>
+        )}
         <div className="eod-stat-row">
           {endOfDayCards(eod).map((card) => {
             const fromSheet = Boolean(snapshot) && isSheetEodCard(card.key);
+            const label = embedded && card.key === "walking-floor" ? "WF" : card.label;
             return (
               <article
                 key={card.key}
@@ -130,7 +147,7 @@ export function TotalsScreen({
                   .filter(Boolean)
                   .join(" ")}
               >
-                <span className="eod-stat-label">{card.label}</span>
+                <span className="eod-stat-label">{label}</span>
                 <span className="eod-stat-value">{card.count}</span>
               </article>
             );
@@ -154,7 +171,11 @@ export function TotalsScreen({
         <>
           <CollapsibleRank
             title="Transfer station"
-            hint="Pickup location. Custom sites are tagged. Tap a row to expand those loads under it."
+            hint={
+              embedded
+                ? "tap a row · custom stays tagged"
+                : "Pickup location. Custom sites are tagged. Tap a row to expand those loads under it."
+            }
             rows={byPickup}
             filterKind="pickup"
             active={filter}
@@ -162,6 +183,7 @@ export function TotalsScreen({
             defaultOpen
             compact
             columns={2}
+            layout={embedded ? "sheet" : "cards"}
             emptyText="Nothing logged this day."
             expandedPanel={
               filter?.kind === "pickup" ? (
@@ -171,7 +193,11 @@ export function TotalsScreen({
           />
           <CollapsibleRank
             title="Landfill"
-            hint="Delivery / destination. Tap a row to expand those loads under it."
+            hint={
+              embedded
+                ? "delivery sites · tap to open"
+                : "Delivery / destination. Tap a row to expand those loads under it."
+            }
             rows={byDestination}
             filterKind="destination"
             active={filter}
@@ -179,6 +205,7 @@ export function TotalsScreen({
             defaultOpen={false}
             compact
             columns={2}
+            layout={embedded ? "sheet" : "cards"}
             emptyText="Nothing logged this day."
             expandedPanel={
               filter?.kind === "destination" ? (
@@ -188,7 +215,11 @@ export function TotalsScreen({
           />
           <CollapsibleRank
             title="Commodity"
-            hint="Trash, recycle, yard, wood, leachate, and the rest."
+            hint={
+              embedded
+                ? "trash, leachate, and the rest · tap to open"
+                : "Trash, recycle, yard, wood, leachate, and the rest."
+            }
             rows={byCommodity}
             filterKind="commodity"
             active={filter}
@@ -196,6 +227,7 @@ export function TotalsScreen({
             defaultOpen={false}
             compact
             columns={2}
+            layout={embedded ? "sheet" : "cards"}
             emptyText="Nothing logged this day."
             expandedPanel={
               filter?.kind === "commodity" ? (
@@ -204,13 +236,15 @@ export function TotalsScreen({
             }
           />
 
-          {!filter ? (
+          {!embedded && !filter ? (
             <p className="field-hint">Tap a row to list those loads under it.</p>
           ) : null}
 
-          <button type="button" className="btn-primary" onClick={() => onLog(date)}>
-            + Log load
-          </button>
+          {embedded ? null : (
+            <button type="button" className="btn-primary" onClick={() => onLog(date)}>
+              + Log load
+            </button>
+          )}
         </>
       )}
 

@@ -100,6 +100,24 @@ export function weekdayLetter(iso: string): string {
   return WEEKDAY_SHORT[weekdayOfISO(iso)];
 }
 
+export function weekdayMed(iso: string): string {
+  return WEEKDAY_MED[weekdayOfISO(iso)];
+}
+
+const WEEKDAY_LONG = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+export function weekdayName(iso: string): string {
+  return WEEKDAY_LONG[weekdayOfISO(iso)];
+}
+
 export function dayNumber(iso: string): number {
   return parseISODate(iso).d;
 }

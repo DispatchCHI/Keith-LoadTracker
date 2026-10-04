@@ -6021,5 +6021,284 @@ body.app-ready .splash {
   }
 }
 
+/* Desktop Today totals panel: gray and light blue, no gold. */
+.totals-sheet {
+  background: #f7f8fa;
+  gap: 8px;
+}
+
+.sheet-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sheet-cal {
+  margin: 0;
+}
+
+.sheet-cal input {
+  background: #fff;
+  border: 1px solid #d0d3d9;
+  border-radius: 8px;
+  padding: 4px 8px;
+  color: #374151;
+  font-size: 12px;
+}
+
+.day-picker-sheet {
+  gap: 6px;
+}
+
+.sheet-week {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sheet-nav {
+  width: 22px;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: #4b5563;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.sheet-day {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #d0d3d9;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  color: #374151;
+}
+
+.sheet-day .n {
+  font-weight: 750;
+  font-size: 13px;
+}
+
+.sheet-day .w {
+  font-size: 8px;
+  font-weight: 700;
+  color: #9ca3af;
+  margin-top: 1px;
+}
+
+.sheet-day.on {
+  background: #d6e8fb;
+  border-color: #7eb6ff;
+  color: #123152;
+}
+
+.sheet-day.on .w {
+  color: #1e3a8a;
+}
+
+.sheet-summary {
+  background: #d6e8fb;
+  color: #123152;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.sheet-summary strong {
+  font-weight: 800;
+}
+
+.sheet-today {
+  margin-left: 10px;
+  border: 0;
+  background: transparent;
+  color: #1e3a8a;
+  font-weight: 750;
+  font-size: 12px;
+  padding: 0;
+}
+
+.sheet-others {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.sheet-other {
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
+}
+
+.totals-sheet .eod-block {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.totals-sheet .eod-stat {
+  background: #f4f5f7;
+  border: 1px solid #d0d3d9;
+  color: #111;
+  border-radius: 10px;
+  padding: 6px 8px;
+}
+
+.totals-sheet .eod-stat-loads {
+  background: #d6e8fb;
+  border-color: #7eb6ff;
+  color: #123152;
+}
+
+.totals-sheet .eod-stat-label {
+  color: #6b7280;
+  letter-spacing: 0.06em;
+}
+
+.totals-sheet .eod-stat-loads .eod-stat-label,
+.totals-sheet .eod-stat-loads .eod-stat-value {
+  color: #123152;
+}
+
+.totals-sheet .eod-stat-value {
+  font-size: 22px;
+}
+
+.totals-sheet .totals-sheet-block {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.totals-sheet .totals-sheet-block .totals-toggle-title {
+  margin: 0;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 12px;
+  font-weight: 800;
+  color: #6b7280;
+}
+
+.totals-sheet .totals-sheet-block .totals-toggle-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.totals-sheet .totals-sheet-block .totals-chevron {
+  display: none;
+}
+
+.totals-sheet .totals-block-collapsed .totals-toggle {
+  background: #fff;
+  border: 1px solid #d0d3d9;
+  border-radius: 8px;
+  padding: 8px 10px;
+  min-height: 0;
+}
+
+.totals-sheet .totals-block-collapsed .totals-toggle-title {
+  font-size: 13px;
+  font-weight: 750;
+  color: #111;
+}
+
+.sheet-sites {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.sheet-sites th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1e3a8a;
+  background: #f4f5f7;
+  padding: 6px 8px;
+  font-weight: 800;
+}
+
+.sheet-sites th.num,
+.sheet-sites td.num {
+  text-align: right;
+  width: 52px;
+}
+
+.sheet-sites td {
+  padding: 5px 8px;
+  border-top: 1px solid #eef0f3;
+  vertical-align: middle;
+}
+
+.sheet-sites td.num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  color: #1e3a8a;
+}
+
+.sheet-sites td.is-on {
+  background: #e8eefc;
+}
+
+.sheet-sites td.num.full,
+.sheet-sites td.num.full.is-on {
+  background: #d6e8fb;
+}
+
+.sheet-sites .site-hit {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-weight: 650;
+  color: inherit;
+  text-align: left;
+}
+
+.sheet-sites .num-hit {
+  font-weight: 750;
+  color: #1e3a8a;
+  width: 100%;
+  text-align: right;
+}
+
+.totals-sheet .custom-pill {
+  margin-left: 6px;
+  background: #e8e8ea;
+  border-color: #e8e8ea;
+  color: #4b5563;
+}
+
+.totals-sheet .sheet-expand td {
+  background: #f7f8fa;
+  padding: 8px;
+}
+
+.totals-sheet .rank-accordion {
+  margin: 0;
+  padding: 4px 0 0;
+  border-left: 2px solid #7eb6ff;
+}
+
 
 
