@@ -6021,6 +6021,107 @@ body.app-ready .splash {
   }
 }
 
+/* Log load: navy and gray pills, no gold. */
+.log-load-head {
+  align-items: center;
+}
+
+.log-load-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.log-load-sheet .icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.log-load-sheet .overlay-title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.log-load-change {
+  border: 0;
+  background: transparent;
+  color: #1e3a8a;
+  font-weight: 750;
+  font-size: 13px;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.log-load-sheet .form-stack {
+  gap: 10px;
+}
+
+.log-load-sheet .field-label {
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+
+.log-load-sheet .chip-row {
+  gap: 6px;
+}
+
+.log-load-sheet .chip {
+  min-height: 30px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #f4f5f7;
+  border-color: #d0d3d9;
+  font-size: 13px;
+}
+
+.log-load-sheet .chip.chip-selected {
+  background: #1e3a8a;
+  border-color: #1e3a8a;
+  color: #fff;
+}
+
+.log-load-sheet .log-load-footer {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-load-sheet .log-load-footer .qty-stepper {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 40px;
+  gap: 8px;
+  padding: 4px 8px 4px 12px;
+  border-radius: 10px;
+}
+
+.log-load-sheet .qty-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.log-load-sheet .qty-value {
+  font-size: 20px;
+}
+
+.log-load-sheet .btn-ghost,
+.log-load-sheet .btn-primary {
+  min-height: 40px;
+  border-radius: 10px;
+}
+
+.log-load-sheet .btn-primary {
+  background: #1e3a8a;
+  color: #fff;
+}
+
+.log-load-sheet .btn-primary:disabled {
+  background: #9ca3af;
+  color: #fff;
+  opacity: 1;
+}
+
 /* Desktop Today totals panel: gray and light blue, no gold. */
 .totals-sheet {
   background: #f7f8fa;

@@ -97,6 +97,8 @@ type LoadFormProps = {
   original?: FormState;
   onChangeTruck: () => void;
   driverName?: string | null;
+  /** Log load puts the truck on the header, so the form skips that box and the lane note. */
+  hideTruck?: boolean;
 };
 
 export function LoadForm({
@@ -105,6 +107,7 @@ export function LoadForm({
   original,
   onChangeTruck,
   driverName,
+  hideTruck = false,
 }: LoadFormProps) {
   const { loads } = useLoads();
   const { store: customerLanes } = useCustomerLanes();
@@ -270,20 +273,22 @@ export function LoadForm({
     );
   return (
     <div className="form-stack">
-      <section className="field">
-        <div className="field-label">Truck #</div>
-        <div className="truck-field">
-          <div className="truck-value">
-            {value.truck || "—"}
-            {driverName ? (
-              <span className="truck-driver-inline"> · {driverName}</span>
-            ) : null}
+      {hideTruck ? null : (
+        <section className="field">
+          <div className="field-label">Truck #</div>
+          <div className="truck-field">
+            <div className="truck-value">
+              {value.truck || "—"}
+              {driverName ? (
+                <span className="truck-driver-inline"> · {driverName}</span>
+              ) : null}
+            </div>
+            <button type="button" className="text-btn amber" onClick={onChangeTruck}>
+              Change...
+            </button>
           </div>
-          <button type="button" className="text-btn amber" onClick={onChangeTruck}>
-            Change...
-          </button>
-        </div>
-      </section>
+        </section>
+      )}
       <section className="field">
         <div className="field-label">Pickup</div>
         <div className="chip-row">
@@ -353,7 +358,7 @@ export function LoadForm({
             onChange={(e) => onChange({ ...value, pickup: e.target.value })}
             autoComplete="off"
           />
-        ) : cascadeNote ? (
+        ) : hideTruck ? null : cascadeNote ? (
           <p className="field-hint">{cascadeNote}</p>
         ) : (
           <p className="field-hint">

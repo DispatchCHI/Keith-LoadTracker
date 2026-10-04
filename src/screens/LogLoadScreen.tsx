@@ -63,8 +63,8 @@ export function LogLoadScreen({
   const targetDate = date || chicagoToday();
   const notToday = targetDate !== chicagoToday();
   const screenClass = notToday
-    ? "screen overlay-screen overlay-not-today"
-    : "screen overlay-screen";
+    ? "screen overlay-screen overlay-not-today log-load-sheet"
+    : "screen overlay-screen log-load-sheet";
   const { saveLoad, loads } = useLoads();
   const { store: rosterStore } = useDriverRoster();
   const { opensFor, consumeOpens } = useSpecialty();
@@ -268,29 +268,41 @@ export function LogLoadScreen({
 
   return (
     <div className={screenClass}>
-      <header className="overlay-header">
+      <header className="overlay-header log-load-head">
         <button type="button" className="icon-btn" onClick={onCancel} aria-label="Back">
-          <ArrowLeft size={22} />
+          <ArrowLeft size={18} />
         </button>
-        <BrandMark size="sm" />
-        <div>
+        <div className="log-load-title">
           <p className="eyebrow">
-            Truck {form.truck}
+            Log load · {notToday ? formatHeaderDate(targetDate) : "Today"}
+          </p>
+          <h1 className="overlay-title">
+            {form.truck}
             {loggingDriverName ? ` · ${loggingDriverName}` : ""}
-          </p>
-          <h1 className="overlay-title">Log load</h1>
-          <p className={notToday ? "overlay-sub overlay-not-today-banner" : "overlay-sub"}>
-            {notToday ? `Not today — ${formatHeaderDate(targetDate)}` : "Today"}
-            {formTrucks.length > 1
-              ? ` · ${formTrucks.length} trucks`
-              : ""}
-          </p>
+          </h1>
+          {notToday ? (
+            <p className="overlay-sub overlay-not-today-banner">Not today</p>
+          ) : null}
+          {formTrucks.length > 1 ? (
+            <p className="overlay-sub">{formTrucks.length} trucks</p>
+          ) : null}
         </div>
+        <button
+          type="button"
+          className="log-load-change"
+          onClick={() => {
+            setTruckError(null);
+            setStep("truck");
+          }}
+        >
+          Change truck
+        </button>
       </header>
 
       <LoadForm
         value={form}
         onChange={setForm}
+        hideTruck
         onChangeTruck={() => {
           setTruckError(null);
           setStep("truck");
@@ -355,26 +367,24 @@ export function LogLoadScreen({
         </div>
       ) : null}
 
-      <div className="overlay-footer overlay-footer-stack">
+      <div className="overlay-footer log-load-footer">
         <QuantityStepper value={qty} onChange={setQuantity} />
-        <div className="overlay-footer-actions">
-          <button type="button" className="btn-ghost" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn-primary grow"
-            disabled={!formComplete(form)}
-            onClick={() =>
-              commit({
-                forceDuplicate: Boolean(duplicate),
-                forceSpecialty: Boolean(specialtyWarn),
-              })
-            }
-          >
-            {totalLoads === 1 ? "Save" : `Save ${totalLoads} loads`}
-          </button>
-        </div>
+        <button type="button" className="btn-ghost" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn-primary grow"
+          disabled={!formComplete(form)}
+          onClick={() =>
+            commit({
+              forceDuplicate: Boolean(duplicate),
+              forceSpecialty: Boolean(specialtyWarn),
+            })
+          }
+        >
+          {totalLoads === 1 ? "Save" : `Save ${totalLoads} loads`}
+        </button>
       </div>
     </div>
   );
