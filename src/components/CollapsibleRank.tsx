@@ -261,46 +261,62 @@ function SiteCells({
   onChoose?: () => void;
 }) {
   const mark = selected ? "is-on" : "";
-  const nums = full ? `num full ${mark}` : `num ${mark}`;
+  const nums = full ? `num full site-cell ${mark}` : `num site-cell ${mark}`;
+  const name = (
+    <>
+      {row.label}
+      {row.custom ? <span className="custom-pill">Custom</span> : null}
+    </>
+  );
   return (
     <>
-      <td className={mark}>
-        {onChoose ? (
-          <button
-            type="button"
-            className="site-hit"
-            aria-expanded={selected}
-            onClick={onChoose}
-          >
-            {row.label}
-            {row.custom ? <span className="custom-pill">Custom</span> : null}
-          </button>
-        ) : (
-          <span className="site-hit">
-            {row.label}
-            {row.custom ? <span className="custom-pill">Custom</span> : null}
-          </span>
-        )}
+      <td className={`site-cell ${mark}`}>
+        <CellHit label={row.label} selected={selected} onChoose={onChoose}>
+          {name}
+        </CellHit>
       </td>
       <td className={nums}>
-        {onChoose ? (
-          <button type="button" className="site-hit num-hit" onClick={onChoose}>
-            {commodity ? row.count : row.trashCount}
-          </button>
-        ) : (
-          commodity ? row.count : row.trashCount
-        )}
+        <CellHit onChoose={onChoose} align="end">
+          {commodity ? row.count : row.trashCount}
+        </CellHit>
       </td>
       <td className={nums}>
-        {commodity ? null : onChoose ? (
-          <button type="button" className="site-hit num-hit" onClick={onChoose}>
+        {commodity ? null : (
+          <CellHit onChoose={onChoose} align="end">
             {row.count}
-          </button>
-        ) : (
-          row.count
+          </CellHit>
         )}
       </td>
     </>
+  );
+}
+
+function CellHit({
+  children,
+  onChoose,
+  label,
+  selected,
+  align = "start",
+}: {
+  children: ReactNode;
+  onChoose?: () => void;
+  label?: string;
+  selected?: boolean;
+  align?: "start" | "end";
+}) {
+  if (!onChoose) {
+    return <span className={align === "end" ? "site-hit num-hit" : "site-hit"}>{children}</span>;
+  }
+  return (
+    <button
+      type="button"
+      className={align === "end" ? "site-hit num-hit" : "site-hit"}
+      aria-label={label}
+      aria-expanded={label ? selected : undefined}
+      onClick={onChoose}
+    >
+      {children}
+    </button>
   );
 }
 

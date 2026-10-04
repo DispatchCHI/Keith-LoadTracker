@@ -6245,9 +6245,13 @@ body.app-ready .splash {
 }
 
 .sheet-sites td {
-  padding: 5px 8px;
+  padding: 0;
   border-top: 1px solid #eef0f3;
   vertical-align: middle;
+}
+
+.sheet-sites td.site-cell {
+  cursor: pointer;
 }
 
 .sheet-sites td.num {
@@ -6266,19 +6270,26 @@ body.app-ready .splash {
 }
 
 .sheet-sites .site-hit {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 34px;
   border: 0;
   background: transparent;
-  padding: 0;
+  padding: 6px 8px;
   font: inherit;
   font-weight: 650;
   color: inherit;
   text-align: left;
+  cursor: pointer;
 }
 
 .sheet-sites .num-hit {
+  justify-content: flex-end;
   font-weight: 750;
   color: #1e3a8a;
-  width: 100%;
   text-align: right;
 }
 
