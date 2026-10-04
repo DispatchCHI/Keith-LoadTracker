@@ -6053,6 +6053,14 @@ body.app-ready .splash {
   font-size: 22px;
 }
 
+.log-load-sheet .eyebrow.overlay-sub-btn {
+  color: var(--muted);
+}
+
+.log-load-sheet .change-now {
+  color: #1e3a8a;
+}
+
 .log-load-change {
   border: 0;
   background: transparent;

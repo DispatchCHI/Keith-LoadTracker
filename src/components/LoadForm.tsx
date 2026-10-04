@@ -99,7 +99,7 @@ type LoadFormProps = {
   original?: FormState;
   onChangeTruck: () => void;
   driverName?: string | null;
-  /** Log load puts the truck on the header, so the form skips that box and the lane note. */
+  /** Truck sits in the header, so the form skips that box and the lane note. */
   hideTruck?: boolean;
   /** Chicago day being logged. Odd-ball pickups only appear if that card was added this day. */
   logDate?: string;

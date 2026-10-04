@@ -184,17 +184,17 @@ export function EditLoadScreen({
 
   if (changingTruck) {
     return (
-      <div className="screen overlay-screen">
-        <header className="overlay-header">
+      <div className="screen overlay-screen log-load-sheet">
+        <header className="overlay-header log-load-head">
           <button
             type="button"
             className="icon-btn"
             onClick={() => setChangingTruck(false)}
             aria-label="Back"
           >
-            <ArrowLeft size={22} />
+            <ArrowLeft size={18} />
           </button>
-          <div>
+          <div className="log-load-title">
             <p className="eyebrow">Edit load</p>
             <h1 className="overlay-title">Change truck</h1>
           </div>
@@ -217,17 +217,12 @@ export function EditLoadScreen({
   }
 
   return (
-    <div className="screen overlay-screen">
-      <header className="overlay-header">
+    <div className="screen overlay-screen log-load-sheet">
+      <header className="overlay-header log-load-head">
         <button type="button" className="icon-btn" onClick={onCancel} aria-label="Back">
-          <ArrowLeft size={22} />
+          <ArrowLeft size={18} />
         </button>
-        <div>
-          <p className="eyebrow">
-            Truck {form.truck}
-            {editDriverName ? ` · ${editDriverName}` : ""}
-          </p>
-          <h1 className="overlay-title">Edit load</h1>
+        <div className="log-load-title">
           {pickingDate ? (
             <input
               type="date"
@@ -244,15 +239,31 @@ export function EditLoadScreen({
           ) : (
             <button
               type="button"
-              className="overlay-sub overlay-sub-btn"
+              className="eyebrow overlay-sub-btn"
               onClick={() => setPickingDate(true)}
               title="Change date"
             >
-              Logged {formatHeaderDate(date)}
-              {load.createdAt !== load.updatedAt ? " · previously edited" : ""}
+              Edit load · {formatHeaderDate(date)}
             </button>
           )}
+          <h1 className="overlay-title">
+            {form.truck}
+            {editDriverName ? ` · ${editDriverName}` : ""}
+          </h1>
+          {load.createdAt !== load.updatedAt ? (
+            <p className="overlay-sub">Previously edited</p>
+          ) : null}
         </div>
+        <button
+          type="button"
+          className="log-load-change"
+          onClick={() => {
+            setTruckDigits(form.truck);
+            setChangingTruck(true);
+          }}
+        >
+          Change truck
+        </button>
       </header>
 
       {dirty ? (
@@ -283,6 +294,7 @@ export function EditLoadScreen({
         value={form}
         onChange={setForm}
         original={original}
+        hideTruck
         onChangeTruck={() => {
           setTruckDigits(form.truck);
           setChangingTruck(true);
@@ -362,7 +374,7 @@ export function EditLoadScreen({
           </div>
         </div>
       ) : (
-        <div className="overlay-footer">
+        <div className="overlay-footer log-load-footer">
           <button
             type="button"
             className="text-btn danger"
