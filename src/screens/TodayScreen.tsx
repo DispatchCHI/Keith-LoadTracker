@@ -16,7 +16,6 @@ import { useDailyEod } from "../store/DailyEodContext";
 import { useDayNotes } from "../store/DayNotesContext";
 import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
-import { BrandMark } from "../components/BrandMark";
 import { DayPicker } from "../components/DayPicker";
 import { DriversCard } from "../components/DriversCard";
 import { StationCallsCard } from "../components/StationCallsCard";
@@ -117,11 +116,7 @@ export function TodayScreen({
     <div className="screen">
       <header className="page-header">
         <div className="page-header-brand">
-          <BrandMark />
-          <div>
-            <p className="eyebrow">The Load Tracker</p>
-            <h1 className="page-title">{formatHeaderDate(date)}</h1>
-          </div>
+          <h1 className="page-title">{formatHeaderDate(date)}</h1>
         </div>
         {justEditedId ? <span className="updated-badge">Updated</span> : null}
       </header>

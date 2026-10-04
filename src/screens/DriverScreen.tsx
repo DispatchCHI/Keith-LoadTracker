@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BrandMark } from "../components/BrandMark";
 import { DriverNameInput } from "../components/DriverNameInput";
 import { ConfirmOverlay } from "../components/ConfirmOverlay";
 import { FullRosterDriverCard } from "../components/FullRosterDriverCard";
@@ -484,7 +483,6 @@ export function DriverScreen() {
 
       <header className="page-header">
         <div className="page-header-brand">
-          <BrandMark />
           <div>
             <p className="eyebrow">
               {onGone ? "Terminated archive" : kind === "full" ? "Hired roster" : "Saturday planning"}

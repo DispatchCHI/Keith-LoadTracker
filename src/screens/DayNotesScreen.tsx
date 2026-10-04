@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { BrandMark } from "../components/BrandMark";
 import { chicagoToday, formatHeaderDate } from "../lib/chicagoDate";
 import { useDayNotes } from "../store/DayNotesContext";
 
@@ -49,7 +48,6 @@ export function DayNotesScreen({ date, onCancel }: DayNotesScreenProps) {
         <button type="button" className="icon-btn" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={22} />
         </button>
-        <BrandMark size="sm" />
         <div>
           <p className="eyebrow">Day notes</p>
           <h1 className="overlay-title">Notes</h1>

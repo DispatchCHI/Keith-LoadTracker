@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { BrandMark } from "../components/BrandMark";
 import {
   SAME_WEEK_LAST_YEAR_DAYS,
   chicagoYearLabel,
@@ -104,7 +103,6 @@ export function AnalyticsScreen() {
     <div className="screen an-screen">
       <header className="page-header">
         <div className="page-header-brand">
-          <BrandMark />
           <div>
             <p className="eyebrow">Analytics</p>
             <h1 className="page-title">{year} year to date</h1>

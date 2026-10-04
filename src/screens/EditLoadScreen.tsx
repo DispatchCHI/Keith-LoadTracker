@@ -8,7 +8,6 @@ import {
   type FormState,
 } from "../components/LoadForm";
 import { ConfirmOverlay } from "../components/ConfirmOverlay";
-import { BrandMark } from "../components/BrandMark";
 import { TruckEntry } from "../components/TruckEntry";
 import { pickupLabel } from "../lib/cascade";
 import {
@@ -195,7 +194,6 @@ export function EditLoadScreen({
           >
             <ArrowLeft size={22} />
           </button>
-          <BrandMark size="sm" />
           <div>
             <p className="eyebrow">Edit load</p>
             <h1 className="overlay-title">Change truck</h1>
@@ -224,7 +222,6 @@ export function EditLoadScreen({
         <button type="button" className="icon-btn" onClick={onCancel} aria-label="Back">
           <ArrowLeft size={22} />
         </button>
-        <BrandMark size="sm" />
         <div>
           <p className="eyebrow">
             Truck {form.truck}

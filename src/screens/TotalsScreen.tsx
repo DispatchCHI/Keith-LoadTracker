@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { BrandMark } from "../components/BrandMark";
 import { CollapsibleRank } from "../components/CollapsibleRank";
 import { DayPicker } from "../components/DayPicker";
 import { LoadRow } from "../components/LoadRow";
@@ -101,7 +100,6 @@ export function TotalsScreen({
       ) : (
         <header className="page-header">
           <div className="page-header-brand">
-            <BrandMark />
             <div>
               <p className="eyebrow">Day totals</p>
               <h1 className="page-title">{formatHeaderDate(date)}</h1>

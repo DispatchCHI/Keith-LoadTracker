@@ -10,7 +10,6 @@ import {
   Users,
 } from "lucide-react";
 import type { TabId } from "../types";
-import { BrandMark } from "./BrandMark";
 
 const TABS: { id: TabId; label: string; Icon: LucideIcon }[] = [
   { id: "today", label: "Today", Icon: CalendarDays },
@@ -37,11 +36,6 @@ export function TabBar({
       className={vertical ? "tab-bar tab-bar-side" : "tab-bar"}
       aria-label="Primary"
     >
-      {vertical ? (
-        <div className="brand-side">
-          <BrandMark size="sm" />
-        </div>
-      ) : null}
       <div className="tab-row">
         {TABS.map((item) => {
           const { Icon } = item;

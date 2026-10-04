@@ -5,7 +5,6 @@ import {
   LoadForm,
   type FormState,
 } from "../components/LoadForm";
-import { BrandMark } from "../components/BrandMark";
 import { QuantityStepper } from "../components/QuantityStepper";
 import { TruckEntry } from "../components/TruckEntry";
 import { pickupLabel } from "../lib/cascade";
@@ -235,7 +234,6 @@ export function LogLoadScreen({
           <button type="button" className="icon-btn" onClick={onCancel} aria-label="Back">
             <ArrowLeft size={22} />
           </button>
-          <BrandMark size="sm" />
           <div>
             <p className="eyebrow">New load</p>
             <h1 className="overlay-title">Truck</h1>

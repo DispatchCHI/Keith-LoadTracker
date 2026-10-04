@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { BrandMark } from "../components/BrandMark";
 import { CommodityTag } from "../components/CommodityTag";
 import { DayPicker } from "../components/DayPicker";
 import { LoadEditedMark, LoadRow } from "../components/LoadRow";
@@ -132,7 +131,6 @@ export function SearchScreen({
     <div className="screen search-screen">
       <header className="page-header">
         <div className="page-header-brand">
-          <BrandMark />
           <div>
             <p className="eyebrow">Search</p>
             <h1 className="page-title">Search</h1>
