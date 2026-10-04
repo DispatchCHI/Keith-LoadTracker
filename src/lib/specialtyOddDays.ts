@@ -6,10 +6,13 @@
 
 import { isValidISODate } from "./chicagoDate";
 import {
+  SPECIALTY_CUSTOM_NAMES_EVENT,
   SPECIALTY_CUSTOM_NAMES_FLUSH_EVENT,
   customSpecialtyNumber,
   isCustomSpecialtyId,
+  isCustomSpecialtyRenamed,
   nextCustomSpecialtyId,
+  readCustomSpecialtyNames,
   touchCustomSpecialtyNamesClock,
   writeCustomSpecialtyName,
 } from "./customSpecialty";
@@ -151,6 +154,49 @@ export function visibleOddCardIds(
   return [...ids].sort(
     (a, b) => customSpecialtyNumber(a) - customSpecialtyNumber(b) || a.localeCompare(b),
   );
+}
+
+/** Renamed odd-ball cards pinned on this day. A saved name does not show on other days. */
+export function namedOddballIdsForDay(
+  date: string,
+  names: Record<string, string>,
+  pinned: readonly string[] = oddIdsOn(date),
+): string[] {
+  const allowed = new Set(pinned);
+  return Object.keys(names)
+    .filter(
+      (id) =>
+        allowed.has(id) &&
+        isCustomSpecialtyId(id) &&
+        isCustomSpecialtyRenamed(id, names[id]),
+    )
+    .sort((a, b) => customSpecialtyNumber(a) - customSpecialtyNumber(b) || a.localeCompare(b));
+}
+
+let oddballSnapKey = "";
+let oddballSnapIds: readonly string[] = [];
+
+export function namedOddballIdsSnapshot(date: string): readonly string[] {
+  const names = readCustomSpecialtyNames();
+  const pinned = oddIdsSnapshot(date);
+  const key = `${dateKey(date)}|${pinned.join(",")}|${Object.keys(names)
+    .sort()
+    .map((id) => `${id}=${names[id]}`)
+    .join(",")}`;
+  if (key === oddballSnapKey) return oddballSnapIds;
+  oddballSnapKey = key;
+  oddballSnapIds = namedOddballIdsForDay(date, names, pinned);
+  return oddballSnapIds;
+}
+
+export function subscribeOddballPickups(onStoreChange: () => void): () => void {
+  const offDays = subscribeOddDays(onStoreChange);
+  if (typeof window === "undefined") return offDays;
+  window.addEventListener(SPECIALTY_CUSTOM_NAMES_EVENT, onStoreChange);
+  return () => {
+    offDays();
+    window.removeEventListener(SPECIALTY_CUSTOM_NAMES_EVENT, onStoreChange);
+  };
 }
 
 export function addOddCard(date: string): string {

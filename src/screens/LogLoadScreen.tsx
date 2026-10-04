@@ -303,6 +303,7 @@ export function LogLoadScreen({
         value={form}
         onChange={setForm}
         hideTruck
+        logDate={targetDate}
         onChangeTruck={() => {
           setTruckError(null);
           setStep("truck");

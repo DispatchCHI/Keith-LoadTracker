@@ -3,10 +3,12 @@ import {
   customSpecialtyDisplayName,
   isCustomSpecialtyId,
   readCustomSpecialtyNameField,
+  writeCustomSpecialtyName,
 } from "./customSpecialty";
 import { SPECIALTY_STATIONS } from "./specialtyBoard";
 import {
   addOddCard,
+  namedOddballIdsForDay,
   oddIdsOn,
   removeOddCard,
   specialtyGridSlots,
@@ -63,6 +65,14 @@ describe("day-only odd-ball cards", () => {
 
   it("still shows a card that already has opens on that day", () => {
     expect(visibleOddCardIds(saturday, ["custom-9", "elgin"])).toEqual(["custom-9"]);
+  });
+
+  it("offers a renamed odd-ball as a pickup only on the day it was added", () => {
+    const card = addOddCard(saturday);
+    writeCustomSpecialtyName(card, "Jordan");
+    expect(namedOddballIdsForDay(saturday, { [card]: "Jordan" })).toEqual([card]);
+    expect(namedOddballIdsForDay(sunday, { [card]: "Jordan" })).toEqual([]);
+    expect(namedOddballIdsForDay(saturday, { [card]: "Odd-ball" })).toEqual([]);
   });
 
   it("puts the add button immediately right of Liberty, then that day's cards", () => {

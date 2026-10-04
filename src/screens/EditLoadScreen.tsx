@@ -291,6 +291,7 @@ export function EditLoadScreen({
           setChangingTruck(true);
         }}
         driverName={editDriverName ?? null}
+        logDate={date}
       />
 
       {confirmDelete ? (

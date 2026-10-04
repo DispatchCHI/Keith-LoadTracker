@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import {
   CUSTOM,
   CUSTOM_ID,
@@ -12,9 +12,11 @@ import {
 import { pickupLabel } from "../lib/cascade";
 import { chicagoToday } from "../lib/chicagoDate";
 import {
+  namedOddballIdsSnapshot,
+  subscribeOddballPickups,
+} from "../lib/specialtyOddDays";
+import {
   CUSTOM_SPECIALTY_LOAD_TYPES,
-  isCustomSpecialtyId,
-  isCustomSpecialtyRenamed,
   lookupCustomSpecialtyIdByName,
   readCustomSpecialtyNames,
 } from "../lib/customSpecialty";
@@ -99,6 +101,8 @@ type LoadFormProps = {
   driverName?: string | null;
   /** Log load puts the truck on the header, so the form skips that box and the lane note. */
   hideTruck?: boolean;
+  /** Chicago day being logged. Odd-ball pickups only appear if that card was added this day. */
+  logDate?: string;
 };
 
 export function LoadForm({
@@ -108,6 +112,7 @@ export function LoadForm({
   onChangeTruck,
   driverName,
   hideTruck = false,
+  logDate,
 }: LoadFormProps) {
   const { loads } = useLoads();
   const { store: customerLanes } = useCustomerLanes();
@@ -152,8 +157,11 @@ export function LoadForm({
     ? rankedPickups
     : rankedPickups.slice(0, visibleCount);
   const customNames = readCustomSpecialtyNames();
-  const namedOddballs = Object.keys(customNames).filter(
-    (id) => isCustomSpecialtyId(id) && isCustomSpecialtyRenamed(id, customNames[id]),
+  const boardDate = logDate || chicagoToday();
+  const namedOddballs = useSyncExternalStore(
+    subscribeOddballPickups,
+    () => namedOddballIdsSnapshot(boardDate),
+    () => namedOddballIdsSnapshot(boardDate),
   );
   const customPickupId = lookupCustomSpecialtyIdByName(value.pickup);
   const isCustom = value.stationId === CUSTOM_ID;
