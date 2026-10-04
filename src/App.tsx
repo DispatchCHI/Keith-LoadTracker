@@ -124,8 +124,7 @@ function Shell() {
           <div className="desk-topbar-brand">
             <BrandMark size="lg" />
             <div>
-              <p className="eyebrow">Keith's Load Tracker</p>
-              <h1 className="desk-brand">Load Tracker</h1>
+              <h1 className="desk-brand">The Load Tracker</h1>
             </div>
           </div>
         </header>

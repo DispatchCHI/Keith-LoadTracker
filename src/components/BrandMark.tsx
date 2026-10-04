@@ -7,7 +7,7 @@ type BrandMarkProps = {
 export function BrandMark({ size = "md" }: BrandMarkProps) {
   return (
     <div className={`brand-plate brand-plate-${size}`}>
-      <img src={logo} alt="Keith's Load Tracker" />
+      <img src={logo} alt="The Load Tracker" />
     </div>
   );
 }

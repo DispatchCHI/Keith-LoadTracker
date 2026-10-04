@@ -1,5 +1,5 @@
 /**
- * Copy the Keith's Load Tracker mark into app + icon slots.
+ * Copy The Load Tracker mark into app + icon slots.
  * Static PNG only — do not encode or loop MP4/GIF in the header.
  *
  *   node scripts/process-klt-brand.mjs
@@ -54,5 +54,5 @@ for (const [size, dest] of [
   await sharp(icon1024).resize(size, size).png().toFile(dest);
 }
 
-console.log("Wrote Keith's Load Tracker logo copies and white-padded icons.");
+console.log("Wrote The Load Tracker logo copies and white-padded icons.");
 console.log("Next: npx tauri icon public/brand/klt-icon-1024.png --output src-tauri/icons");

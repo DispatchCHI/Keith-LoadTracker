@@ -2264,8 +2264,19 @@ button.day-notes-btn.day-notes-read:focus-visible {
 }
 
 .brand-plate-lg img {
-  height: 72px;
-  max-width: 210px;
+  height: 96px;
+  max-width: 280px;
+}
+
+.tab-bar-side .brand-plate {
+  padding: 4px;
+  background: #fff;
+}
+
+.tab-bar-side .brand-plate img {
+  height: auto;
+  width: 140px;
+  max-width: 100%;
 }
 
 .page-header-brand {

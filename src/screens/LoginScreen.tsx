@@ -47,8 +47,7 @@ export function LoginScreen() {
     <div className="screen overlay-screen login-screen">
       <BrandMark size="lg" />
       <div>
-        <p className="eyebrow">Keith&apos;s Load Tracker</p>
-        <h1 className="page-title">Load Tracker</h1>
+        <h1 className="page-title">The Load Tracker</h1>
         <p className="field-hint">
           Crew sign-in. Ask a lead dispatcher to invite your email if this is
           your first time.

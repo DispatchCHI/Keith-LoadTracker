@@ -119,7 +119,7 @@ export function TodayScreen({
         <div className="page-header-brand">
           <BrandMark />
           <div>
-            <p className="eyebrow">Load Tracker</p>
+            <p className="eyebrow">The Load Tracker</p>
             <h1 className="page-title">{formatHeaderDate(date)}</h1>
           </div>
         </div>
