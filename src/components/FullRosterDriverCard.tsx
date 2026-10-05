@@ -26,8 +26,6 @@ type FullRosterDriverCardProps = {
   onStatus: (status: string | null) => void;
   onTruck: (truck: string) => Promise<{ ok: boolean; conflictName?: string }>;
   onProfile: (patch: { hireDate?: string | null; phone?: string | null }) => void;
-  /** Driver notes on file (matched by roster id / EMP #). */
-  noteCount: number;
   onNotes: () => void;
 };
 
@@ -47,7 +45,6 @@ export function FullRosterDriverCard({
   onStatus,
   onTruck,
   onProfile,
-  noteCount,
   onNotes,
 }: FullRosterDriverCardProps) {
   const [open, setOpen] = useState(true);
@@ -143,21 +140,12 @@ export function FullRosterDriverCard({
         )}
         <button
           type="button"
-          className={noteCount ? "drv-pay-icon drv-notes-icon has-notes" : "drv-pay-icon drv-notes-icon"}
-          aria-label={
-            noteCount
-              ? `Notes for ${entry.name} (${noteCount})`
-              : `Notes for ${entry.name}`
-          }
-          title={noteCount ? `${noteCount} ${noteCount === 1 ? "note" : "notes"}` : "Add a note"}
+          className="drv-pay-icon drv-notes-icon"
+          aria-label={`Notes for ${entry.name}`}
+          title="Driver notes"
           onClick={onNotes}
         >
           <NotebookPen size={13} aria-hidden="true" />
-          {noteCount ? (
-            <span className="drv-notes-count" aria-hidden="true">
-              {noteCount > 99 ? "99+" : noteCount}
-            </span>
-          ) : null}
         </button>
         <button
           type="button"

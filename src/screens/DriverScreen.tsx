@@ -39,8 +39,6 @@ import { sundayOnOrBefore } from "../lib/vacationBoard";
 import { useCallOffLog } from "../store/CallOffLogContext";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useDriverGone } from "../store/DriverGoneContext";
-import { useDriverNotes } from "../store/DriverNotesContext";
-import { driverNoteCounts } from "../lib/driverNotes";
 import { useDriverRoster } from "../store/DriverRosterContext";
 import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
@@ -314,7 +312,6 @@ export function DriverScreen() {
     resetSatToFullRoster,
   } = useDriverRoster();
   const gone = useDriverGone();
-  const driverNotes = useDriverNotes();
   const vacation = useVacation();
   const { rows: callOffRows } = useCallOffLog();
   const { manualOffs } = useDrivers();
@@ -388,10 +385,6 @@ export function DriverScreen() {
     }
     return map;
   }, [kind, entries, loads, customerLanes, asOf]);
-  const noteCounts = useMemo(
-    () => (kind === "full" ? driverNoteCounts(driverNotes.store, entries) : new Map<string, number>()),
-    [kind, driverNotes.store, entries],
-  );
   // Keep the open pop-out on the live roster row so a rename/EMP # edit shows up.
   const notesDriver = useMemo(
     () => (notesFor ? entries.find((entry) => entry.id === notesFor.id) ?? null : null),
@@ -937,7 +930,6 @@ export function DriverScreen() {
                 onStatus={(status) => void setDriverStatus(entry.id, status)}
                 onTruck={(value) => setDriverAssignedTruck(entry.id, value || null)}
                 onProfile={(patch) => void setDriverProfile(entry.id, patch)}
-                noteCount={noteCounts.get(entry.id) ?? 0}
                 onNotes={() => setNotesFor(entry)}
               />
             );

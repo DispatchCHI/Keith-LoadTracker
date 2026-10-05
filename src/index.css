@@ -4642,28 +4642,6 @@ body.app-ready .splash {
   line-height: 1;
 }
 
-.drv-notes-icon.has-notes {
-  border-color: #c9d6ea;
-  background: #eef3fb;
-  color: #1d4f91;
-}
-
-.drv-notes-count {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  border-radius: 999px;
-  background: #1d4f91;
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 14px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
 
 .drv-notes-overlay {
   background: rgba(0, 0, 0, 0.18);
