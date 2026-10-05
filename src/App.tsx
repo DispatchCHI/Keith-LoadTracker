@@ -28,6 +28,7 @@ import { DayNotesProvider } from "./store/DayNotesContext";
 import { SaturdayCrewProvider } from "./store/SaturdayCrewContext";
 import { DispatchTalliesProvider } from "./store/DispatchTalliesContext";
 import { DriverGoneProvider } from "./store/DriverGoneContext";
+import { DriverNotesProvider } from "./store/DriverNotesContext";
 import { DriverRosterProvider } from "./store/DriverRosterContext";
 import { DriversProvider } from "./store/DriversContext";
 import { SpecialtyProvider } from "./store/SpecialtyContext";
@@ -254,6 +255,7 @@ export default function App() {
           <VacationProvider>
             <DriverRosterProvider>
               <DriverGoneProvider>
+              <DriverNotesProvider>
                 <CallOffLogProvider>
                   <DriversProvider>
                     <CustomerLanesProvider>
@@ -271,6 +273,7 @@ export default function App() {
                     </CustomerLanesProvider>
                   </DriversProvider>
                 </CallOffLogProvider>
+              </DriverNotesProvider>
               </DriverGoneProvider>
             </DriverRosterProvider>
           </VacationProvider>

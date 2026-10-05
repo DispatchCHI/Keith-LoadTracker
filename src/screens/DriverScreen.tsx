@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DriverNameInput } from "../components/DriverNameInput";
 import { ConfirmOverlay } from "../components/ConfirmOverlay";
+import { DriverNotesPopout } from "../components/DriverNotesPopout";
 import { FullRosterDriverCard } from "../components/FullRosterDriverCard";
 import { addDays, chicagoToday, formatMonthDayYear, isValidISODate, weekdayOfISO, yearOfISO } from "../lib/chicagoDate";
 import {
@@ -38,6 +39,8 @@ import { sundayOnOrBefore } from "../lib/vacationBoard";
 import { useCallOffLog } from "../store/CallOffLogContext";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useDriverGone } from "../store/DriverGoneContext";
+import { useDriverNotes } from "../store/DriverNotesContext";
+import { driverNoteCounts } from "../lib/driverNotes";
 import { useDriverRoster } from "../store/DriverRosterContext";
 import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
@@ -311,6 +314,7 @@ export function DriverScreen() {
     resetSatToFullRoster,
   } = useDriverRoster();
   const gone = useDriverGone();
+  const driverNotes = useDriverNotes();
   const vacation = useVacation();
   const { rows: callOffRows } = useCallOffLog();
   const { manualOffs } = useDrivers();
@@ -323,6 +327,7 @@ export function DriverScreen() {
   const [resetting, setResetting] = useState(false);
   const [removeDialog, setRemoveDialog] = useState<FullRemoveDialog>(null);
   const [goneDelete, setGoneDelete] = useState<DriverGoneEntry | null>(null);
+  const [notesFor, setNotesFor] = useState<DriverRosterEntry | null>(null);
   const [asOf, setAsOf] = useState(() => chicagoToday());
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const today = chicagoToday();
@@ -383,6 +388,15 @@ export function DriverScreen() {
     }
     return map;
   }, [kind, entries, loads, customerLanes, asOf]);
+  const noteCounts = useMemo(
+    () => (kind === "full" ? driverNoteCounts(driverNotes.store, entries) : new Map<string, number>()),
+    [kind, driverNotes.store, entries],
+  );
+  // Keep the open pop-out on the live roster row so a rename/EMP # edit shows up.
+  const notesDriver = useMemo(
+    () => (notesFor ? entries.find((entry) => entry.id === notesFor.id) ?? null : null),
+    [notesFor, entries],
+  );
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedCount = selectedIds.length;
 
@@ -923,6 +937,8 @@ export function DriverScreen() {
                 onStatus={(status) => void setDriverStatus(entry.id, status)}
                 onTruck={(value) => setDriverAssignedTruck(entry.id, value || null)}
                 onProfile={(patch) => void setDriverProfile(entry.id, patch)}
+                noteCount={noteCounts.get(entry.id) ?? 0}
+                onNotes={() => setNotesFor(entry)}
               />
             );
           })}
@@ -1016,6 +1032,13 @@ export function DriverScreen() {
             </button>
           </div>
         </ConfirmOverlay>
+      ) : null}
+
+      {notesFor ? (
+        <DriverNotesPopout
+          driver={notesDriver ?? notesFor}
+          onClose={() => setNotesFor(null)}
+        />
       ) : null}
 
       {goneDelete ? (
