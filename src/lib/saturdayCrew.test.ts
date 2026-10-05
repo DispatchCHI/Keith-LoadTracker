@@ -3,6 +3,7 @@ import {
   DISPATCH_ACTIVE_VACATION_YEAR,
   DISPATCH_HIRE_DATES,
   addVacationDay,
+  anniversaryInYear,
   applyDispatchVacationSeed,
   bankDays,
   daysLeft,
@@ -12,12 +13,12 @@ import {
   removeVacation,
   saturdaysOfYear,
   seedBoard,
-  seededVacationWeeks,
   setCrewStart,
   setCrewWeeks,
   setSaturdayDuty,
   setSaturdayNote,
   vacationChipLabel,
+  vacationWeeksForBank,
   vacationWeeksFromTenure,
   isPlausibleHireDate,
   yearsEmployed,
@@ -119,17 +120,22 @@ describe("crew vacation bank", () => {
     expect(setCrewWeeks(board, "mike", 3)).toBe(board);
   });
 
-  it("computes weeks from tenure and seeds Mike at 2 per Keith", () => {
+  it("computes weeks from tenure at the bank-year anniversary, not today", () => {
     expect(vacationWeeksFromTenure(0)).toBe(1);
     expect(vacationWeeksFromTenure(4)).toBe(1);
     expect(vacationWeeksFromTenure(5)).toBe(2);
+    expect(vacationWeeksFromTenure(8)).toBe(2);
     expect(vacationWeeksFromTenure(9)).toBe(3);
-    expect(yearsEmployed(DISPATCH_HIRE_DATES.tim, "2026-10-05")).toBe(21);
+    expect(anniversaryInYear(DISPATCH_HIRE_DATES.keith, 2025)).toBe("2025-05-12");
+    expect(anniversaryInYear(DISPATCH_HIRE_DATES.keith, 2026)).toBe("2026-05-12");
+    // As of today Keith has 9 years, but the 2025 bank opened at 8 years → 2 weeks.
     expect(yearsEmployed(DISPATCH_HIRE_DATES.keith, "2026-10-05")).toBe(9);
-    expect(yearsEmployed(DISPATCH_HIRE_DATES.mike, "2026-10-05")).toBe(4);
-    expect(seededVacationWeeks("tim", "2026-10-05")).toBe(3);
-    expect(seededVacationWeeks("keith", "2026-10-05")).toBe(3);
-    expect(seededVacationWeeks("mike", "2026-10-05")).toBe(2);
+    expect(yearsEmployed(DISPATCH_HIRE_DATES.keith, "2025-05-12")).toBe(8);
+    expect(vacationWeeksForBank("keith", DISPATCH_HIRE_DATES.keith, 2025)).toBe(2);
+    expect(vacationWeeksForBank("keith", DISPATCH_HIRE_DATES.keith, 2026)).toBe(3);
+    expect(vacationWeeksForBank("tim", DISPATCH_HIRE_DATES.tim, 2025)).toBe(3);
+    expect(vacationWeeksForBank("mike", DISPATCH_HIRE_DATES.mike, 2025)).toBe(2);
+    expect(vacationWeeksForBank("mike", DISPATCH_HIRE_DATES.mike, 2026)).toBe(2);
     expect(DISPATCH_ACTIVE_VACATION_YEAR).toEqual({ tim: 2025, keith: 2025, mike: 2026 });
   });
 });
@@ -151,8 +157,13 @@ describe("dispatch vacation sheet import", () => {
     });
 
     expect(daysUsed(y2025.vacations, "keith")).toBe(7);
-    expect(daysLeft(y2025, "keith")).toBe(8);
+    expect(daysLeft(y2025, "keith")).toBe(3);
     expect(y2025.crew.find((m) => m.id === "keith")).toMatchObject({
+      startDate: "2017-05-12",
+      weeks: 2,
+    });
+    // 2026 bank (not started yet) would be 3 weeks after the May 2026 anniversary.
+    expect(y2026.crew.find((m) => m.id === "keith")).toMatchObject({
       startDate: "2017-05-12",
       weeks: 3,
     });

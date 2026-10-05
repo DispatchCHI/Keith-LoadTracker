@@ -121,7 +121,6 @@ export const DISPATCH_VACATION_SEED: Record<
 
 /**
  * Tenure → weeks: first year 1 week; after 5 years 2 weeks; after 9 years 3 weeks.
- * Verify against hire dates; Mike is seeded to 2 weeks per Keith (see seededVacationWeeks).
  */
 export function vacationWeeksFromTenure(years: number): number {
   if (!Number.isFinite(years) || years < 0) return 1;
@@ -130,13 +129,38 @@ export function vacationWeeksFromTenure(years: number): number {
   return 1;
 }
 
-export function seededVacationWeeks(person: DispatchPerson, asOf: string): number {
-  const hire = DISPATCH_HIRE_DATES[person];
-  const years = yearsEmployed(hire, asOf);
-  const fromTenure = vacationWeeksFromTenure(years ?? 0);
-  // Sheet header said 1 week for Mike; Keith confirmed 2 weeks (4 years tenure → formula 1).
+/** Hire anniversary date in a calendar year (opens that labeled vacation bank). */
+export function anniversaryInYear(hireDate: string, year: number): string | null {
+  if (!isPlausibleHireDate(hireDate) || !Number.isInteger(year) || year < 1900) return null;
+  const { m, d } = parseISODate(hireDate);
+  return `${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+/**
+ * Weeks for a vacation bank year = tenure as of that bank's anniversary start
+ * (not "as of today"). Keith's 2025 bank opened 2025-05-12 at 8 years → 2 weeks;
+ * 3 weeks begin with the 2026 bank on 2026-05-12.
+ */
+export function vacationWeeksForBank(
+  person: DispatchPerson,
+  hireDate: string | null,
+  bankYear: number,
+): number {
+  const hire = hireDate && isPlausibleHireDate(hireDate) ? hireDate : DISPATCH_HIRE_DATES[person];
+  const bankStart = anniversaryInYear(hire, bankYear);
+  if (!bankStart) {
+    return DISPATCH_CREW.find((crew) => crew.id === person)?.weeks ?? 1;
+  }
+  const years = yearsEmployed(hire, bankStart) ?? 0;
+  const fromTenure = vacationWeeksFromTenure(years);
+  // Sheet header said 1 week for Mike; Keith confirmed 2 weeks (under-5 tenure → formula 1).
   if (person === "mike") return Math.max(fromTenure, 2);
   return fromTenure;
+}
+
+/** @deprecated Use vacationWeeksForBank(person, hire, bankYear). */
+export function seededVacationWeeks(person: DispatchPerson, bankYear: number): number {
+  return vacationWeeksForBank(person, DISPATCH_HIRE_DATES[person], bankYear);
 }
 
 export const DISPATCH_CREW: {
@@ -145,7 +169,7 @@ export const DISPATCH_CREW: {
   weeks: number;
 }[] = [
   { id: "tim", name: "Tim", weeks: 3 },
-  { id: "keith", name: "Keith", weeks: 3 },
+  { id: "keith", name: "Keith", weeks: 2 },
   { id: "mike", name: "Mike", weeks: 2 },
 ];
 
@@ -258,11 +282,11 @@ function rowFromSeed(date: string, seed: Seed | undefined): SaturdayRow {
   return { date, duty: seed[1], note: seed[2], with: seed[3] };
 }
 
-export function defaultCrew(asOf = "2026-10-05"): CrewMember[] {
+export function defaultCrew(bankYear: number): CrewMember[] {
   return DISPATCH_CREW.map((person) => ({
     id: person.id,
     startDate: DISPATCH_HIRE_DATES[person.id],
-    weeks: seededVacationWeeks(person.id, asOf),
+    weeks: vacationWeeksForBank(person.id, DISPATCH_HIRE_DATES[person.id], bankYear),
   }));
 }
 
@@ -273,7 +297,7 @@ export function seedBoard(year: number, updatedAt = "1970-01-01T00:00:00.000Z"):
     saturdays: saturdaysOfYear(year).map((date) => rowFromSeed(date, known.get(date))),
     vacations: [],
     log: year === 2026 ? SHEET_2026_LOG.map((entry) => ({ ...entry })) : [],
-    crew: defaultCrew(),
+    crew: defaultCrew(year),
     updatedAt,
   };
   return applyDispatchVacationSeed(board);
@@ -284,7 +308,7 @@ export function crewMember(board: DispatchBoard, person: DispatchPerson): CrewMe
     board.crew.find((member) => member.id === person) ?? {
       id: person,
       startDate: DISPATCH_HIRE_DATES[person],
-      weeks: DISPATCH_CREW.find((crew) => crew.id === person)?.weeks ?? 0,
+      weeks: vacationWeeksForBank(person, DISPATCH_HIRE_DATES[person], board.year),
     }
   );
 }
@@ -338,7 +362,6 @@ export function setCrewStart(
   board: DispatchBoard,
   person: DispatchPerson,
   startDate: string | null,
-  asOf = "2026-10-05",
 ): DispatchBoard {
   // Reject mid-typed years (0002, 0202, …) so they never overwrite a real hire date.
   if (startDate !== null && startDate !== "" && !isPlausibleHireDate(startDate)) return board;
@@ -346,9 +369,7 @@ export function setCrewStart(
   const current = crewMember(board, person);
   const nextWeeks =
     nextDate != null
-      ? person === "mike"
-        ? Math.max(vacationWeeksFromTenure(yearsEmployed(nextDate, asOf) ?? 0), 2)
-        : vacationWeeksFromTenure(yearsEmployed(nextDate, asOf) ?? 0)
+      ? vacationWeeksForBank(person, nextDate, board.year)
       : current.weeks;
   if (
     current.startDate === nextDate &&
@@ -387,6 +408,10 @@ export function applyDispatchVacationSeed(board: DispatchBoard): DispatchBoard {
     const member = crewMember(next, slot.id);
     if (!member.startDate) {
       next = setCrewStart(next, slot.id, hire);
+    } else {
+      // Keep weeks aligned to tenure at this bank year's anniversary (fixes Keith 2025 → 2).
+      const expected = vacationWeeksForBank(slot.id, member.startDate, board.year);
+      next = setCrewWeeks(next, slot.id, expected);
     }
   }
 
@@ -431,7 +456,7 @@ export function ensureDispatchVacationSeed(store: DispatchStore): DispatchStore 
 
 export function boardForYear(store: DispatchStore, year: number): DispatchBoard {
   const board = store.years[String(year)] ?? seedBoard(year);
-  const crew = (board.crew?.length ? board.crew : defaultCrew()).map((member) => {
+  const crew = (board.crew?.length ? board.crew : defaultCrew(year)).map((member) => {
     if (member.startDate) return member;
     const shared = latestStartDate(store, member.id);
     return shared ? { ...member, startDate: shared } : member;
@@ -619,7 +644,7 @@ export function normalizeBoard(value: unknown, year: number): DispatchBoard | nu
       log.push({ id: entry.id, text: entry.text });
     }
   }
-  const crew = defaultCrew().map((slot) => {
+  const crew = defaultCrew(year).map((slot) => {
     if (!Array.isArray(record.crew)) return slot;
     const match = record.crew
       .map(asRecord)
