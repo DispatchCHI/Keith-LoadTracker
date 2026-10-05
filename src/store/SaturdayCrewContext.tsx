@@ -32,6 +32,7 @@ import {
   upsertDispatchBoard,
   writeDispatchStore,
 } from "../lib/saturdayCrewCloud";
+import { isIsoAfter } from "../lib/isoTime";
 import { useAuth } from "./AuthContext";
 
 type DispatchBoardContextValue = {
@@ -108,7 +109,7 @@ export function SaturdayCrewProvider({ children }: { children: ReactNode }) {
         ? merged.uploads
         : Object.values(seeded.years).filter((board) => {
             const remote = pulled.boards.find((row) => row.year === board.year);
-            return !remote || board.updatedAt > remote.updatedAt;
+            return !remote || isIsoAfter(board.updatedAt, remote.updatedAt);
           });
     for (const board of uploads) {
       const status = await upsertDispatchBoard(board, user?.id ?? null);

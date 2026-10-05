@@ -3,6 +3,7 @@ import {
   type DispatchBoard,
   type DispatchStore,
 } from "./saturdayCrew";
+import { isIsoAfter, pickNewerByUpdatedAt } from "./isoTime";
 import { safeSetItem } from "./localStorageSafe";
 import { getSupabase } from "./supabase";
 
@@ -92,6 +93,11 @@ export async function upsertDispatchBoard(
   return missingTable(error) ? "missing" : "error";
 }
 
+/**
+ * Last-writer-wins per year. Compare parsed instants (not raw strings) so a
+ * PostgREST `+00:00` echo of a client `Z` stamp cannot look older and bounce
+ * forever through Realtime.
+ */
 export function mergeDispatchStores(
   local: DispatchStore,
   remote: DispatchBoard[],
@@ -103,13 +109,16 @@ export function mergeDispatchStores(
     const key = String(board.year);
     remoteYears.add(key);
     const current = years[key];
-    if (!current || current.updatedAt < board.updatedAt) years[key] = board;
+    years[key] = current ? pickNewerByUpdatedAt(current, board) : board;
   }
   for (const [key, board] of Object.entries(years)) {
-    if (!remoteYears.has(key)) uploads.push(board);
-    else {
-      const remoteBoard = remote.find((item) => String(item.year) === key);
-      if (remoteBoard && board.updatedAt > remoteBoard.updatedAt) uploads.push(board);
+    if (!remoteYears.has(key)) {
+      uploads.push(board);
+      continue;
+    }
+    const remoteBoard = remote.find((item) => String(item.year) === key);
+    if (remoteBoard && isIsoAfter(board.updatedAt, remoteBoard.updatedAt)) {
+      uploads.push(board);
     }
   }
   return { next: { version: 1, years }, uploads };

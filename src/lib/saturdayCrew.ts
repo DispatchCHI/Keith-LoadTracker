@@ -408,10 +408,16 @@ export function applyDispatchVacationSeed(board: DispatchBoard): DispatchBoard {
     const member = crewMember(next, slot.id);
     if (!member.startDate) {
       next = setCrewStart(next, slot.id, hire);
-    } else {
-      // Keep weeks aligned to tenure at this bank year's anniversary (fixes Keith 2025 → 2).
-      const expected = vacationWeeksForBank(slot.id, member.startDate, board.year);
-      next = setCrewWeeks(next, slot.id, expected);
+    } else if (
+      // One-time heal: pre-anniversary-fix boards stored Keith 2025 as 3 weeks
+      // (tenure as-of-today). Do not force tenure weeks on every refresh - that
+      // wiped manual week edits after they synced from other desks.
+      slot.id === "keith" &&
+      board.year === 2025 &&
+      member.weeks === 3 &&
+      vacationWeeksForBank("keith", member.startDate, 2025) === 2
+    ) {
+      next = setCrewWeeks(next, "keith", 2);
     }
   }
 

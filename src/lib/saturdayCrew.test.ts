@@ -185,6 +185,17 @@ describe("dispatch vacation sheet import", () => {
     expect(daysUsed(again.vacations, "tim")).toBe(12);
   });
 
+
+
+  it("preserves manual week edits and only heals Keith 2025 3?2", () => {
+    let board = seedBoard(2025);
+    board = setCrewWeeks(board, "mike", 4);
+    board = setCrewWeeks(board, "keith", 3);
+    const seeded = applyDispatchVacationSeed(board);
+    expect(seeded.crew.find((m) => m.id === "mike")?.weeks).toBe(4);
+    expect(seeded.crew.find((m) => m.id === "keith")?.weeks).toBe(2);
+    expect(applyDispatchVacationSeed(seeded)).toBe(seeded);
+  });
   it("does not overwrite existing vacation chips", () => {
     let board = seedBoard(2027);
     board = {
