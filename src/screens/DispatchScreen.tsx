@@ -15,6 +15,7 @@ import {
   saturdayOnOrAfter,
   usedPercent,
   vacationChipLabel,
+  isPlausibleHireDate,
   yearsEmployed,
   type DispatchPerson,
   type SaturdayDuty,
@@ -37,18 +38,47 @@ export function DispatchScreen() {
   });
   const [noteDraft, setNoteDraft] = useState<string | null>(null);
   const [startEdit, setStartEdit] = useState<DispatchPerson | null>(null);
+  const [startDraft, setStartDraft] = useState("");
+
+  function closeStartEdit() {
+    setStartEdit(null);
+    setStartDraft("");
+  }
+
+  function openStartEdit(person: DispatchPerson, current: string | null) {
+    setStartEdit((open) => {
+      if (open === person) {
+        setStartDraft("");
+        return null;
+      }
+      setStartDraft(current ?? "");
+      return person;
+    });
+  }
+
+  function commitStartDraft(person: DispatchPerson, value: string, close: boolean) {
+    if (isPlausibleHireDate(value, today)) {
+      setStartDate(year, person, value);
+    }
+    if (close) closeStartEdit();
+  }
 
   useEffect(() => {
     if (!startEdit) return;
+    const editing = startEdit;
     function onPointer(event: PointerEvent) {
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest(".dispatch-start-pop, .dispatch-pencil")) return;
-      setStartEdit(null);
+      // Commit only a finished date; never save mid-typed years like 0002.
+      if (isPlausibleHireDate(startDraft, today)) {
+        setStartDate(year, editing, startDraft);
+      }
+      closeStartEdit();
     }
     document.addEventListener("pointerdown", onPointer);
     return () => document.removeEventListener("pointerdown", onPointer);
-  }, [startEdit]);
+  }, [startEdit, startDraft, year, today, setStartDate]);
 
   const board = boardFor(year);
   const thisSaturday = saturdayOnOrAfter(today);
@@ -131,7 +161,7 @@ export function DispatchScreen() {
                       <i className={`dispatch-swatch is-${person.id}`} />
                       <span className="dispatch-name">
                         {person.name}
-                        {member.startDate ? (
+                        {member.startDate && isPlausibleHireDate(member.startDate, today) ? (
                           <span className="dispatch-name-tip">
                             Started {formatShortDate(member.startDate)}, {parseISODate(member.startDate).y}
                           </span>
@@ -146,9 +176,7 @@ export function DispatchScreen() {
                         type="button"
                         className="dispatch-pencil"
                         aria-label={`Edit ${person.name} start date`}
-                        onClick={() =>
-                          setStartEdit((current) => (current === person.id ? null : person.id))
-                        }
+                        onClick={() => openStartEdit(person.id, member.startDate)}
                       >
                         <Pencil size={14} strokeWidth={2} aria-hidden />
                       </button>
@@ -160,12 +188,24 @@ export function DispatchScreen() {
                               type="date"
                               autoFocus
                               aria-label={`${person.name} start date`}
-                              value={member.startDate ?? ""}
+                              value={startDraft}
                               onChange={(event) => {
                                 const value = event.target.value;
-                                if (!value) return;
-                                setStartDate(year, person.id, value);
-                                setStartEdit(null);
+                                setStartDraft(value);
+                                // Keep the popover open while typing. Save only a finished year.
+                                if (isPlausibleHireDate(value, today)) {
+                                  setStartDate(year, person.id, value);
+                                }
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  closeStartEdit();
+                                }
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  commitStartDraft(person.id, startDraft, true);
+                                }
                               }}
                             />
                           </label>

@@ -201,10 +201,24 @@ export function bankDays(weeks: number): number {
   return Math.max(0, Math.round(weeks)) * DAYS_PER_WEEK;
 }
 
+/** True when the ISO date is a finished hire date, not a mid-type year like 0002. */
+export function isPlausibleHireDate(startDate: string | null | undefined, asOf?: string): boolean {
+  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return false;
+  const year = Number(startDate.slice(0, 4));
+  if (!Number.isFinite(year) || year < 1900) return false;
+  if (asOf) {
+    const asOfYear = parseISODate(asOf).y;
+    if (Number.isFinite(asOfYear) && year > asOfYear + 1) return false;
+  } else if (year > 2100) {
+    return false;
+  }
+  return true;
+}
+
 /** Full years from the start date through `asOf`. */
 export function yearsEmployed(startDate: string | null, asOf: string): number | null {
-  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return null;
-  const start = parseISODate(startDate);
+  if (!isPlausibleHireDate(startDate, asOf)) return null;
+  const start = parseISODate(startDate!);
   const end = parseISODate(asOf);
   if (!start.y || !end.y) return null;
   let years = end.y - start.y;
@@ -233,7 +247,9 @@ export function setCrewStart(
   person: DispatchPerson,
   startDate: string | null,
 ): DispatchBoard {
-  const nextDate = startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : null;
+  // Reject mid-typed years (0002, 0202, …) so they never overwrite a real hire date.
+  if (startDate !== null && startDate !== "" && !isPlausibleHireDate(startDate)) return board;
+  const nextDate = startDate && isPlausibleHireDate(startDate) ? startDate : null;
   const current = crewMember(board, person);
   if (current.startDate === nextDate && board.crew.some((member) => member.id === person)) return board;
   const crew = DISPATCH_CREW.map((slot) => {

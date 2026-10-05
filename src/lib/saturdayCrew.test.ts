@@ -13,6 +13,7 @@ import {
   setSaturdayDuty,
   setSaturdayNote,
   vacationChipLabel,
+  isPlausibleHireDate,
   yearsEmployed,
 } from "./saturdayCrew";
 
@@ -97,6 +98,11 @@ describe("crew vacation bank", () => {
     expect(daysLeft(board, "mike")).toBe(15);
     expect(yearsEmployed("2014-03-01", "2026-10-02")).toBe(12);
     expect(yearsEmployed("2014-11-01", "2026-10-02")).toBe(11);
+    expect(isPlausibleHireDate("0002-10-05", "2026-10-05")).toBe(false);
+    expect(isPlausibleHireDate("0202-10-05", "2026-10-05")).toBe(false);
+    expect(isPlausibleHireDate("2014-03-01", "2026-10-05")).toBe(true);
+    expect(yearsEmployed("0002-10-05", "2026-10-05")).toBeNull();
+    expect(setCrewStart(board, "mike", "0002-10-05")).toBe(board);
     expect(board.crew.find((member) => member.id === "mike")).toMatchObject({
       weeks: 3,
       startDate: "2014-03-01",
