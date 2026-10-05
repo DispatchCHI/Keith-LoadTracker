@@ -27,7 +27,7 @@ export type CrewMember = {
   id: DispatchPerson;
   /** First day on the job, `YYYY-MM-DD`, or null until it is entered. */
   startDate: string | null;
-  /** Vacation weeks granted for this calendar year. A week is 5 days. */
+  /** Vacation weeks granted for this vacation bank year. A week is 5 days. */
   weeks: number;
 };
 
@@ -47,6 +47,97 @@ export type DispatchStore = {
 
 export const DAYS_PER_WEEK = 5;
 export const MAX_VACATION_WEEKS = 8;
+
+/** Hire / start dates from the Dispatch Vacations sheet (one-time import). */
+export const DISPATCH_HIRE_DATES: Record<DispatchPerson, string> = {
+  tim: "2005-05-01",
+  mike: "2022-02-22",
+  keith: "2017-05-12",
+};
+
+/**
+ * Sheet vacation bank still open for each person (anniversary-style label, not
+ * plain calendar year). Tim & Keith have not started their 2026 bank yet; Mike has.
+ */
+export const DISPATCH_ACTIVE_VACATION_YEAR: Record<DispatchPerson, number> = {
+  tim: 2025,
+  keith: 2025,
+  mike: 2026,
+};
+
+/**
+ * One-time used-day import from the Dispatch Vacations sheet.
+ * Board year = sheet bank label; dates may fall in the next calendar year.
+ */
+export const DISPATCH_VACATION_SEED: Record<
+  number,
+  Partial<Record<DispatchPerson, readonly string[]>>
+> = {
+  2025: {
+    tim: [
+      "2025-10-31",
+      "2025-11-26",
+      "2025-11-28",
+      "2026-01-19",
+      "2026-03-26",
+      "2026-03-27",
+      "2026-03-30",
+      "2026-06-12",
+      "2026-06-26",
+      "2026-07-17",
+      "2026-08-21",
+      "2026-09-25",
+    ],
+    mike: [
+      "2025-04-11",
+      "2025-05-23",
+      "2025-07-18",
+      "2025-09-24",
+      "2025-10-17",
+      "2026-01-02",
+      "2026-02-06",
+      "2026-02-20",
+    ],
+    keith: [
+      "2026-04-13",
+      "2026-04-22",
+      "2026-06-15",
+      "2026-07-03",
+      "2026-07-30",
+      "2026-07-31",
+      "2026-08-24",
+    ],
+  },
+  2026: {
+    mike: [
+      "2026-04-17",
+      "2026-05-22",
+      "2026-05-26",
+      "2026-06-04",
+      "2026-06-05",
+    ],
+  },
+};
+
+/**
+ * Tenure → weeks: first year 1 week; after 5 years 2 weeks; after 9 years 3 weeks.
+ * Verify against hire dates; Mike is seeded to 2 weeks per Keith (see seededVacationWeeks).
+ */
+export function vacationWeeksFromTenure(years: number): number {
+  if (!Number.isFinite(years) || years < 0) return 1;
+  if (years >= 9) return 3;
+  if (years >= 5) return 2;
+  return 1;
+}
+
+export function seededVacationWeeks(person: DispatchPerson, asOf: string): number {
+  const hire = DISPATCH_HIRE_DATES[person];
+  const years = yearsEmployed(hire, asOf);
+  const fromTenure = vacationWeeksFromTenure(years ?? 0);
+  // Sheet header said 1 week for Mike; Keith confirmed 2 weeks (4 years tenure → formula 1).
+  if (person === "mike") return Math.max(fromTenure, 2);
+  return fromTenure;
+}
 
 export const DISPATCH_CREW: {
   id: DispatchPerson;
@@ -167,17 +258,17 @@ function rowFromSeed(date: string, seed: Seed | undefined): SaturdayRow {
   return { date, duty: seed[1], note: seed[2], with: seed[3] };
 }
 
-export function defaultCrew(): CrewMember[] {
+export function defaultCrew(asOf = "2026-10-05"): CrewMember[] {
   return DISPATCH_CREW.map((person) => ({
     id: person.id,
-    startDate: null,
-    weeks: person.weeks,
+    startDate: DISPATCH_HIRE_DATES[person.id],
+    weeks: seededVacationWeeks(person.id, asOf),
   }));
 }
 
 export function seedBoard(year: number, updatedAt = "1970-01-01T00:00:00.000Z"): DispatchBoard {
   const known = new Map(year === 2026 ? SHEET_2026.map((row) => [row[0], row] as const) : []);
-  return {
+  const board: DispatchBoard = {
     year,
     saturdays: saturdaysOfYear(year).map((date) => rowFromSeed(date, known.get(date))),
     vacations: [],
@@ -185,13 +276,14 @@ export function seedBoard(year: number, updatedAt = "1970-01-01T00:00:00.000Z"):
     crew: defaultCrew(),
     updatedAt,
   };
+  return applyDispatchVacationSeed(board);
 }
 
 export function crewMember(board: DispatchBoard, person: DispatchPerson): CrewMember {
   return (
     board.crew.find((member) => member.id === person) ?? {
       id: person,
-      startDate: null,
+      startDate: DISPATCH_HIRE_DATES[person],
       weeks: DISPATCH_CREW.find((crew) => crew.id === person)?.weeks ?? 0,
     }
   );
@@ -246,15 +338,30 @@ export function setCrewStart(
   board: DispatchBoard,
   person: DispatchPerson,
   startDate: string | null,
+  asOf = "2026-10-05",
 ): DispatchBoard {
   // Reject mid-typed years (0002, 0202, …) so they never overwrite a real hire date.
   if (startDate !== null && startDate !== "" && !isPlausibleHireDate(startDate)) return board;
   const nextDate = startDate && isPlausibleHireDate(startDate) ? startDate : null;
   const current = crewMember(board, person);
-  if (current.startDate === nextDate && board.crew.some((member) => member.id === person)) return board;
+  const nextWeeks =
+    nextDate != null
+      ? person === "mike"
+        ? Math.max(vacationWeeksFromTenure(yearsEmployed(nextDate, asOf) ?? 0), 2)
+        : vacationWeeksFromTenure(yearsEmployed(nextDate, asOf) ?? 0)
+      : current.weeks;
+  if (
+    current.startDate === nextDate &&
+    current.weeks === nextWeeks &&
+    board.crew.some((member) => member.id === person)
+  ) {
+    return board;
+  }
   const crew = DISPATCH_CREW.map((slot) => {
     const member = crewMember(board, slot.id);
-    return slot.id === person ? { ...member, startDate: nextDate } : member;
+    return slot.id === person
+      ? { ...member, startDate: nextDate, weeks: clampWeeks(nextWeeks) }
+      : member;
   });
   return { ...board, crew };
 }
@@ -265,7 +372,61 @@ function latestStartDate(store: DispatchStore, person: DispatchPerson): string |
     const start = board.crew?.find((member) => member.id === person)?.startDate;
     if (start) return start;
   }
-  return null;
+  return DISPATCH_HIRE_DATES[person] ?? null;
+}
+
+/**
+ * One-time sheet import into a board: hire dates, tenure weeks, and used days for
+ * this bank year. Does not touch Saturday rows. Skips people who already have
+ * vacation chips so a live board is never wiped.
+ */
+export function applyDispatchVacationSeed(board: DispatchBoard): DispatchBoard {
+  let next = board;
+  for (const slot of DISPATCH_CREW) {
+    const hire = DISPATCH_HIRE_DATES[slot.id];
+    const member = crewMember(next, slot.id);
+    if (!member.startDate) {
+      next = setCrewStart(next, slot.id, hire);
+    }
+  }
+
+  const seed = DISPATCH_VACATION_SEED[board.year];
+  if (!seed) return next;
+
+  for (const person of Object.keys(seed) as DispatchPerson[]) {
+    const days = seed[person];
+    if (!days?.length) continue;
+    const alreadySeeded = days.some((date) =>
+      next.vacations.some((use) => use.id === `seed-${person}-${date}`),
+    );
+    if (alreadySeeded) continue;
+    // Someone already logged days on this bank year — leave their chips alone.
+    if (daysUsed(next.vacations, person) > 0) continue;
+    for (const date of days) {
+      next = addVacationDay(next, person, date, `seed-${person}-${date}`);
+    }
+  }
+  return next;
+}
+
+/** Ensure 2025/2026 boards carry the one-time vacation import without wiping Saturdays. */
+export function ensureDispatchVacationSeed(store: DispatchStore): DispatchStore {
+  let years = store.years;
+  let changed = false;
+  for (const year of [2025, 2026]) {
+    const key = String(year);
+    const existing = years[key];
+    const current = existing ?? seedBoard(year);
+    const seeded = existing == null ? current : applyDispatchVacationSeed(current);
+    if (seeded === current && existing != null) continue;
+    if (!changed) years = { ...years };
+    changed = true;
+    years[key] = {
+      ...seeded,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  return changed ? { version: 1, years } : store;
 }
 
 export function boardForYear(store: DispatchStore, year: number): DispatchBoard {
@@ -338,7 +499,8 @@ export function addVacationDay(
   id = `vac-${person}-${date}`,
 ): DispatchBoard {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return board;
-  if (parseISODate(date).y !== board.year) return board;
+  // Board year is the vacation bank label (sheet 2024/2025/2026). Dates may
+  // fall in the next calendar year before the bank rolls over.
   if (board.vacations.some((use) => use.person === person && touches(use, date))) return board;
   return {
     ...board,
@@ -464,11 +626,11 @@ export function normalizeBoard(value: unknown, year: number): DispatchBoard | nu
       .find((member) => member?.id === slot.id);
     if (!match) return slot;
     const weeks = typeof match.weeks === "number" ? match.weeks : slot.weeks;
-    const startDate = typeof match.startDate === "string" ? match.startDate : null;
+    const startDate = typeof match.startDate === "string" ? match.startDate : slot.startDate;
     return {
       id: slot.id,
       weeks: Math.min(MAX_VACATION_WEEKS, Math.max(0, Math.round(weeks))),
-      startDate: startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : null,
+      startDate: startDate && /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : slot.startDate,
     };
   });
   const updatedAt = typeof record.updatedAt === "string" ? record.updatedAt : "";

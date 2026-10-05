@@ -1,20 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
+  DISPATCH_ACTIVE_VACATION_YEAR,
+  DISPATCH_HIRE_DATES,
   addVacationDay,
+  applyDispatchVacationSeed,
   bankDays,
   daysLeft,
   daysUsed,
   dutyLabel,
+  ensureDispatchVacationSeed,
   removeVacation,
   saturdaysOfYear,
   seedBoard,
+  seededVacationWeeks,
   setCrewStart,
   setCrewWeeks,
   setSaturdayDuty,
   setSaturdayNote,
   vacationChipLabel,
+  vacationWeeksFromTenure,
   isPlausibleHireDate,
   yearsEmployed,
+  type DispatchStore,
 } from "./saturdayCrew";
 
 describe("2026 Saturday sheet", () => {
@@ -49,10 +56,10 @@ describe("2026 Saturday sheet", () => {
 
 describe("vacation days", () => {
   it("counts single days against the bank and ignores a repeat", () => {
-    let board = seedBoard(2026);
-    board = addVacationDay(board, "tim", "2026-03-16");
-    board = addVacationDay(board, "tim", "2026-03-17");
-    board = addVacationDay(board, "tim", "2026-03-16");
+    let board = seedBoard(2027);
+    board = addVacationDay(board, "tim", "2027-03-16");
+    board = addVacationDay(board, "tim", "2027-03-17");
+    board = addVacationDay(board, "tim", "2027-03-16");
     expect(daysUsed(board.vacations, "tim")).toBe(2);
     expect(daysLeft(board, "tim")).toBe(13);
     expect(daysLeft(board, "mike")).toBe(10);
@@ -60,15 +67,17 @@ describe("vacation days", () => {
   });
 
   it("drops a day when the chip is removed", () => {
-    let board = addVacationDay(seedBoard(2026), "keith", "2026-04-06", "k1");
+    let board = addVacationDay(seedBoard(2027), "keith", "2027-04-06", "k1");
     board = removeVacation(board, "k1");
     expect(daysUsed(board.vacations, "keith")).toBe(0);
     expect(daysLeft(board, "keith")).toBe(15);
   });
 
-  it("rejects a date outside the board year", () => {
-    const board = addVacationDay(seedBoard(2026), "mike", "2025-07-20");
-    expect(board.vacations).toHaveLength(0);
+  it("allows a date in the next calendar year on a bank-year board", () => {
+    // 2025 seed already includes Tim 2026-01-19; add a fresh cross-year day.
+    const board = addVacationDay(seedBoard(2025), "tim", "2026-10-01", "t1");
+    expect(board.vacations.some((use) => use.id === "t1" && use.start === "2026-10-01")).toBe(true);
+    expect(daysUsed(board.vacations, "tim")).toBe(13);
   });
 });
 
@@ -91,7 +100,7 @@ describe("saturday edits", () => {
 
 describe("crew vacation bank", () => {
   it("turns extra weeks into 5 days each and keeps the start date", () => {
-    let board = seedBoard(2026);
+    let board = seedBoard(2027);
     board = setCrewWeeks(board, "mike", 3);
     board = setCrewStart(board, "mike", "2014-03-01");
     expect(bankDays(3)).toBe(15);
@@ -108,5 +117,74 @@ describe("crew vacation bank", () => {
       startDate: "2014-03-01",
     });
     expect(setCrewWeeks(board, "mike", 3)).toBe(board);
+  });
+
+  it("computes weeks from tenure and seeds Mike at 2 per Keith", () => {
+    expect(vacationWeeksFromTenure(0)).toBe(1);
+    expect(vacationWeeksFromTenure(4)).toBe(1);
+    expect(vacationWeeksFromTenure(5)).toBe(2);
+    expect(vacationWeeksFromTenure(9)).toBe(3);
+    expect(yearsEmployed(DISPATCH_HIRE_DATES.tim, "2026-10-05")).toBe(21);
+    expect(yearsEmployed(DISPATCH_HIRE_DATES.keith, "2026-10-05")).toBe(9);
+    expect(yearsEmployed(DISPATCH_HIRE_DATES.mike, "2026-10-05")).toBe(4);
+    expect(seededVacationWeeks("tim", "2026-10-05")).toBe(3);
+    expect(seededVacationWeeks("keith", "2026-10-05")).toBe(3);
+    expect(seededVacationWeeks("mike", "2026-10-05")).toBe(2);
+    expect(DISPATCH_ACTIVE_VACATION_YEAR).toEqual({ tim: 2025, keith: 2025, mike: 2026 });
+  });
+});
+
+describe("dispatch vacation sheet import", () => {
+  it("seeds Tim/Keith on 2025 and Mike on 2025+2026 without wiping Saturdays", () => {
+    const empty: DispatchStore = { version: 1, years: {} };
+    const store = ensureDispatchVacationSeed(empty);
+    const y2025 = store.years["2025"];
+    const y2026 = store.years["2026"];
+    expect(y2025).toBeTruthy();
+    expect(y2026).toBeTruthy();
+
+    expect(daysUsed(y2025.vacations, "tim")).toBe(12);
+    expect(daysLeft(y2025, "tim")).toBe(3);
+    expect(y2025.crew.find((m) => m.id === "tim")).toMatchObject({
+      startDate: "2005-05-01",
+      weeks: 3,
+    });
+
+    expect(daysUsed(y2025.vacations, "keith")).toBe(7);
+    expect(daysLeft(y2025, "keith")).toBe(8);
+    expect(y2025.crew.find((m) => m.id === "keith")).toMatchObject({
+      startDate: "2017-05-12",
+      weeks: 3,
+    });
+
+    expect(daysUsed(y2025.vacations, "mike")).toBe(8);
+    expect(daysUsed(y2026.vacations, "mike")).toBe(5);
+    expect(daysLeft(y2026, "mike")).toBe(5);
+    expect(y2026.crew.find((m) => m.id === "mike")).toMatchObject({
+      startDate: "2022-02-22",
+      weeks: 2,
+    });
+
+    // Saturday 2026 sheet still present
+    expect(y2026.saturdays.find((row) => row.date === "2026-10-03")?.duty).toBe("keith");
+    expect(y2026.log).toHaveLength(4);
+
+    // Re-seed is a no-op for vacation chips
+    const again = applyDispatchVacationSeed(y2025);
+    expect(daysUsed(again.vacations, "tim")).toBe(12);
+  });
+
+  it("does not overwrite existing vacation chips", () => {
+    let board = seedBoard(2027);
+    board = {
+      ...board,
+      year: 2025,
+      vacations: [],
+      crew: board.crew.map((m) => ({ ...m, startDate: null })),
+    };
+    board = addVacationDay(board, "tim", "2025-06-01", "manual-tim");
+    const seeded = applyDispatchVacationSeed(board);
+    expect(daysUsed(seeded.vacations, "tim")).toBe(1);
+    expect(seeded.vacations[0].id).toBe("manual-tim");
   });
 });

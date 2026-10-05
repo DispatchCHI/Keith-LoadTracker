@@ -13,6 +13,7 @@ import { DISPATCH_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
 import {
   addVacationDay,
   boardForYear,
+  ensureDispatchVacationSeed,
   removeVacation,
   seedBoard,
   setCrewStart,
@@ -48,18 +49,30 @@ const DispatchBoardContext = createContext<DispatchBoardContextValue | null>(nul
 export function SaturdayCrewProvider({ children }: { children: ReactNode }) {
   const { configured, session, user } = useAuth();
   const cloud = configured && !!session;
-  const [store, setStore] = useState<DispatchStore>(() => readDispatchStore());
+  const [store, setStore] = useState<DispatchStore>(() =>
+    ensureDispatchVacationSeed(readDispatchStore()),
+  );
   const storeRef = useRef(store);
   storeRef.current = store;
   const missingRef = useRef(false);
   const refreshTailRef = useRef(Promise.resolve());
   const uploadTailRef = useRef(Promise.resolve());
+  const seedUploadedRef = useRef(false);
 
   const persist = useCallback((next: DispatchStore) => {
     storeRef.current = next;
     writeDispatchStore(next);
     setStore(next);
   }, []);
+
+  // Persist one-time vacation seed so cloud sync can pick it up.
+  useEffect(() => {
+    if (seedUploadedRef.current) return;
+    seedUploadedRef.current = true;
+    const seeded = ensureDispatchVacationSeed(storeRef.current);
+    if (seeded !== storeRef.current) persist(seeded);
+    else writeDispatchStore(storeRef.current);
+  }, [persist]);
 
   const saveBoard = useCallback(
     (board: DispatchBoard) => {
@@ -88,8 +101,16 @@ export function SaturdayCrewProvider({ children }: { children: ReactNode }) {
       return;
     }
     const merged = mergeDispatchStores(storeRef.current, pulled.boards);
-    persist(merged.next);
-    for (const board of merged.uploads) {
+    const seeded = ensureDispatchVacationSeed(merged.next);
+    persist(seeded);
+    const uploads =
+      seeded === merged.next
+        ? merged.uploads
+        : Object.values(seeded.years).filter((board) => {
+            const remote = pulled.boards.find((row) => row.year === board.year);
+            return !remote || board.updatedAt > remote.updatedAt;
+          });
+    for (const board of uploads) {
       const status = await upsertDispatchBoard(board, user?.id ?? null);
       if (status === "missing") {
         missingRef.current = true;
@@ -156,6 +177,9 @@ export function SaturdayCrewProvider({ children }: { children: ReactNode }) {
       setStartDate: (year, person, startDate) => {
         const keys = new Set(Object.keys(storeRef.current.years));
         keys.add(String(year));
+        // Also touch active vacation bank years so hire dates land there.
+        keys.add("2025");
+        keys.add("2026");
         const boards = [...keys].flatMap((key) => {
           const current = storeRef.current.years[key] ?? seedBoard(Number(key));
           const next = setCrewStart(current, person, startDate);

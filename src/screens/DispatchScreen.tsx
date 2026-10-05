@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pencil } from "lucide-react";
 import { chicagoToday, formatShortDate, parseISODate } from "../lib/chicagoDate";
 import {
+  DISPATCH_ACTIVE_VACATION_YEAR,
   DISPATCH_CREW,
   DAYS_PER_WEEK,
   MAX_VACATION_WEEKS,
@@ -144,16 +145,20 @@ export function DispatchScreen() {
             <h2>Vacation days</h2>
           </div>
           <p className="dispatch-hint">
-            A week is {DAYS_PER_WEEK} days. Change the weeks when someone earns more.
+            A week is {DAYS_PER_WEEK} days. Each card shows that person&apos;s active vacation
+            year from the sheet (Tim &amp; Keith still on 2025; Mike on 2026). Saturday year is
+            on the right.
           </p>
           <div className="dispatch-cards">
             {DISPATCH_CREW.map((person) => {
-              const member = crewMember(board, person.id);
+              const bankYear = DISPATCH_ACTIVE_VACATION_YEAR[person.id];
+              const vacBoard = boardFor(bankYear);
+              const member = crewMember(vacBoard, person.id);
               const weeks = member.weeks;
-              const used = daysUsed(board.vacations, person.id);
-              const left = daysLeft(board, person.id);
+              const used = daysUsed(vacBoard.vacations, person.id);
+              const left = daysLeft(vacBoard, person.id);
               const tenure = yearsEmployed(member.startDate, today);
-              const chips = board.vacations.filter((use) => use.person === person.id);
+              const chips = vacBoard.vacations.filter((use) => use.person === person.id);
               return (
                 <article key={person.id} className="dispatch-card">
                   <div className="dispatch-card-top">
@@ -194,7 +199,7 @@ export function DispatchScreen() {
                                 setStartDraft(value);
                                 // Keep the popover open while typing. Save only a finished year.
                                 if (isPlausibleHireDate(value, today)) {
-                                  setStartDate(year, person.id, value);
+                                  setStartDate(bankYear, person.id, value);
                                 }
                               }}
                               onKeyDown={(event) => {
@@ -217,7 +222,7 @@ export function DispatchScreen() {
                         type="button"
                         aria-label={`Fewer weeks for ${person.name}`}
                         disabled={weeks <= 0}
-                        onClick={() => setWeeks(year, person.id, weeks - 1)}
+                        onClick={() => setWeeks(bankYear, person.id, weeks - 1)}
                       >
                         −
                       </button>
@@ -230,7 +235,7 @@ export function DispatchScreen() {
                         onChange={(event) => {
                           const next = Number(event.target.value);
                           if (!Number.isFinite(next)) return;
-                          setWeeks(year, person.id, next);
+                          setWeeks(bankYear, person.id, next);
                         }}
                       />
                       <span>weeks</span>
@@ -238,7 +243,7 @@ export function DispatchScreen() {
                         type="button"
                         aria-label={`More weeks for ${person.name}`}
                         disabled={weeks >= MAX_VACATION_WEEKS}
-                        onClick={() => setWeeks(year, person.id, weeks + 1)}
+                        onClick={() => setWeeks(bankYear, person.id, weeks + 1)}
                       >
                         +
                       </button>
@@ -250,17 +255,21 @@ export function DispatchScreen() {
                       <span>days left</span>
                     </div>
                     <div className="dispatch-bank">
-                      {used} used · {bankDays(weeks)} days
+                      {used} used · {bankDays(weeks)} days · bank {bankYear}
                     </div>
                   </div>
                   <div className="dispatch-track">
-                    <i className={`is-${person.id}`} style={{ width: `${usedPercent(board, person.id)}%` }} />
+                    <i className={`is-${person.id}`} style={{ width: `${usedPercent(vacBoard, person.id)}%` }} />
                   </div>
                   <div className="dispatch-chips">
                     {chips.map((use) => (
                       <span key={use.id} className="dispatch-chip">
                         {vacationChipLabel(use)}
-                        <button type="button" aria-label={`Remove ${vacationChipLabel(use)}`} onClick={() => removeDay(year, use.id)}>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${vacationChipLabel(use)}`}
+                          onClick={() => removeDay(bankYear, use.id)}
+                        >
                           ×
                         </button>
                       </span>
@@ -272,15 +281,15 @@ export function DispatchScreen() {
                       event.preventDefault();
                       const date = drafts[person.id];
                       if (!date) return;
-                      addDay(year, person.id, date);
+                      addDay(bankYear, person.id, date);
                       setDrafts((current) => ({ ...current, [person.id]: "" }));
                     }}
                   >
                     <input
                       type="date"
                       aria-label={`${person.name} vacation date`}
-                      min={`${year}-01-01`}
-                      max={`${year}-12-31`}
+                      min={`${bankYear}-01-01`}
+                      max={`${bankYear + 1}-12-31`}
                       value={drafts[person.id]}
                       onChange={(event) =>
                         setDrafts((current) => ({ ...current, [person.id]: event.target.value }))
