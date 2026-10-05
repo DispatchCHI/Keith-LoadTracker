@@ -50,4 +50,24 @@ describe("mergeDispatchStores", () => {
     expect(push.uploads).toHaveLength(1);
     expect(push.uploads[0]?.crew.find((m) => m.id === "mike")?.weeks).toBe(4);
   });
+
+  it("prefers a remote Saturday edit over a freshly seeded local board", () => {
+    const localSeed = seedBoard(2026); // epoch stamp, Oct 10 = mike
+    expect(localSeed.saturdays.find((row) => row.date === "2026-10-10")?.duty).toBe("mike");
+    const remote = {
+      ...localSeed,
+      saturdays: localSeed.saturdays.map((row) =>
+        row.date === "2026-10-10" ? { ...row, duty: "keith" as const } : row,
+      ),
+      updatedAt: "2026-10-05T19:00:00.000000+00:00",
+    };
+    const { next, uploads } = mergeDispatchStores(
+      { version: 1, years: { "2026": localSeed } },
+      [remote],
+    );
+    expect(next.years["2026"]?.saturdays.find((row) => row.date === "2026-10-10")?.duty).toBe(
+      "keith",
+    );
+    expect(uploads).toEqual([]);
+  });
 });

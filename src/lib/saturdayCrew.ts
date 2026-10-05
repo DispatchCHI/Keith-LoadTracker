@@ -452,10 +452,12 @@ export function ensureDispatchVacationSeed(store: DispatchStore): DispatchStore 
     if (seeded === current && existing != null) continue;
     if (!changed) years = { ...years };
     changed = true;
-    years[key] = {
-      ...seeded,
-      updatedAt: new Date().toISOString(),
-    };
+    // Brand-new boards keep seedBoard's epoch stamp so a desk that just opened
+    // cannot look "newer" than a real cloud edit and clobber Saturdays on merge.
+    // Mutations of an existing board (vacation import / Keith heal) stamp now so
+    // they still upload once.
+    years[key] =
+      existing == null ? seeded : { ...seeded, updatedAt: new Date().toISOString() };
   }
   return changed ? { version: 1, years } : store;
 }

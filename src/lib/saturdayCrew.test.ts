@@ -187,7 +187,23 @@ describe("dispatch vacation sheet import", () => {
 
 
 
-  it("preserves manual week edits and only heals Keith 2025 3?2", () => {
+  it("keeps epoch updatedAt on brand-new seeded boards so cloud Saturdays win", () => {
+    const store = ensureDispatchVacationSeed({ version: 1, years: {} });
+    expect(store.years["2026"]?.updatedAt).toBe("1970-01-01T00:00:00.000Z");
+    expect(store.years["2025"]?.updatedAt).toBe("1970-01-01T00:00:00.000Z");
+    expect(store.years["2026"]?.saturdays.find((row) => row.date === "2026-10-10")?.duty).toBe("mike");
+  });
+
+  it("stamps now only when healing an existing board", () => {
+    let board = seedBoard(2025);
+    board = { ...board, updatedAt: "2026-10-01T00:00:00.000Z" };
+    board = setCrewWeeks(board, "keith", 3);
+    const store = ensureDispatchVacationSeed({ version: 1, years: { "2025": board } });
+    expect(store.years["2025"]?.crew.find((m) => m.id === "keith")?.weeks).toBe(2);
+    expect(store.years["2025"]?.updatedAt > "2026-10-01T00:00:00.000Z").toBe(true);
+  });
+
+    it("preserves manual week edits and only heals Keith 2025 3?2", () => {
     let board = seedBoard(2025);
     board = setCrewWeeks(board, "mike", 4);
     board = setCrewWeeks(board, "keith", 3);

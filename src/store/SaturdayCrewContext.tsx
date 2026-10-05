@@ -83,24 +83,25 @@ export function SaturdayCrewProvider({ children }: { children: ReactNode }) {
         years: { ...storeRef.current.years, [String(stamped.year)]: stamped },
       };
       persist(next);
-      if (!cloud || missingRef.current) return;
+      if (!cloud) return;
       const userId = user?.id ?? null;
       uploadTailRef.current = uploadTailRef.current.then(async () => {
-        if (missingRef.current) return;
         const status = await upsertDispatchBoard(stamped, userId);
         if (status === "missing") missingRef.current = true;
+        else if (status === "ok") missingRef.current = false;
       });
     },
     [cloud, persist, user?.id],
   );
 
   const refreshInner = useCallback(async () => {
-    if (!cloud || missingRef.current) return;
+    if (!cloud) return;
     const pulled = await fetchDispatchBoards();
     if (!pulled.ok) {
       if (pulled.missing) missingRef.current = true;
       return;
     }
+    missingRef.current = false;
     const merged = mergeDispatchStores(storeRef.current, pulled.boards);
     const seeded = ensureDispatchVacationSeed(merged.next);
     persist(seeded);
