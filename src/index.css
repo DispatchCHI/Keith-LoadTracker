@@ -585,6 +585,42 @@ button.day-notes-btn.day-notes-read:focus-visible {
   background: var(--surface);
 }
 
+.tally-chip-dual {
+  min-width: 168px;
+  align-items: stretch;
+}
+
+.tally-dual-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+
+.tally-dual-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tally-dual-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  min-width: 58px;
+}
+
+.tally-chip-dual .tally-chip-main {
+  gap: 4px;
+}
+
+.tally-chip-dual .tally-chip-value {
+  min-width: 26px;
+  font-size: 18px;
+}
+
 .tally-chip-label {
   font-size: 10px;
   font-weight: 800;
@@ -664,6 +700,10 @@ button.day-notes-btn.day-notes-read:focus-visible {
   .tally-chip {
     min-width: 0;
     flex: 1 1 130px;
+  }
+
+  .tally-chip-dual {
+    flex: 1 1 180px;
   }
 }
 

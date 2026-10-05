@@ -2,6 +2,7 @@
  * Manual per-day dispatch tallies shown on Today next to "+ Log load":
  * - bataviaPreload: trailers preloaded at Batavia the night before,
  *   counted down by 1 each time one gets picked up.
+ * - bataviaAsking: loads Batavia is asking for (manual tally on same card).
  * - evanstonAsking: loads Evanston said the night before they need
  *   picked up the next day.
  * - hookerAsking: manual running tally for Hooker Street.
@@ -18,6 +19,7 @@ export const DISPATCH_TALLIES_TABLE = "day_dispatch_tallies";
 export type DispatchTallies = {
   date: string;
   bataviaPreload: number;
+  bataviaAsking: number;
   evanstonAsking: number;
   hookerAsking: number;
   updatedAt: string;
@@ -34,6 +36,7 @@ export type DispatchTalliesPersisted = {
 export type DispatchTalliesRow = {
   date: string;
   batavia_preload: number;
+  batavia_asking: number;
   evanston_asking: number;
   hooker_asking: number;
   updated_at: string;
@@ -71,6 +74,7 @@ export function normalizeDispatchTallies(
   raw:
     | (Partial<DispatchTallies> & {
         batavia_preload?: unknown;
+        batavia_asking?: unknown;
         evanston_asking?: unknown;
         hooker_asking?: unknown;
       })
@@ -80,17 +84,19 @@ export function normalizeDispatchTallies(
   if (!raw) return null;
   const date = chicagoDateKey(raw.date);
   const bataviaPreload = parseCount(raw.bataviaPreload ?? raw.batavia_preload) ?? 0;
+  const bataviaAsking = parseCount(raw.bataviaAsking ?? raw.batavia_asking) ?? 0;
   const evanstonAsking = parseCount(raw.evanstonAsking ?? raw.evanston_asking) ?? 0;
   const hookerAsking = parseCount(raw.hookerAsking ?? raw.hooker_asking) ?? 0;
   const updatedAt = readIsoAt(raw.updatedAt) ?? new Date().toISOString();
   if (!date) return null;
-  return { date, bataviaPreload, evanstonAsking, hookerAsking, updatedAt };
+  return { date, bataviaPreload, bataviaAsking, evanstonAsking, hookerAsking, updatedAt };
 }
 
 export function rowToDispatchTallies(row: DispatchTalliesRow): DispatchTallies | null {
   return normalizeDispatchTallies({
     date: row.date,
     bataviaPreload: row.batavia_preload,
+    bataviaAsking: row.batavia_asking,
     evanstonAsking: row.evanston_asking,
     hookerAsking: row.hooker_asking,
     updatedAt: row.updated_at,
@@ -104,6 +110,7 @@ export function dispatchTalliesToRow(
   return {
     date: row.date,
     batavia_preload: row.bataviaPreload,
+    batavia_asking: row.bataviaAsking,
     evanston_asking: row.evanstonAsking,
     hooker_asking: row.hookerAsking,
     updated_at: row.updatedAt,
@@ -126,6 +133,7 @@ export function talliesOn(store: DispatchTalliesStore, date: string): DispatchTa
     store[date] ?? {
       date,
       bataviaPreload: 0,
+      bataviaAsking: 0,
       evanstonAsking: 0,
       hookerAsking: 0,
       updatedAt: new Date(0).toISOString(),
@@ -144,13 +152,19 @@ export function upsertDispatchTallies(
 
 export function stampDispatchTallies(
   date: string,
-  patch: { bataviaPreload?: number; evanstonAsking?: number; hookerAsking?: number },
+  patch: {
+    bataviaPreload?: number;
+    bataviaAsking?: number;
+    evanstonAsking?: number;
+    hookerAsking?: number;
+  },
   prev: DispatchTallies | undefined,
   now = new Date().toISOString(),
 ): DispatchTallies | null {
   return normalizeDispatchTallies({
     date,
     bataviaPreload: patch.bataviaPreload ?? prev?.bataviaPreload ?? 0,
+    bataviaAsking: patch.bataviaAsking ?? prev?.bataviaAsking ?? 0,
     evanstonAsking: patch.evanstonAsking ?? prev?.evanstonAsking ?? 0,
     hookerAsking: patch.hookerAsking ?? prev?.hookerAsking ?? 0,
     updatedAt: now,
@@ -217,7 +231,7 @@ export async function fetchDispatchTalliesFromCloud(): Promise<{
   const { data, error } = await fetchAllPaged<DispatchTalliesRow>(async (from, to) => {
     const page = await supabase
       .from(DISPATCH_TALLIES_TABLE)
-      .select("date, batavia_preload, evanston_asking, hooker_asking, updated_at")
+      .select("date, batavia_preload, batavia_asking, evanston_asking, hooker_asking, updated_at")
       .order("date", { ascending: true })
       .range(from, to);
     return { data: page.data as DispatchTalliesRow[] | null, error: page.error };

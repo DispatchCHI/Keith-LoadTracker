@@ -25,12 +25,20 @@ import { attachCloudRefresh } from "../lib/cloudRefresh";
 import { pollWhenTabs, TODAY_HOT_TABS } from "../lib/cloudRefreshTabs";
 import { useAuth } from "./AuthContext";
 
+type TallyPatch = {
+  bataviaPreload?: number;
+  bataviaAsking?: number;
+  evanstonAsking?: number;
+  hookerAsking?: number;
+};
+
 type DispatchTalliesContextValue = {
   store: DispatchTalliesStore;
   cloud: boolean;
   talliesOn: (date: string) => DispatchTallies;
   setBataviaPreload: (date: string, count: number) => Promise<void>;
   decrementBataviaPreload: (date: string) => Promise<void>;
+  setBataviaAsking: (date: string, count: number) => Promise<void>;
   setEvanstonAsking: (date: string, count: number) => Promise<void>;
   setHookerAsking: (date: string, count: number) => Promise<void>;
   refresh: () => Promise<void>;
@@ -103,7 +111,7 @@ export function DispatchTalliesProvider({ children }: { children: ReactNode }) {
   }, [cloud, refresh]);
 
   const save = useCallback(
-    async (date: string, patch: { bataviaPreload?: number; evanstonAsking?: number; hookerAsking?: number }) => {
+    async (date: string, patch: TallyPatch) => {
       const stamped = stampDispatchTallies(date, patch, storeRef.current[date]);
       if (!stamped) return;
       persistLocal(upsertDispatchTallies(storeRef.current, stamped));
@@ -126,6 +134,11 @@ export function DispatchTalliesProvider({ children }: { children: ReactNode }) {
     [save],
   );
 
+  const setBataviaAsking = useCallback(
+    (date: string, count: number) => save(date, { bataviaAsking: Math.max(0, Math.floor(count)) }),
+    [save],
+  );
+
   const setEvanstonAsking = useCallback(
     (date: string, count: number) => save(date, { evanstonAsking: Math.max(0, Math.floor(count)) }),
     [save],
@@ -145,11 +158,22 @@ export function DispatchTalliesProvider({ children }: { children: ReactNode }) {
       talliesOn: talliesForDate,
       setBataviaPreload,
       decrementBataviaPreload,
+      setBataviaAsking,
       setEvanstonAsking,
       setHookerAsking,
       refresh,
     }),
-    [cloud, decrementBataviaPreload, refresh, setBataviaPreload, setEvanstonAsking, setHookerAsking, store, talliesForDate],
+    [
+      cloud,
+      decrementBataviaPreload,
+      refresh,
+      setBataviaAsking,
+      setBataviaPreload,
+      setEvanstonAsking,
+      setHookerAsking,
+      store,
+      talliesForDate,
+    ],
   );
 
   return (
