@@ -233,17 +233,72 @@ function isLateEarlyReason(normalized: string): boolean {
 }
 
 /**
- * True when the reason should appear on the call-off list (full-day offs
- * plus Late/Early status chips). Operational notes stay off the list.
+ * Call-Off log category: one of the preset kinds, or "note" for anything
+ * else. Notes stay on the log but never subtract from Available.
  */
-export function isCallOffListReason(reason: string): boolean {
-  const n = normalizeReason(reason);
-  if (!n || isWorkingNote(n)) return false;
-  return FULL_DAY_OFF_RE.some((re) => re.test(n)) || isLateEarlyReason(n);
+export type CallOffCategory = CallOffKind | "note";
+
+/**
+ * Preset prefixes for call-off log reasons. These are the Call-Off's page
+ * chips (P-Day, ok'd off, Call Off, Vacation Day, FMLA Day) plus NCNS, which
+ * the Today card writes into the log as a mirror. A reason only counts as a
+ * full-day off when it STARTS with one of these (after an optional count such
+ * as "1 P-Day"), so a chip with a suffix ("Call Off, sick") still subtracts,
+ * while free text typed over the chip ("In after court", "Sick") is a note.
+ */
+const PRESET_PREFIX_RE: readonly (readonly [RegExp, CallOffKind])[] = [
+  [/^ncns\b/, "ncns"],
+  [/^no[\s/-]?call[\s/-]?no[\s/-]?show\b/, "ncns"],
+  [/^p[\s/-]?days?\b/, "p-day"],
+  [/^ok'?d (day )?off\b/, "okd-off"],
+  [/^call[\s/-]?offs?\b/, "call-off"],
+  [/^vacation\b/, "vacation"],
+  [/^fmla\b/, "fmla"],
+];
+
+function presetKindFromNormalized(normalized: string): CallOffKind | null {
+  const body = normalized.replace(/^[\d/.]+\s*/, "");
+  for (const [re, kind] of PRESET_PREFIX_RE) {
+    if (re.test(body)) return kind;
+  }
+  return null;
 }
 
 /**
- * True only when the reason removes a driver from available / drv tallies.
+ * How a call-off log row is shown and counted.
+ * - Late/Early (with any suffix, e.g. "Late/Early 7am") → "late-early":
+ *   yellow status, stays available.
+ * - Starts with a preset chip → that kind (subtracts), unless it reads as an
+ *   operational note ("ok'd to do 2 loads", "coming in after").
+ * - Anything else (custom text) → "note": Notes only, stays available.
+ */
+export function callOffCategoryFromReason(reason: string): CallOffCategory {
+  const n = normalizeReason(reason);
+  if (!n) return "note";
+  if (isLateEarlyReason(n)) return "late-early";
+  const kind = presetKindFromNormalized(n);
+  if (!kind || isWorkingNote(n)) return "note";
+  return kind;
+}
+
+/** True when a call-off log reason removes the driver from Available. */
+export function callOffReasonSubtracts(reason: string): boolean {
+  const category = callOffCategoryFromReason(reason);
+  return category !== "note" && kindRemovesFromAvailable(category);
+}
+
+/**
+ * True when the reason should appear on the call-off list (preset full-day
+ * offs plus Late/Early status chips). Notes and custom text stay off the list.
+ */
+export function isCallOffListReason(reason: string): boolean {
+  if (isWorkingNote(normalizeReason(reason))) return false;
+  return callOffCategoryFromReason(reason) !== "note";
+}
+
+/**
+ * Keyword check used for roster status marks (driverRoster). Call-off log
+ * rows use `callOffReasonSubtracts` instead, which only trusts preset chips.
  * Late/Early is orange status only and does not subtract.
  * Operational notes (park by noon, half loads, coming in late) stay on the
  * roster. Unsure reasons do not subtract.
@@ -255,7 +310,7 @@ export function isFullDayOff(reason: string): boolean {
 }
 
 export function callOffAppliesToDay(row: CallOffRow, day: string): boolean {
-  if (!isFullDayOff(row.reason)) return false;
+  if (!callOffReasonSubtracts(row.reason)) return false;
   return dateInInclusiveRange(day, row.start, row.end);
 }
 
@@ -304,9 +359,11 @@ export function fullDayOffEntries(
     const key = callOffNameKey(name);
     if (seen.has(key)) continue;
     seen.add(key);
+    const category = callOffCategoryFromReason(row.reason);
+    if (category === "note") continue;
     entries.push({
       name,
-      kind: callOffKindFromReason(row.reason),
+      kind: category,
       source: "sheet",
     });
   }

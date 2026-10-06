@@ -266,7 +266,7 @@ describe("applyLiveSheet lock", () => {
         offs: [
           { name: "A", start: "2026-09-12", end: null, reason: "Call Off" },
           { name: "B", start: "2026-09-12", end: null, reason: "P-Day" },
-          { name: "C", start: "2026-09-12", end: null, reason: "Bereavement, father died" },
+          { name: "C", start: "2026-09-12", end: null, reason: "Call Off, bereavement" },
         ],
         manualOffs: [{ name: "Late Guy", kind: "late-early" }],
       },
@@ -298,7 +298,7 @@ describe("applyLiveSheet lock", () => {
         offs: [
           { name: "A", start: "2026-09-12", end: null, reason: "Call Off" },
           { name: "B", start: "2026-09-12", end: null, reason: "P-Day" },
-          { name: "C", start: "2026-09-12", end: null, reason: "Bereavement, father died" },
+          { name: "C", start: "2026-09-12", end: null, reason: "Call Off, bereavement" },
         ],
       },
       "2026-09-12",
@@ -335,7 +335,7 @@ describe("applyLiveSheet lock", () => {
         offs: [
           { name: "A", start: "2026-09-12", end: null, reason: "Call Off" },
           { name: "B", start: "2026-09-12", end: null, reason: "P-Day" },
-          { name: "C", start: "2026-09-12", end: null, reason: "Bereavement, father died" },
+          { name: "C", start: "2026-09-12", end: null, reason: "Call Off, bereavement" },
         ],
       },
       "2026-09-12",

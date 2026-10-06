@@ -3,10 +3,11 @@ import { describe, expect, it } from "vitest";
 import { CALL_OFF_LOG_SEED_CSV } from "../data/callOffLogSeed";
 import {
   addCallOffLogEntry,
+  CALL_OFF_REASON_PRESETS,
+  cleanCallOffLogEntry,
   kindForLogEntry,
   logEntriesToRows,
   logEntrySubtracts,
-  mergeCallOffLog,
   mergeCallOffLog,
   reconcileCallOffLogCloud,
   rowsFromSeedCsv,
@@ -26,7 +27,8 @@ describe("call-off log", () => {
         .sort(),
     ).toEqual(["okd-off", "okd-off", "okd-off", "okd-off", "vacation"]);
     expect(fullDayOffCount(rows, "2026-08-14")).toBe(1);
-    expect(fullDayOffCount(rows, "2026-09-15")).toBe(3);
+    // "Court at 9am, will be in after" is typed text, not a chip → Notes only.
+    expect(fullDayOffCount(rows, "2026-09-15")).toBe(2);
   });
 
   it("keeps through-date ranges on the Available subtract", () => {
@@ -79,6 +81,105 @@ describe("call-off log", () => {
     expect(entry?.name).toBe("Test Driver");
     const merged = mergeCallOffLog(seeded, seeded, []);
     expect(merged).toHaveLength(seeded.length);
+  });
+});
+
+describe("custom reasons are Notes only", () => {
+  it("keeps every preset chip on its category", () => {
+    const expected = {
+      "P-Day": "p-day",
+      "ok'd off": "okd-off",
+      "Call Off": "call-off",
+      "Vacation Day": "vacation",
+      "FMLA Day": "fmla",
+      "Late/Early": "late-early",
+    } as const;
+    for (const preset of CALL_OFF_REASON_PRESETS) {
+      expect(kindForLogEntry({ reason: preset }), preset).toBe(expected[preset]);
+      expect(logEntrySubtracts({ reason: preset }), preset).toBe(preset !== "Late/Early");
+    }
+  });
+
+  it("keeps chip + suffix on the chip's category", () => {
+    for (const reason of ["Late/Early 7am", "Late/Early 8:15a", "Late/Early In after court", "Late/Early 9am"]) {
+      expect(kindForLogEntry({ reason }), reason).toBe("late-early");
+      expect(logEntrySubtracts({ reason }), reason).toBe(false);
+    }
+    expect(kindForLogEntry({ reason: "Call Off, sick" })).toBe("call-off");
+    expect(logEntrySubtracts({ reason: "Call Off, sick" })).toBe(true);
+    expect(kindForLogEntry({ reason: "Call-off - car trouble" })).toBe("call-off");
+    expect(kindForLogEntry({ reason: "P-Day (half)" })).toBe("p-day");
+    expect(kindForLogEntry({ reason: "1 P-Day" })).toBe("p-day");
+    expect(kindForLogEntry({ reason: "Vacation Day thru Fri" })).toBe("vacation");
+    expect(kindForLogEntry({ reason: "FMLA" })).toBe("fmla");
+    expect(kindForLogEntry({ reason: "Ok'd Off" })).toBe("okd-off");
+  });
+
+  it("treats Today-card mirror reasons as presets", () => {
+    for (const reason of ["P-Day", "Ok'd Off", "NCNS", "FMLA", "Vacation Day", "Call Off"]) {
+      expect(logEntrySubtracts({ reason }), reason).toBe(true);
+    }
+    expect(kindForLogEntry({ reason: "Late/Early" })).toBe("late-early");
+  });
+
+  it("classifies typed-over text as Notes only and never subtracts it", () => {
+    for (const reason of [
+      "Sick",
+      "Doctor appointment",
+      "In after court",
+      "Court at 9am, will be in after",
+      "Jury Duty",
+      "Family emergency",
+      "Car trouble, will call",
+      "Doctor - call off",
+      "Ok'd to do 2 loads - Sick",
+    ]) {
+      expect(kindForLogEntry({ reason }), reason).toBe("note");
+      expect(logEntrySubtracts({ reason }), reason).toBe(false);
+    }
+  });
+
+  it("keeps custom-text rows out of Available and the Today call-off list", () => {
+    const rows = [
+      { name: "James Wolf", start: "2026-10-06", end: null, reason: "Ok'd to do 2 loads - Sick" },
+      { name: "Typed Driver", start: "2026-10-06", end: null, reason: "In after court" },
+      { name: "Mike Davy", start: "2026-10-06", end: null, reason: "Call Off" },
+      { name: "Bryan Alvarado", start: "2026-10-06", end: null, reason: "Late/Early 7am" },
+    ];
+    expect(fullDayOffCount(rows, "2026-10-06")).toBe(1);
+    expect(fullDayOffEntries(rows, [], "2026-10-06").map((row) => [row.name, row.kind])).toEqual([
+      ["Bryan Alvarado", "late-early"],
+      ["Mike Davy", "call-off"],
+    ]);
+  });
+
+  it("re-derives the category from stored reason text, so old rows are fixed too", () => {
+    const old = cleanCallOffLogEntry({
+      id: "co-old",
+      name: "Old Row",
+      start: "2026-10-05",
+      end: null,
+      reason: "In after court",
+      createdAt: "2026-10-05T12:00:00.000Z",
+      updatedAt: "2026-10-05T12:00:00.000Z",
+    });
+    expect(old).not.toBeNull();
+    expect(Object.keys(old!).sort()).toEqual(
+      ["createdAt", "end", "id", "name", "reason", "start", "updatedAt"].sort(),
+    );
+    expect(kindForLogEntry(old!)).toBe("note");
+    expect(logEntrySubtracts(old!)).toBe(false);
+  });
+
+  it("adds a custom reason verbatim and it lands in Notes only", () => {
+    const { entry } = addCallOffLogEntry([], {
+      name: "Typed Driver",
+      start: "2026-10-06",
+      reason: "  Doctor appt  ",
+    });
+    expect(entry?.reason).toBe("Doctor appt");
+    expect(kindForLogEntry(entry!)).toBe("note");
+    expect(logEntrySubtracts(entry!)).toBe(false);
   });
 });
 

@@ -1,8 +1,8 @@
 import {
-  callOffKindFromReason,
-  isFullDayOff,
+  callOffCategoryFromReason,
+  callOffReasonSubtracts,
   parseCallOffCsv,
-  type CallOffKind,
+  type CallOffCategory,
   type CallOffRow,
 } from "./driverAvailability";
 import { isValidISODate } from "./chicagoDate";
@@ -151,12 +151,17 @@ export function logEntriesToRows(rows: readonly CallOffLogEntry[]): CallOffRow[]
   }));
 }
 
-export function kindForLogEntry(row: Pick<CallOffLogEntry, "reason">): CallOffKind {
-  return callOffKindFromReason(row.reason);
+/**
+ * Category is derived from the stored reason text every render (the
+ * call_off_log table has no category column), so this also fixes old rows.
+ * Custom text that doesn't start with a preset chip → "note".
+ */
+export function kindForLogEntry(row: Pick<CallOffLogEntry, "reason">): CallOffCategory {
+  return callOffCategoryFromReason(row.reason);
 }
 
 export function logEntrySubtracts(row: Pick<CallOffLogEntry, "reason">): boolean {
-  return isFullDayOff(row.reason);
+  return callOffReasonSubtracts(row.reason);
 }
 
 export type CallOffLogDayFilter = "upcoming" | "today" | "yesterday" | "all";

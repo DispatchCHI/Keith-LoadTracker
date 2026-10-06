@@ -111,12 +111,9 @@ function noteMeta(row: CallOffLogEntry, emp: string): string {
 }
 
 function pillClass(row: CallOffLogEntry): string {
-  if (!logEntrySubtracts(row)) {
-    return kindForLogEntry(row) === "late-early"
-      ? "calloffs-kind calloff-chip calloff-chip-late-early"
-      : "calloffs-kind calloffs-note-pill";
-  }
-  return `calloffs-kind calloff-chip calloff-chip-${kindForLogEntry(row)}`;
+  const category = kindForLogEntry(row);
+  if (category === "note") return "calloffs-kind calloffs-note-pill";
+  return `calloffs-kind calloff-chip calloff-chip-${category}`;
 }
 
 export function CallOffsScreen() {
@@ -131,6 +128,7 @@ export function CallOffsScreen() {
   const [end, setEnd] = useState("");
   const [reason, setReason] = useState("P-Day");
   const [formError, setFormError] = useState<string | null>(null);
+  const customNote = reason.trim() !== "" && kindForLogEntry({ reason }) === "note";
 
   const empMaps = useMemo(() => {
     const byExact = new Map<string, string>();
@@ -262,6 +260,12 @@ export function CallOffsScreen() {
           })}
         </div>
 
+        {customNote ? (
+          <p className="calloffs-hint">
+            Custom reason saves as Notes only and does not subtract. Start with a chip (e.g. "Call Off, sick") to subtract.
+          </p>
+        ) : null}
+
         {formError ? <p className="form-error">{formError}</p> : null}
       </form>
 
@@ -295,7 +299,7 @@ export function CallOffsScreen() {
             <h2>Still available</h2>
             <span className="num">{notes.length}</span>
           </div>
-          <p className="calloffs-hint">Late and park-by notes stay on the log. They do not subtract.</p>
+          <p className="calloffs-hint">Late, park-by, and custom notes stay on the log. They do not subtract.</p>
           {notes.length ? (
             <section className="calloffs-group">
               <div className="calloffs-group-label kind-late-early">

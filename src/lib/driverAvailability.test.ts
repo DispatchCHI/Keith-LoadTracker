@@ -6,7 +6,9 @@ import {
   CALL_OFF_KIND_OPTIONS,
   CALL_OFF_KIND_TONES,
   callOffAppliesToDay,
+  callOffCategoryFromReason,
   callOffKindFromReason,
+  callOffReasonSubtracts,
   cleanCallOffEntries,
   formatAvailableOutOf,
   fullDayOffCount,
@@ -210,6 +212,33 @@ describe("CALL_OFF_KIND_OPTIONS + tones", () => {
     for (const option of CALL_OFF_KIND_OPTIONS) {
       expect(CALL_OFF_KIND_TONES[option.kind as CallOffKind]).toBeTruthy();
     }
+  });
+});
+
+describe("callOffCategoryFromReason", () => {
+  it("only trusts preset prefixes; other text is a note", () => {
+    expect(callOffCategoryFromReason("P-Day")).toBe("p-day");
+    expect(callOffCategoryFromReason("ok'd off")).toBe("okd-off");
+    expect(callOffCategoryFromReason("Call Off")).toBe("call-off");
+    expect(callOffCategoryFromReason("Vacation Day")).toBe("vacation");
+    expect(callOffCategoryFromReason("FMLA Day")).toBe("fmla");
+    expect(callOffCategoryFromReason("NCNS")).toBe("ncns");
+    expect(callOffCategoryFromReason("No Call No Show")).toBe("ncns");
+    expect(callOffCategoryFromReason("Late/Early 7am")).toBe("late-early");
+    expect(callOffCategoryFromReason("Sick")).toBe("note");
+    expect(callOffCategoryFromReason("In after court")).toBe("note");
+    expect(callOffCategoryFromReason("Jury Duty")).toBe("note");
+    expect(callOffCategoryFromReason("Ok'd to do 2 loads - Sick")).toBe("note");
+    expect(callOffCategoryFromReason("P-Day, coming in after lunch")).toBe("note");
+    expect(callOffCategoryFromReason("")).toBe("note");
+  });
+
+  it("subtracts only preset full-day kinds", () => {
+    expect(callOffReasonSubtracts("Call Off, sick")).toBe(true);
+    expect(callOffReasonSubtracts("Late/Early")).toBe(false);
+    expect(callOffReasonSubtracts("Sick")).toBe(false);
+    expect(isCallOffListReason("Sick")).toBe(false);
+    expect(isCallOffListReason("Late/Early 8:15a")).toBe(true);
   });
 });
 
