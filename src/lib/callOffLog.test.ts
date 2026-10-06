@@ -4,7 +4,9 @@ import { CALL_OFF_LOG_SEED_CSV } from "../data/callOffLogSeed";
 import {
   addCallOffLogEntry,
   CALL_OFF_REASON_PRESETS,
+  callOffContentKey,
   cleanCallOffLogEntry,
+  dedupeLocalOnlyCallOffs,
   kindForLogEntry,
   logEntriesToRows,
   logEntrySubtracts,
@@ -288,5 +290,192 @@ describe("Call-Off's screen filters", () => {
     // "Yesterday" means the last working day, not a plain calendar day back —
     // from a Monday that's Saturday, since the yard doesn't run Sundays.
     expect(src).toContain("previousWorkingDay(today)");
+  });
+});
+
+describe("call-off cloud reconcile converges desks (Markeith duplicates)", () => {
+  const row = (id: string, patch: Partial<CallOffLogEntry> = {}): CallOffLogEntry => ({
+    id,
+    name: "Markeith Nunnally",
+    start: "2026-10-06",
+    end: null,
+    reason: "Late/Early",
+    createdAt: "2026-10-06T14:00:00.000Z",
+    updatedAt: "2026-10-06T14:00:00.000Z",
+    ...patch,
+  });
+
+  it("drops a row another desk deleted instead of re-uploading it", () => {
+    const keep = row("co-keep", { reason: "Late/Early In after court" });
+    const deletedElsewhere = row("co-old");
+    const result = reconcileCallOffLogCloud({
+      local: [deletedElsewhere, keep],
+      remote: [keep],
+      deletedIds: [],
+      seenIds: ["co-old", "co-keep"],
+    });
+    expect(result.next.map((r) => r.id)).toEqual(["co-keep"]);
+    expect(result.toUpload).toEqual([]);
+    expect(result.toDeleteRemote).toEqual([]);
+    expect(result.goneIds).toEqual(["co-old"]);
+  });
+
+  it("collapses the other desk's stale copies to the one cloud row and stays stable", () => {
+    const cloudRow = row("co-4", {
+      reason: "Late/Early In after court",
+      createdAt: "2026-10-06T15:10:00.000Z",
+      updatedAt: "2026-10-06T15:10:00.000000+00:00",
+    });
+    const stale = [
+      row("co-1"),
+      row("co-2", { reason: "Late/Early in after court" }),
+      row("co-3", { reason: "Late/Early In after court", createdAt: "2026-10-06T15:00:00.000Z" }),
+    ];
+    const first = reconcileCallOffLogCloud({
+      local: [...stale, { ...cloudRow, updatedAt: "2026-10-06T15:10:00.000Z" }],
+      remote: [cloudRow],
+      deletedIds: [],
+      seenIds: ["co-1", "co-2", "co-3", "co-4"],
+    });
+    expect(first.next.map((r) => r.id)).toEqual(["co-4"]);
+    expect(first.toUpload).toEqual([]);
+    expect(first.toDeleteRemote).toEqual([]);
+    const second = reconcileCallOffLogCloud({
+      local: first.next,
+      remote: [cloudRow],
+      deletedIds: first.deletedIds,
+      seenIds: first.seenIds,
+      goneIds: first.goneIds,
+    });
+    expect(second.next.map((r) => r.id)).toEqual(["co-4"]);
+    expect(second.toUpload).toEqual([]);
+    expect(second.toDeleteRemote).toEqual([]);
+  });
+
+  it("drops never-uploaded local copies that repeat a cloud row's content", () => {
+    const cloudRow = row("co-cloud", { reason: "Late/Early In after court" });
+    const twin = row("co-local", { name: "  markeith nunnally ", reason: "late/early  in after court" });
+    const result = reconcileCallOffLogCloud({
+      local: [twin, cloudRow],
+      remote: [cloudRow],
+      deletedIds: [],
+      seenIds: ["co-cloud"],
+    });
+    expect(result.next.map((r) => r.id)).toEqual(["co-cloud"]);
+    expect(result.toUpload).toEqual([]);
+  });
+
+  it("keeps one of two identical offline adds and uploads only that one", () => {
+    const a = row("co-b", { createdAt: "2026-10-06T14:00:00.000Z" });
+    const b = row("co-a", { createdAt: "2026-10-06T14:05:00.000Z" });
+    const other = row("co-other", { name: "Mike Smith", reason: "P-Day" });
+    const result = reconcileCallOffLogCloud({
+      local: [a, b],
+      remote: [other],
+      deletedIds: [],
+      seenIds: ["co-other"],
+    });
+    expect(result.next.map((r) => r.id).sort()).toEqual(["co-b", "co-other"]);
+    expect(result.toUpload.map((r) => r.id)).toEqual(["co-b"]);
+  });
+
+  it("keeps and uploads legitimate offline rows the cloud never saw", () => {
+    const other = row("co-other", { name: "Mike Smith", reason: "P-Day" });
+    const offline = row("co-offline", { start: "2026-10-07", reason: "Call Off" });
+    const result = reconcileCallOffLogCloud({
+      local: [other, offline],
+      remote: [other],
+      deletedIds: [],
+      seenIds: ["co-other"],
+    });
+    expect(result.next.map((r) => r.id).sort()).toEqual(["co-offline", "co-other"]);
+    expect(result.toUpload.map((r) => r.id)).toEqual(["co-offline"]);
+    expect(result.goneIds).toEqual([]);
+  });
+
+  it("still deletes a row this desk removed if a stale desk re-uploaded it", () => {
+    const resurrected = row("co-dead");
+    const other = row("co-other", { name: "Mike Smith", reason: "P-Day" });
+    const result = reconcileCallOffLogCloud({
+      local: [other],
+      remote: [other, resurrected],
+      deletedIds: ["co-dead"],
+      seenIds: ["co-dead", "co-other"],
+    });
+    expect(result.next.map((r) => r.id)).toEqual(["co-other"]);
+    expect(result.toDeleteRemote).toEqual(["co-dead"]);
+    expect(result.deletedIds).toEqual(["co-dead"]);
+  });
+
+  it("accepts a cloud-deleted id that comes back (Today mirror re-added) and never deletes it", () => {
+    const mirror = row("today-manual|2026-10-06|markeith nunnally");
+    const result = reconcileCallOffLogCloud({
+      local: [],
+      remote: [mirror],
+      deletedIds: [],
+      seenIds: [],
+      goneIds: [mirror.id],
+    });
+    expect(result.next.map((r) => r.id)).toEqual([mirror.id]);
+    expect(result.goneIds).toEqual([]);
+    expect(result.toDeleteRemote).toEqual([]);
+    expect(result.toUpload).toEqual([]);
+  });
+
+  it("does not re-upload seed-sheet rows the cloud no longer has", () => {
+    const seed = row("seed-2026-09-08--markeith-nunnally-p-day", { start: "2026-09-08", reason: "P-Day" });
+    const other = row("co-other", { name: "Mike Smith", reason: "P-Day" });
+    const result = reconcileCallOffLogCloud({
+      local: [seed, other],
+      remote: [other],
+      deletedIds: [],
+      seenIds: [],
+    });
+    expect(result.next.map((r) => r.id)).toEqual(["co-other"]);
+    expect(result.toUpload).toEqual([]);
+    expect(result.goneIds).toEqual([seed.id]);
+  });
+
+  it("drops nothing when the cloud returns zero rows (empty table / new project)", () => {
+    const seed = row("seed-2026-09-08--markeith-nunnally-p-day", { start: "2026-09-08", reason: "P-Day" });
+    const mine = row("co-mine");
+    const result = reconcileCallOffLogCloud({
+      local: [seed, mine],
+      remote: [],
+      deletedIds: [],
+      seenIds: [seed.id, mine.id],
+    });
+    expect(result.next.map((r) => r.id).sort()).toEqual([mine.id, seed.id].sort());
+    expect(result.toUpload.map((r) => r.id).sort()).toEqual([mine.id, seed.id].sort());
+    expect(result.goneIds).toEqual([]);
+  });
+
+  it("dedupeLocalOnlyCallOffs never drops cloud rows, even identical ones", () => {
+    const a = row("co-a");
+    const b = row("co-b");
+    const out = dedupeLocalOnlyCallOffs([a, b], new Set(["co-a", "co-b"]));
+    expect(out.rows.map((r) => r.id)).toEqual(["co-a", "co-b"]);
+    expect(out.droppedIds).toEqual([]);
+  });
+
+  it("content key ignores case/spacing but not date, through date, or reason", () => {
+    const base = row("x");
+    expect(callOffContentKey(base)).toBe(callOffContentKey({ ...base, name: " MARKEITH  NUNNALLY " }));
+    expect(callOffContentKey(base)).not.toBe(callOffContentKey({ ...base, start: "2026-10-07" }));
+    expect(callOffContentKey(base)).not.toBe(callOffContentKey({ ...base, end: "2026-10-08" }));
+    expect(callOffContentKey(base)).not.toBe(callOffContentKey({ ...base, reason: "Late/Early 7am" }));
+  });
+});
+
+describe("CallOffLogContext refresh", () => {
+  const src = readFileSync(new URL("../store/CallOffLogContext.tsx", import.meta.url), "utf8");
+  it("snapshots seenIds before the pull and marks successful uploads seen", () => {
+    expect(src).toContain("const seenAtStart = new Set(seenRef.current);");
+    expect(src.indexOf("const seenAtStart")).toBeLessThan(src.indexOf("await pullRemote()"));
+    expect(src).toContain("seenIds: [...seenAtStart]");
+    expect(src).toContain("rememberSeen([entry.id])");
+  });
+  it("never re-deletes ids another desk deleted (goneIds stay out of cloudDelete)", () => {
+    expect(src).not.toMatch(/cloudDelete\([^)]*goneRef/);
   });
 });

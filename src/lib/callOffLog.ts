@@ -1,5 +1,6 @@
 import {
   callOffCategoryFromReason,
+  callOffNameKey,
   callOffReasonSubtracts,
   parseCallOffCsv,
   type CallOffCategory,
@@ -24,8 +25,16 @@ export type CallOffLogEntry = {
 export type CallOffLogPersisted = {
   version: 1;
   rows: CallOffLogEntry[];
+  /** Ids this desk deleted. Kept so a stale copy elsewhere is deleted again. */
   deletedIds: string[];
+  /** Ids confirmed in the cloud (pulled, or uploaded without error). */
   seenIds: string[];
+  /**
+   * Ids another desk deleted from the cloud. Dropped locally and never
+   * re-uploaded, but (unlike deletedIds) never deleted from the cloud again,
+   * so a later legitimate re-add of the same id (Today mirror) sticks.
+   */
+  goneIds: string[];
   seeded: boolean;
 };
 
@@ -105,7 +114,7 @@ export function sortCallOffLog(rows: readonly CallOffLogEntry[]): CallOffLogEntr
 }
 
 export function emptyCallOffLogPersisted(): CallOffLogPersisted {
-  return { version: 1, rows: [], deletedIds: [], seenIds: [], seeded: false };
+  return { version: 1, rows: [], deletedIds: [], seenIds: [], goneIds: [], seeded: false };
 }
 
 export function readCallOffLogPersisted(): CallOffLogPersisted {
@@ -123,6 +132,9 @@ export function readCallOffLogPersisted(): CallOffLogPersisted {
       seenIds: Array.isArray(parsed.seenIds)
         ? parsed.seenIds.filter((id): id is string => typeof id === "string" && !!id)
         : [],
+      goneIds: Array.isArray(parsed.goneIds)
+        ? parsed.goneIds.filter((id): id is string => typeof id === "string" && !!id)
+        : [],
       seeded: Boolean(parsed.seeded),
     };
   } catch {
@@ -138,6 +150,7 @@ export function writeCallOffLogPersisted(next: CallOffLogPersisted): void {
       rows: cleanCallOffLogRows(next.rows),
       deletedIds: [...new Set(next.deletedIds)],
       seenIds: [...new Set(next.seenIds)],
+      goneIds: [...new Set(next.goneIds ?? [])],
       seeded: next.seeded,
     } satisfies CallOffLogPersisted),
   );
@@ -280,45 +293,126 @@ export function mergeCallOffLog(
   return sortCallOffLog([...byId.values()]);
 }
 
+export function isSeedCallOffId(id: string): boolean {
+  return id.startsWith("seed-");
+}
+
+/** Same driver, same day(s), same reason text → the same log line. */
+export function callOffContentKey(
+  row: Pick<CallOffLogEntry, "name" | "start" | "end" | "reason">,
+): string {
+  const reason = row.reason.trim().toLowerCase().replace(/\s+/g, " ");
+  const name = callOffNameKey(row.name).replace(/\s+/g, " ");
+  return `${name}|${row.start}|${row.end ?? row.start}|${reason}`;
+}
+
+/**
+ * Drop local-only rows (ids the cloud does not have) that repeat another
+ * row's driver/day/through/reason. Cloud rows are never dropped here: every
+ * desk shows the same cloud rows, so they cannot make one desk diverge.
+ * Among local-only twins the earliest-created one is kept.
+ */
+export function dedupeLocalOnlyCallOffs(
+  rows: readonly CallOffLogEntry[],
+  remoteIds: ReadonlySet<string>,
+): { rows: CallOffLogEntry[]; droppedIds: string[] } {
+  const taken = new Set<string>();
+  const kept: CallOffLogEntry[] = [];
+  for (const row of rows) {
+    if (!remoteIds.has(row.id)) continue;
+    taken.add(callOffContentKey(row));
+    kept.push(row);
+  }
+  const localOnly = rows
+    .filter((row) => !remoteIds.has(row.id))
+    .sort((a, b) => {
+      const at = Date.parse(a.createdAt);
+      const bt = Date.parse(b.createdAt);
+      if (Number.isFinite(at) && Number.isFinite(bt) && at !== bt) return at - bt;
+      return a.id.localeCompare(b.id);
+    });
+  const droppedIds: string[] = [];
+  for (const row of localOnly) {
+    const key = callOffContentKey(row);
+    if (taken.has(key)) {
+      droppedIds.push(row.id);
+      continue;
+    }
+    taken.add(key);
+    kept.push(row);
+  }
+  return { rows: sortCallOffLog(kept), droppedIds };
+}
+
 export type CallOffLogReconcileResult = {
   next: CallOffLogEntry[];
   deletedIds: string[];
   seenIds: string[];
+  goneIds: string[];
   toUpload: CallOffLogEntry[];
   toDeleteRemote: string[];
 };
 
+/**
+ * Converge this desk on the cloud `call_off_log`.
+ *
+ * - An id this desk has seen in the cloud (pulled, or uploaded OK) that the
+ *   cloud no longer has was deleted by another desk: drop it locally and
+ *   remember it in goneIds. It is NOT re-uploaded. (Before this, a row still
+ *   sitting in localStorage was kept and upserted again, so every delete on
+ *   one desk resurrected on the others: duplicate rows on one desk, and an
+ *   upload/delete echo loop with the desk that deleted it.)
+ * - Seed-sheet ids the cloud no longer has were removed by a dispatcher; a
+ *   fresh or cleared desk re-seeding from the CSV must not bring them back.
+ * - Local-only rows the cloud never saw (offline adds) are kept and uploaded,
+ *   unless they repeat another row's content.
+ * - When the cloud returns zero rows (empty project / failed load) nothing
+ *   local is dropped; local rows upload as before.
+ */
 export function reconcileCallOffLogCloud(input: {
   local: CallOffLogEntry[];
   remote: CallOffLogEntry[];
   deletedIds: readonly string[];
   seenIds: readonly string[];
+  goneIds?: readonly string[];
 }): CallOffLogReconcileResult {
   const deleted = new Set(input.deletedIds);
-  const localIds = new Set(input.local.map((row) => row.id));
   const remoteIds = new Set(input.remote.map((row) => row.id));
-  // Only tombstone a previously-seen id when it vanished from the cloud AND
-  // is not still sitting locally. An empty table after a failed upsert used
-  // to wipe the seeded sheet on the next refresh.
-  for (const id of input.seenIds) {
-    if (!remoteIds.has(id) && !localIds.has(id)) deleted.add(id);
+  const cloudHasRows = input.remote.length > 0;
+  const gone = new Set<string>();
+  for (const id of input.goneIds ?? []) {
+    // Back in the cloud → a legitimate re-add (or another desk's upload); accept it.
+    if (!remoteIds.has(id)) gone.add(id);
   }
-  const next = mergeCallOffLog(input.local, input.remote, [...deleted]);
+  if (cloudHasRows) {
+    for (const id of input.seenIds) {
+      if (!remoteIds.has(id) && !deleted.has(id)) gone.add(id);
+    }
+    for (const row of input.local) {
+      if (isSeedCallOffId(row.id) && !remoteIds.has(row.id) && !deleted.has(row.id)) {
+        gone.add(row.id);
+      }
+    }
+  }
+  const skip = new Set<string>([...deleted, ...gone]);
+  const merged = mergeCallOffLog(input.local, input.remote, [...skip]);
+  const { rows: next, droppedIds } = dedupeLocalOnlyCallOffs(merged, remoteIds);
+  for (const id of droppedIds) gone.add(id);
   const nextIds = new Set(next.map((row) => row.id));
+  const remoteById = new Map(input.remote.map((row) => [row.id, row]));
   const toDeleteRemote = [...deleted].filter((id) => remoteIds.has(id));
   const toUpload = next.filter((row) => {
-    if (deleted.has(row.id)) return false;
-    const remoteRow = input.remote.find((item) => item.id === row.id);
+    const remoteRow = remoteById.get(row.id);
     if (!remoteRow) return true;
     return isIsoAfter(row.updatedAt, remoteRow.updatedAt);
   });
-  const seenNext = new Set<string>();
-  for (const id of remoteIds) seenNext.add(id);
+  const seenNext = new Set<string>(remoteIds);
   for (const id of deleted) seenNext.add(id);
   return {
     next,
     deletedIds: [...deleted].filter((id) => !nextIds.has(id)),
     seenIds: [...seenNext],
+    goneIds: [...gone].filter((id) => !nextIds.has(id)),
     toUpload,
     toDeleteRemote,
   };

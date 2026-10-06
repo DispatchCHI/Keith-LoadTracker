@@ -125,6 +125,7 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
   rowsRef.current = rows;
   const deletedRef = useRef<Set<string>>(new Set(readCallOffLogPersisted().deletedIds));
   const seenRef = useRef<Set<string>>(new Set(readCallOffLogPersisted().seenIds));
+  const goneRef = useRef<Set<string>>(new Set(readCallOffLogPersisted().goneIds));
   const epochRef = useRef(0);
 
   const persistLocal = useCallback((nextRows: CallOffLogEntry[]) => {
@@ -133,11 +134,29 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
       rows: nextRows,
       deletedIds: [...deletedRef.current],
       seenIds: [...seenRef.current],
+      goneIds: [...goneRef.current],
       seeded: true,
     };
     writeCallOffLogPersisted(snapshot);
     rowsRef.current = snapshot.rows;
     setRows(snapshot.rows);
+  }, []);
+
+  /** An upsert returned no error: the id is in the cloud now, so a later absence means a delete. */
+  const rememberSeen = useCallback((ids: string[]) => {
+    if (!ids.length) return;
+    for (const id of ids) {
+      seenRef.current.add(id);
+      goneRef.current.delete(id);
+    }
+    writeCallOffLogPersisted({
+      version: 1,
+      rows: rowsRef.current,
+      deletedIds: [...deletedRef.current],
+      seenIds: [...seenRef.current],
+      goneIds: [...goneRef.current],
+      seeded: true,
+    });
   }, []);
 
   const pullRemote = useCallback(async (): Promise<CallOffLogEntry[] | null> => {
@@ -170,16 +189,18 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   const cloudUpsert = useCallback(
-    async (entries: CallOffLogEntry[]) => {
-      if (!entries.length) return;
+    async (entries: CallOffLogEntry[]): Promise<boolean> => {
+      if (!entries.length) return false;
       const supabase = getSupabase();
-      if (!supabase || !session) return;
+      if (!supabase || !session) return false;
       const { error: writeError } = await supabase
         .from("call_off_log")
         .upsert(entries.map((row) => entryToRemote(row, user?.id ?? null)));
       if (writeError) {
         setError(`Call-Off's did not reach the cloud — ${writeError.message}`);
+        return false;
       }
+      return true;
     },
     [session, user?.id],
   );
@@ -197,11 +218,16 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     const local = bootstrap(readCallOffLogPersisted());
     deletedRef.current = new Set(local.deletedIds);
+    goneRef.current = new Set(local.goneIds);
     if (!cloud) {
       persistLocal(local.rows);
       return;
     }
     const epoch = epochRef.current;
+    // Snapshot before the pull: an add whose upsert lands mid-pull is marked
+    // seen, but this pull may predate it. Using the later set would read
+    // "seen + missing from cloud" as a delete and drop the new row.
+    const seenAtStart = new Set(seenRef.current);
     const remote = await pullRemote();
     if (!remote) {
       persistLocal(local.rows);
@@ -212,13 +238,20 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
       local: local.rows,
       remote,
       deletedIds: [...deletedRef.current],
-      seenIds: [...seenRef.current],
+      seenIds: [...seenAtStart],
+      goneIds: [...goneRef.current],
     });
-    if (result.toUpload.length) await cloudUpsert(result.toUpload);
+    const uploaded = result.toUpload.length ? await cloudUpsert(result.toUpload) : false;
     if (result.toDeleteRemote.length) await cloudDelete(result.toDeleteRemote);
     if (epoch !== epochRef.current) return;
+    const seenNext = new Set(result.seenIds);
+    if (uploaded) for (const row of result.toUpload) seenNext.add(row.id);
+    for (const id of seenRef.current) {
+      if (!seenAtStart.has(id)) seenNext.add(id);
+    }
     deletedRef.current = new Set(result.deletedIds);
-    seenRef.current = new Set(result.seenIds);
+    goneRef.current = new Set(result.goneIds);
+    seenRef.current = seenNext;
     persistLocal(result.next);
   }, [cloud, cloudDelete, cloudUpsert, persistLocal, pullRemote]);
 
@@ -246,12 +279,15 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
   const loadSheet = useCallback(async () => {
     epochRef.current += 1;
     const seeded = callOffLogSeedRows();
-    for (const row of seeded) deletedRef.current.delete(row.id);
+    for (const row of seeded) {
+      deletedRef.current.delete(row.id);
+      goneRef.current.delete(row.id);
+    }
     const next = mergeCallOffLog(rowsRef.current, seeded, [...deletedRef.current]);
     persistLocal(next);
-    if (cloud) await cloudUpsert(seeded);
+    if (cloud && (await cloudUpsert(seeded))) rememberSeen(seeded.map((row) => row.id));
     return next.length;
-  }, [cloud, cloudUpsert, persistLocal]);
+  }, [cloud, cloudUpsert, persistLocal, rememberSeen]);
 
   const addRow = useCallback(
     async (input: { name: string; start: string; end?: string | null; reason: string }) => {
@@ -259,10 +295,10 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
       const { rows: next, entry } = addCallOffLogEntry(rowsRef.current, input);
       if (!entry) return null;
       persistLocal(next);
-      if (cloud) await cloudUpsert([entry]);
+      if (cloud && (await cloudUpsert([entry]))) rememberSeen([entry.id]);
       return entry;
     },
-    [cloud, cloudUpsert, persistLocal],
+    [cloud, cloudUpsert, persistLocal, rememberSeen],
   );
 
   const editRow = useCallback(
@@ -274,9 +310,9 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
       const next = updateCallOffLogEntry(rowsRef.current, id, patch);
       const entry = next.find((row) => row.id === id);
       persistLocal(next);
-      if (cloud && entry) await cloudUpsert([entry]);
+      if (cloud && entry && (await cloudUpsert([entry]))) rememberSeen([entry.id]);
     },
-    [cloud, cloudUpsert, persistLocal],
+    [cloud, cloudUpsert, persistLocal, rememberSeen],
   );
 
   const removeRow = useCallback(
@@ -304,21 +340,23 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
         existing.end === entry.end &&
         existing.reason === entry.reason
       ) {
-        if (deletedRef.current.has(id)) {
+        if (deletedRef.current.has(id) || goneRef.current.has(id)) {
           deletedRef.current.delete(id);
+          goneRef.current.delete(id);
           persistLocal(rowsRef.current);
         }
         return;
       }
       epochRef.current += 1;
       deletedRef.current.delete(id);
+      goneRef.current.delete(id);
       const next = existing
         ? sortCallOffLog(rowsRef.current.map((row) => (row.id === id ? entry : row)))
         : sortCallOffLog([...rowsRef.current, entry]);
       persistLocal(next);
-      if (cloud) await cloudUpsert([entry]);
+      if (cloud && (await cloudUpsert([entry]))) rememberSeen([entry.id]);
     },
-    [cloud, cloudUpsert, persistLocal],
+    [cloud, cloudUpsert, persistLocal, rememberSeen],
   );
 
   const removeLogIds = useCallback(
@@ -338,14 +376,17 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
 
   const clearDeletedId = useCallback(
     (id: string) => {
-      if (!deletedRef.current.has(id)) return;
+      if (!deletedRef.current.has(id) && !goneRef.current.has(id)) return;
       deletedRef.current.delete(id);
+      goneRef.current.delete(id);
       persistLocal(rowsRef.current);
     },
     [persistLocal],
   );
 
-  const deletedIds = useCallback(() => [...deletedRef.current], []);
+  // Today reconcile treats both as "removed from the log": a mirror deleted on
+  // another desk drops the matching Today chip here instead of re-mirroring it.
+  const deletedIds = useCallback(() => [...deletedRef.current, ...goneRef.current], []);
 
   const value = useMemo<CallOffLogContextValue>(
     () => ({
