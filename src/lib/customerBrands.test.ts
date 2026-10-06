@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   CUSTOMER_BRAND_OVERRIDES_KEY,
   CUSTOMER_BRAND_OVERRIDES_META_KEY,
+  FORD,
+  KRMA,
   LRS,
   REPUBLIC,
   TRI_STATE,
@@ -130,5 +132,44 @@ describe("customer brand cloud meta", () => {
     expect(readCustomerBrandOverridesUpdatedAt()).toBe("2026-10-02T12:00:00.000Z");
     const raw = localStorage.getItem(CUSTOMER_BRAND_OVERRIDES_META_KEY) ?? "";
     expect(raw).toContain("2026-10-02T12:00:00.000Z");
+  });
+});
+
+describe("bundled KRMA / Ford logos", () => {
+  it("maps Kankakee RDF to KRMA and Ford to the Ford oval", () => {
+    expect(brandForCustomer("Kankakee RDF")).toEqual(KRMA);
+    expect(brandForCustomer("kankakee  rdf")).toEqual(KRMA);
+    expect(brandForCustomer("Ford")).toEqual(FORD);
+    expect(brandCompanyIdForCustomer("Kankakee RDF")).toBe("krma");
+    expect(brandCompanyIdForCustomer("Ford")).toBe("ford");
+    expect(brandForCustomer("Kankakee")).toBeNull();
+  });
+
+  it("ignores a legacy pre-cutoff 'none' so the bundled logo shows", () => {
+    applyCustomerBrandOverrides(
+      { "kankakee rdf": "none", ford: "none", "new yard": "none", apollo: "none" },
+      "2026-10-03T15:00:00.000Z",
+    );
+    expect(brandForCustomer("Kankakee RDF")).toEqual(KRMA);
+    expect(brandForCustomer("Ford")).toEqual(FORD);
+    // Other explicit "none" choices are untouched.
+    expect(brandForCustomer("Apollo")).toBeNull();
+    // Next save drops the stale entries from the stored (and synced) map.
+    setCustomerBrandOverride("New Yard", "republic");
+    const raw = localStorage.getItem(CUSTOMER_BRAND_OVERRIDES_KEY) ?? "";
+    expect(raw).not.toContain("kankakee rdf");
+    expect(raw).not.toContain("ford");
+    expect(raw).toContain("apollo");
+  });
+
+  it("honors a custom pick or a post-cutoff 'none'", () => {
+    applyCustomerBrandOverrides({ ford: "republic" }, "2026-10-03T15:00:00.000Z");
+    expect(brandForCustomer("Ford")).toEqual(REPUBLIC);
+    applyCustomerBrandOverrides({ ford: "none" }, "2026-10-07T15:00:00.000Z");
+    expect(brandForCustomer("Ford")).toBeNull();
+    setCustomerBrandOverride("Kankakee RDF", "none");
+    expect(brandForCustomer("Kankakee RDF")).toBeNull();
+    clearCustomerBrandOverride("Kankakee RDF");
+    expect(brandForCustomer("Kankakee RDF")).toEqual(KRMA);
   });
 });

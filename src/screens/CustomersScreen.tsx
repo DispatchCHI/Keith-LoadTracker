@@ -62,6 +62,8 @@ const COMPANY_GROUPS: { id: BrandCompanyId; label: string; tone: string }[] = [
   { id: "republic", label: "Republic Services", tone: "rs" },
   { id: "lrs", label: "LRS Services", tone: "lrs" },
   { id: "tri-state", label: "Tri-State", tone: "ts" },
+  { id: "krma", label: "KRMA", tone: "krma" },
+  { id: "ford", label: "Ford", tone: "ford" },
   { id: "none", label: "No logo", tone: "none" },
 ];
 
@@ -487,9 +489,10 @@ function CustomerLogo({ name, large = false }: { name: string; large?: boolean }
   if (!brand) {
     return <span className={large ? "cust-logo-slot lg" : "cust-logo-slot"} aria-hidden="true" />;
   }
+  const cls = ["cust-brand", large ? "lg" : "", brand.wide ? "wide" : ""].filter(Boolean).join(" ");
   return (
     <img
-      className={large ? "cust-brand lg" : "cust-brand"}
+      className={cls}
       src={brand.src}
       alt={large ? brand.alt : ""}
       title={brand.alt}
@@ -539,7 +542,7 @@ function CustomerIdentityFields({
                 onClick={() => onBrand(opt.id)}
               >
                 {mark ? (
-                  <img className="cust-logo-mark" src={mark.src} alt="" />
+                  <img className={mark.wide ? "cust-logo-mark wide" : "cust-logo-mark"} src={mark.src} alt="" />
                 ) : (
                   <span className="cust-logo-none" aria-hidden="true">—</span>
                 )}

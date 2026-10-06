@@ -5056,6 +5056,8 @@ body.app-ready .splash {
 .cust-group-label.rs { background: #1d4f91; }
 .cust-group-label.lrs { background: #c2410c; }
 .cust-group-label.ts { background: #0f766e; }
+.cust-group-label.krma { background: #15803d; }
+.cust-group-label.ford { background: #00095b; }
 .cust-group-label.none { background: #6b7280; }
 
 /* Scroll facilities inside each company grouping independently. */
@@ -5114,6 +5116,15 @@ body.app-ready .splash {
   width: 36px;
   height: 36px;
   border-radius: 6px;
+}
+
+/* Wide wordmarks (KRMA, Ford oval): same height, wider slot, never cropped. */
+.cust-brand.wide {
+  width: 46px;
+}
+
+.cust-brand.lg.wide {
+  width: 96px;
 }
 
 .cust-logo-slot {
@@ -5312,6 +5323,12 @@ body.app-ready .splash {
   border-radius: 8px;
   background: #ffffff;
   flex-shrink: 0;
+}
+
+.cust-logo-mark.wide {
+  width: 84px;
+  padding: 2px 4px;
+  box-sizing: border-box;
 }
 
 .cust-logo-none {

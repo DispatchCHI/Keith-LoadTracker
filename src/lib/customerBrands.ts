@@ -2,6 +2,8 @@
 export type CustomerBrand = {
   src: string;
   alt: string;
+  /** Wide wordmark/oval: render in a wider slot (object-fit: contain) so text stays legible. */
+  wide?: boolean;
 };
 
 export const REPUBLIC: CustomerBrand = {
@@ -24,8 +26,27 @@ export const LRS: CustomerBrand = {
   alt: "LRS Services",
 };
 
+export const KRMA: CustomerBrand = {
+  src: "/brand/krma-kankakee.png",
+  alt: "Kankakee River Metropolitan Agency (KRMA)",
+  wide: true,
+};
+
+export const FORD: CustomerBrand = {
+  src: "/brand/ford.png",
+  alt: "Ford",
+  wide: true,
+};
+
 /** Company choices when adding or editing a customer. */
-export type BrandCompanyId = "waste-management" | "republic" | "lrs" | "tri-state" | "none";
+export type BrandCompanyId =
+  | "waste-management"
+  | "republic"
+  | "lrs"
+  | "tri-state"
+  | "krma"
+  | "ford"
+  | "none";
 
 export const BRAND_COMPANY_OPTIONS: ReadonlyArray<{
   id: BrandCompanyId;
@@ -35,6 +56,8 @@ export const BRAND_COMPANY_OPTIONS: ReadonlyArray<{
   { id: "republic", label: "Republic Services" },
   { id: "lrs", label: "LRS Services" },
   { id: "tri-state", label: "Tri-State" },
+  { id: "krma", label: "KRMA" },
+  { id: "ford", label: "Ford" },
   { id: "none", label: "None" },
 ];
 
@@ -43,6 +66,8 @@ const BRAND_BY_COMPANY: Record<Exclude<BrandCompanyId, "none">, CustomerBrand> =
   republic: REPUBLIC,
   lrs: LRS,
   "tri-state": TRI_STATE,
+  krma: KRMA,
+  ford: FORD,
 };
 
 const BRAND_COMPANY_IDS = new Set<BrandCompanyId>(BRAND_COMPANY_OPTIONS.map((opt) => opt.id));
@@ -94,8 +119,36 @@ const CUSTOMER_BRANDS: Record<string, CustomerBrand> = Object.fromEntries(
       (n) => [n.trim().toLowerCase(), TRI_STATE] as const,
     ),
     ...["LRS", "LRS Services"].map((n) => [n.trim().toLowerCase(), LRS] as const),
+    ...["Kankakee RDF"].map((n) => [n.trim().toLowerCase(), KRMA] as const),
+    ...["Ford"].map((n) => [n.trim().toLowerCase(), FORD] as const),
   ],
 );
+
+/**
+ * Customers whose bundled logo shipped on 2026-10-06. Before then the
+ * Add-customer form defaulted to "none", so a crew map stamped earlier can
+ * hold a stale "none" for these names that would hide the new logo. Such
+ * legacy "none" entries are ignored (and dropped on the next brand save).
+ * A "none" chosen after the cutoff is honored as usual.
+ */
+const PRESET_LOGO_KEYS = new Set(["kankakee rdf", "ford"]);
+const PRESET_LOGO_CUTOFF_MS = Date.parse("2026-10-06T21:00:00.000Z");
+
+function dropLegacyPresetNones(
+  map: Record<string, BrandCompanyId>,
+  updatedAt: string,
+): Record<string, BrandCompanyId> {
+  const at = Date.parse(updatedAt);
+  if (Number.isFinite(at) && at >= PRESET_LOGO_CUTOFF_MS) return map;
+  let out = map;
+  for (const key of PRESET_LOGO_KEYS) {
+    if (out[key] === "none") {
+      if (out === map) out = { ...map };
+      delete out[key];
+    }
+  }
+  return out;
+}
 
 function normalizeCustomerKey(name: string): string {
   return name.replace(/\s+/g, " ").trim().toLowerCase();
@@ -131,7 +184,10 @@ function readOverrides(): Record<string, BrandCompanyId> {
   try {
     const raw = localStorage.getItem(CUSTOMER_BRAND_OVERRIDES_KEY);
     if (!raw) return {};
-    return sanitizeBrandsMap(JSON.parse(raw) as unknown);
+    return dropLegacyPresetNones(
+      sanitizeBrandsMap(JSON.parse(raw) as unknown),
+      readCustomerBrandOverridesUpdatedAt(),
+    );
   } catch {
     return {};
   }
