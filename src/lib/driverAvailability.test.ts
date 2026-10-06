@@ -227,7 +227,11 @@ describe("callOffCategoryFromReason", () => {
     expect(callOffCategoryFromReason("Late/Early 7am")).toBe("late-early");
     expect(callOffCategoryFromReason("Sick")).toBe("note");
     expect(callOffCategoryFromReason("In after court")).toBe("note");
-    expect(callOffCategoryFromReason("Jury Duty")).toBe("note");
+    expect(callOffCategoryFromReason("Jury Duty")).toBe("call-off");
+    expect(callOffCategoryFromReason("Bereavement, father died")).toBe("call-off");
+    expect(callOffCategoryFromReason("Last Day, Retiring")).toBe("note");
+    expect(callOffCategoryFromReason("Notes")).toBe("note");
+    expect(callOffCategoryFromReason("Notes, call off tomorrow")).toBe("note");
     expect(callOffCategoryFromReason("Ok'd to do 2 loads - Sick")).toBe("note");
     expect(callOffCategoryFromReason("P-Day, coming in after lunch")).toBe("note");
     expect(callOffCategoryFromReason("")).toBe("note");

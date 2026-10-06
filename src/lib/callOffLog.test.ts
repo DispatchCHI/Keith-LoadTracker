@@ -93,10 +93,13 @@ describe("custom reasons are Notes only", () => {
       "Vacation Day": "vacation",
       "FMLA Day": "fmla",
       "Late/Early": "late-early",
+      Notes: "note",
     } as const;
     for (const preset of CALL_OFF_REASON_PRESETS) {
       expect(kindForLogEntry({ reason: preset }), preset).toBe(expected[preset]);
-      expect(logEntrySubtracts({ reason: preset }), preset).toBe(preset !== "Late/Early");
+      expect(logEntrySubtracts({ reason: preset }), preset).toBe(
+        preset !== "Late/Early" && preset !== "Notes",
+      );
     }
   });
 
@@ -128,7 +131,8 @@ describe("custom reasons are Notes only", () => {
       "Doctor appointment",
       "In after court",
       "Court at 9am, will be in after",
-      "Jury Duty",
+      "Last Day, Retiring",
+      "Last Day , retiring",
       "Family emergency",
       "Car trouble, will call",
       "Doctor - call off",
@@ -137,6 +141,27 @@ describe("custom reasons are Notes only", () => {
       expect(kindForLogEntry({ reason }), reason).toBe("note");
       expect(logEntrySubtracts({ reason }), reason).toBe(false);
     }
+  });
+
+  it("still subtracts typed Bereavement / Jury Duty as Call Off", () => {
+    for (const reason of ["Bereavement", "Bereavement, father died", "Jury Duty", "jury duty thru Wed", "Out - jury duty"]) {
+      expect(kindForLogEntry({ reason }), reason).toBe("call-off");
+      expect(logEntrySubtracts({ reason }), reason).toBe(true);
+    }
+  });
+
+  it("keeps the Notes chip (and anything typed after it) Notes only", () => {
+    for (const reason of ["Notes", "Notes, coming in at 9", "notes - jury duty next week", "Notes: call off tomorrow"]) {
+      expect(kindForLogEntry({ reason }), reason).toBe("note");
+      expect(logEntrySubtracts({ reason }), reason).toBe(false);
+    }
+    const rows = [
+      { name: "Notes Driver", start: "2026-10-06", end: null, reason: "Notes, coming in at 9" },
+      { name: "Jury Driver", start: "2026-10-06", end: null, reason: "Jury Duty" },
+      { name: "Retiring Driver", start: "2026-10-06", end: null, reason: "Last Day, Retiring" },
+    ];
+    expect(fullDayOffCount(rows, "2026-10-06")).toBe(1);
+    expect(fullDayOffEntries(rows, [], "2026-10-06").map((row) => row.name)).toEqual(["Jury Driver"]);
   });
 
   it("keeps custom-text rows out of Available and the Today call-off list", () => {

@@ -256,25 +256,38 @@ const PRESET_PREFIX_RE: readonly (readonly [RegExp, CallOffKind])[] = [
   [/^fmla\b/, "fmla"],
 ];
 
+/** The "Notes" chip. Anything starting with it is Notes only, whatever follows. */
+const NOTES_PREFIX_RE = /^notes?\b/;
+
+/**
+ * Typed reasons that still count as a full day off (Call Off pill) even
+ * without a chip, wherever they appear in the text. Court, Last Day /
+ * Retiring and other custom text stay Notes only.
+ */
+const FULL_DAY_CUSTOM_RE: readonly RegExp[] = [/\bbereavement\b/, /\bjury\s+duty\b/];
+
 function presetKindFromNormalized(normalized: string): CallOffKind | null {
   const body = normalized.replace(/^[\d/.]+\s*/, "");
   for (const [re, kind] of PRESET_PREFIX_RE) {
     if (re.test(body)) return kind;
   }
+  if (FULL_DAY_CUSTOM_RE.some((re) => re.test(normalized))) return "call-off";
   return null;
 }
 
 /**
  * How a call-off log row is shown and counted.
+ * - Starts with the "Notes" chip → "note": Notes only, stays available.
  * - Late/Early (with any suffix, e.g. "Late/Early 7am") → "late-early":
  *   yellow status, stays available.
  * - Starts with a preset chip → that kind (subtracts), unless it reads as an
  *   operational note ("ok'd to do 2 loads", "coming in after").
+ * - Mentions Bereavement or Jury Duty → "call-off" (subtracts).
  * - Anything else (custom text) → "note": Notes only, stays available.
  */
 export function callOffCategoryFromReason(reason: string): CallOffCategory {
   const n = normalizeReason(reason);
-  if (!n) return "note";
+  if (!n || NOTES_PREFIX_RE.test(n)) return "note";
   if (isLateEarlyReason(n)) return "late-early";
   const kind = presetKindFromNormalized(n);
   if (!kind || isWorkingNote(n)) return "note";

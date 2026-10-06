@@ -36,6 +36,7 @@ export const CALL_OFF_REASON_PRESETS = [
   "Vacation Day",
   "FMLA Day",
   "Late/Early",
+  "Notes",
 ] as const;
 
 function newId(): string {

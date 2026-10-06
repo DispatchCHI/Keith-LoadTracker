@@ -129,6 +129,13 @@
   color: #422006 !important;
 }
 
+.calloffs-reason-row .calloff-kind-note,
+.calloffs-reason-row .calloff-kind-note.selected {
+  background: #e5e7eb !important;
+  border: 1px solid #c4c8cf !important;
+  color: #1f2937 !important;
+}
+
 .calloffs-split {
   display: grid;
   grid-template-columns: minmax(280px, 400px) minmax(0, 1fr);
@@ -365,10 +372,11 @@
   font-weight: 800;
 }
 
+/* Notes only: same light gray as the Notes chip. */
 .calloffs-note-pill {
-  background: #ffffff;
-  border: 1px solid #d0d3d9;
-  color: #4a4a4a;
+  background: #e5e7eb;
+  border: 1px solid #c4c8cf;
+  color: #1f2937;
 }
 
 .calloffs-actions {

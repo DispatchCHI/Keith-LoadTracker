@@ -297,6 +297,17 @@ html[data-theme="halloween"] .calloff-kind-fmla {
   color: #ede9fe !important;
 }
 
+html[data-theme="halloween"] .calloff-kind-note {
+  background: #4b4b52 !important;
+  border: 1px solid #a1a1aa !important;
+  color: #f4f4f5 !important;
+}
+
+html[data-theme="halloween"] .calloff-kind-note.selected {
+  background: #71717a !important;
+  color: #ffffff !important;
+}
+
 html[data-theme="halloween"] .calloff-kind-fmla.selected {
   background: #7c3aed !important;
   color: #ffffff !important;

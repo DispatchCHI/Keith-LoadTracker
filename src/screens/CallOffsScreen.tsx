@@ -10,10 +10,7 @@ import {
   type CallOffLogEntry,
 } from "../lib/callOffLog";
 import { cleanDriverName } from "../lib/driverRoster";
-import {
-  callOffKindFromReason,
-  type CallOffKind,
-} from "../lib/driverAvailability";
+import type { CallOffKind } from "../lib/driverAvailability";
 import { useCallOffLog } from "../store/CallOffLogContext";
 import { useDriverGone } from "../store/DriverGoneContext";
 import { useDriverRoster } from "../store/DriverRosterContext";
@@ -40,12 +37,8 @@ const KIND_TITLE: Record<CallOffKind, string> = {
   "late-early": "Late/Early",
 };
 
-function presetKind(reason: string): CallOffKind {
-  return callOffKindFromReason(reason);
-}
-
 function presetClass(reason: string): string {
-  return `calloff-kind-${presetKind(reason)}`;
+  return `calloff-kind-${kindForLogEntry({ reason })}`;
 }
 
 function nameKey(raw: string): string {
@@ -262,7 +255,7 @@ export function CallOffsScreen() {
 
         {customNote ? (
           <p className="calloffs-hint">
-            Custom reason saves as Notes only and does not subtract. Start with a chip (e.g. "Call Off, sick") to subtract.
+            Saves as Notes only: stays on the log and does not subtract. Use the Notes chip for notes (e.g. "Notes, coming in at 9"). To subtract, start with an off chip (e.g. "Call Off, sick").
           </p>
         ) : null}
 
