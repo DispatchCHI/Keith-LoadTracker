@@ -4620,6 +4620,20 @@ body.app-ready .splash {
   font-size: 12px;
 }
 
+a.drv-pay-phone {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  color: var(--amber);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.drv-pay-phone:hover,
+a.drv-pay-phone:focus-visible {
+  text-decoration: underline;
+}
+
 .drv-pay-icon {
   flex: 0 0 auto;
   margin: 0;
