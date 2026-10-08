@@ -24,6 +24,8 @@ import {
   rankPickups,
   type TotalsFilter,
 } from "../lib/totals";
+import { customerNames } from "../lib/customerLanes";
+import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useDailyEod } from "../store/DailyEodContext";
 import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
@@ -47,6 +49,8 @@ export function TotalsScreen({
   const { loads, loadsOn, exportCsv, hasSampleLoads, clearSampleLoads } = useLoads();
   const { totalsOn } = useDailyEod();
   const { availabilityOn } = useDrivers();
+  const { store: customerLanes } = useCustomerLanes();
+  const knownCustomers = useMemo(() => customerNames(customerLanes), [customerLanes]);
   const [filter, setFilter] = useState<TotalsFilter | null>(null);
   const snapshot = totalsOn(date);
 
@@ -59,7 +63,10 @@ export function TotalsScreen({
     return map;
   }, [loads, date, totalsOn]);
 
-  const byPickup = useMemo(() => rankPickups(dayLoads), [dayLoads]);
+  const byPickup = useMemo(
+    () => rankPickups(dayLoads, knownCustomers),
+    [dayLoads, knownCustomers],
+  );
   const byDestination = useMemo(() => rankDestinations(dayLoads), [dayLoads]);
   const byCommodity = useMemo(() => rankCommodities(dayLoads), [dayLoads]);
   const eod = useMemo(

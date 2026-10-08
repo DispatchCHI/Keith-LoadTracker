@@ -1,4 +1,5 @@
-import { CUSTOM_ID, getStation } from "../data/stations";
+import { CUSTOM_ID, getStation, resolveStationId } from "../data/stations";
+import { normalizePlaceName } from "./customerLanes";
 import { commodityRankLabel, tallyLabel } from "./commodity";
 import { STATION_CALL_YARDS, type StationDayBoard } from "./stationCalls";
 import { isBrokerTruck } from "./truck";
@@ -51,12 +52,36 @@ function bumpRank(
   });
 }
 
-export function rankPickups(loads: Load[]): RankRow[] {
+/**
+ * Pickups saved with the Custom station id still count as known when the name
+ * matches a built-in yard or a customer on the Customers page (case, spacing,
+ * and punctuation ignored). Customers-page pickups that are not built-in yards
+ * are stored with the custom id, so the id alone over-tags them.
+ */
+export function isKnownPickupName(
+  pickup: string,
+  knownPickups: Iterable<string> = [],
+): boolean {
+  const key = normalizePlaceName(pickup);
+  if (!key) return false;
+  if (resolveStationId(pickup) !== CUSTOM_ID) return true;
+  for (const name of knownPickups) {
+    if (normalizePlaceName(name) === key) return true;
+  }
+  return false;
+}
+
+export function rankPickups(
+  loads: Load[],
+  /** Customer names from the Customers page; matches are not tagged Custom. */
+  knownPickups: Iterable<string> = [],
+): RankRow[] {
+  const known = [...knownPickups];
   const map = new Map<string, RankRow>();
   for (const load of loads) {
     const key = load.pickup.trim() || "—";
     bumpRank(map, key, key, load, {
-      custom: load.stationId === CUSTOM_ID,
+      custom: load.stationId === CUSTOM_ID && !isKnownPickupName(key, known),
     });
   }
   return sortRanks([...map.values()]);

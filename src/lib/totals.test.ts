@@ -27,6 +27,7 @@ import {
   rankDestinations,
   rankPickups,
   formatRankTrashTotal,
+  isKnownPickupName,
 } from "./totals";
 
 function load(partial: Partial<Load>): Load {
@@ -1070,5 +1071,38 @@ describe("Walking Floor commodity counts in day tally", () => {
     for (const row of loads) expect(isWalkingFloorLoad(row)).toBe(true);
     expect(countWalkingFloorLoads(loads)).toBe(4);
     expect(countSheetTotalLoads(loads)).toBe(4);
+  });
+});
+
+describe("rankPickups Custom tag", () => {
+  const custom = (id: string, pickup: string) =>
+    load({ id, pickup, stationId: "custom", commodity: "Trash (MSW)" });
+
+  it("does not tag a Custom-id pickup that matches a Customers page name", () => {
+    const rows = rankPickups([custom("a", "East Chicago"), custom("b", " east  chicago ")], [
+      "East Chicago",
+    ]);
+    expect(rows.every((row) => !row.custom)).toBe(true);
+  });
+
+  it("still tags a pickup that matches no customer or yard", () => {
+    const rows = rankPickups([custom("a", "Joe's Pit")], ["East Chicago"]);
+    expect(rows.find((row) => row.key === "Joe's Pit")?.custom).toBe(true);
+  });
+
+  it("keeps the old tag when no customer list is passed", () => {
+    const rows = rankPickups([custom("a", "East Chicago")]);
+    expect(rows[0].custom).toBe(true);
+  });
+
+  it("does not tag a Custom-id pickup named like a built-in yard", () => {
+    const rows = rankPickups([custom("a", "batavia")]);
+    expect(rows[0].custom).toBeFalsy();
+  });
+
+  it("isKnownPickupName ignores case, spacing, and punctuation but not partial names", () => {
+    expect(isKnownPickupName("E. Chicago", ["e chicago"])).toBe(true);
+    expect(isKnownPickupName("East", ["East Chicago"])).toBe(false);
+    expect(isKnownPickupName("", ["East Chicago"])).toBe(false);
   });
 });
