@@ -82,7 +82,6 @@ export function YardDeskScreen({
   const snapshot = totalsOn(date);
   const [stamp, setStamp] = useState(date);
   const [pickupKey, setPickupKey] = useState<string | null>(null);
-  const [pickupTouched, setPickupTouched] = useState(false);
   const [landfillKey, setLandfillKey] = useState<string | null>(null);
   const [landfillTouched, setLandfillTouched] = useState(false);
   const [commodityKey, setCommodityKey] = useState<string | null>(null);
@@ -91,7 +90,6 @@ export function YardDeskScreen({
   if (stamp !== date) {
     setStamp(date);
     setPickupKey(null);
-    setPickupTouched(false);
     setLandfillKey(null);
     setLandfillTouched(false);
     setCommodityKey(null);
@@ -117,7 +115,7 @@ export function YardDeskScreen({
     [dayLoads, snapshot],
   );
   const week = weekStartingSunday(date);
-  const openPickup = chosen(pickupTouched, pickupKey, byPickup[0]?.key ?? null);
+  const openPickup = pickupKey;
   const openLandfill = chosen(landfillTouched, landfillKey, byDestination[0]?.key ?? null);
   const openCommodity = chosen(commodityTouched, commodityKey, byCommodity[0]?.key ?? null);
 
@@ -256,7 +254,6 @@ export function YardDeskScreen({
             openKey={openPickup}
             loads={dayLoads}
             onSelect={(key) => {
-              setPickupTouched(true);
               setPickupKey(openPickup === key ? null : key);
             }}
             onEdit={onEdit}
@@ -372,7 +369,6 @@ function TransferStations({
   onEdit: (id: string) => void;
 }) {
   const open = rows.find((row) => row.key === openKey) ?? null;
-  const rest = open ? rows.filter((row) => row.key !== open.key) : rows;
   const openLoads = open
     ? rankAccordionLoads(loads, { kind: "pickup", key: open.key })
     : [];
@@ -383,43 +379,46 @@ function TransferStations({
         <h2>Transfer stations</h2>
         <span className="yard-hint">Tap a site · MSW / total</span>
       </div>
+      {rows.length > 0 ? (
+        <div className="yard-site-grid">
+          {rows.map((row) => {
+            const selected = row.key === openKey;
+            return (
+              <button
+                key={row.key}
+                type="button"
+                className={selected ? "yard-site on" : "yard-site"}
+                aria-expanded={selected}
+                onClick={() => onSelect(row.key)}
+              >
+                <span className="yard-site-name">
+                  {row.label}
+                  {row.custom ? <em className="yard-custom">Custom</em> : null}
+                </span>
+                <span className="yard-site-num">{row.trashCount}</span>
+                <span className="yard-site-num">{row.count}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="yard-empty">Nothing logged this day.</p>
+      )}
       {open ? (
-        <div className="yard-open-site">
-          <button
-            type="button"
-            className="yard-open-head"
-            aria-expanded
-            onClick={() => onSelect(open.key)}
-          >
+        <div className="yard-load-pop" role="region" aria-label={`${open.label} loads`}>
+          <div className="yard-load-pop-head">
             <strong>{open.label}</strong>
             {open.custom ? <em className="yard-custom">Custom</em> : null}
             <span>
               {open.trashCount} msw · {open.count} total
             </span>
-          </button>
+            <button type="button" className="yard-load-pop-close" onClick={() => onSelect(open.key)}>
+              Close
+            </button>
+          </div>
           <RankLoads loads={openLoads} onEdit={onEdit} checkoff />
         </div>
       ) : null}
-      {rest.length > 0 ? (
-        <div className="yard-site-grid">
-          {rest.map((row) => (
-            <button
-              key={row.key}
-              type="button"
-              className="yard-site"
-              onClick={() => onSelect(row.key)}
-            >
-              <span className="yard-site-name">
-                {row.label}
-                {row.custom ? <em className="yard-custom">Custom</em> : null}
-              </span>
-              <span className="yard-site-num">{row.trashCount}</span>
-              <span className="yard-site-num">{row.count}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {rows.length === 0 ? <p className="yard-empty">Nothing logged this day.</p> : null}
     </section>
   );
 }

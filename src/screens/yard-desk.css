@@ -431,8 +431,63 @@
   border-color: #7eb6ff;
 }
 
-.yard-open-site {
-  margin-bottom: 8px;
+.yard-transfers {
+  position: relative;
+  z-index: 6;
+  overflow: visible;
+}
+
+.yard-col:not(.yard-right) {
+  overflow: visible;
+}
+
+.yard-load-pop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 7;
+  background: #fff;
+  border: 1px solid #d0d3d9;
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(17, 24, 39, 0.22);
+  padding: 8px 10px 10px;
+  max-height: min(440px, 55vh);
+  overflow: auto;
+}
+
+.yard-load-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.yard-load-pop-head strong {
+  font-size: 14px;
+}
+
+.yard-load-pop-head span {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.yard-load-pop-close {
+  border: 0;
+  background: transparent;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  padding: 0;
+}
+
+.yard-site.on {
+  background: #d6e8fb;
+  border-radius: 6px;
 }
 
 .yard-open-head {

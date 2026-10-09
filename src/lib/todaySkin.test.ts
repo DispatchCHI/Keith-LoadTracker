@@ -61,6 +61,7 @@ describe("today skin on this desk", () => {
     expect(screen).toContain("sectionsOnly");
     expect(screen).toContain("showUnavailable");
     expect(screen).toContain("yard-right");
+    expect(screen).toContain("yard-load-pop");
     expect(screen).not.toContain("yard-driver-names");
     expect(screen).not.toContain("CollapsibleRank");
     expect(screen).not.toContain("<DayPicker");
