@@ -573,6 +573,12 @@
   text-align: right;
 }
 
+.yard-site-num.full {
+  background: var(--trash-only-bg, #d6e8fb);
+  border-radius: 2px;
+  padding: 0 4px;
+}
+
 .yard-custom {
   flex: 0 0 auto;
   font-style: normal;

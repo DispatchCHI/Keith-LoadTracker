@@ -28,6 +28,15 @@ export function formatRankTrashTotal(
   return `${row.trashCount} / ${row.count}`;
 }
 
+/**
+ * Trash-only site: at least one load, and every load counts as trash.
+ * The Transfer station table paints MSW and total with the light-blue highlight
+ * when this is true.
+ */
+export function isTrashOnlyRank(row: Pick<RankRow, "count" | "trashCount">): boolean {
+  return row.count > 0 && row.trashCount === row.count;
+}
+
 function bumpRank(
   map: Map<string, RankRow>,
   key: string,

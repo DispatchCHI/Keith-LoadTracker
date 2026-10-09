@@ -22,6 +22,8 @@
   --amber: #b8860b;
   --amber-ink: var(--brand-ink);
   --danger: #e85d4c;
+  /* Trash-only MSW/total cells on Transfer station tables. */
+  --trash-only-bg: #d6e8fb;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -6702,7 +6704,7 @@ body.app-ready .splash {
 
 .sheet-sites td.num.full,
 .sheet-sites td.num.full.is-on {
-  background: #d6e8fb;
+  background: var(--trash-only-bg);
 }
 
 .sheet-sites .site-hit {

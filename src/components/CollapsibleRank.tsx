@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { formatRankTrashTotal, type RankRow, type TotalsFilter } from "../lib/totals";
+import { formatRankTrashTotal, isTrashOnlyRank, type RankRow, type TotalsFilter } from "../lib/totals";
 
 type CollapsibleRankProps = {
   title: string;
@@ -213,7 +213,7 @@ function SheetRank({
                   <tr>
                     {pair.map((row) => {
                       const selected = active?.kind === filterKind && active.key === row.key;
-                      const full = !commodity && row.count > 0 && row.trashCount === row.count;
+                      const full = !commodity && isTrashOnlyRank(row);
                       const choose = () => onSelect?.({ kind: filterKind, key: row.key });
                       return (
                         <SiteCells

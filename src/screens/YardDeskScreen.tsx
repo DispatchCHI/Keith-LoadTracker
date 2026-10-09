@@ -18,6 +18,7 @@ import { readCheckedLoadIds, toggleCheckedLoad } from "../lib/loadCheckoff";
 import {
   endOfDayCards,
   endOfDaySummary,
+  isTrashOnlyRank,
   rankAccordionLoads,
   rankCommodities,
   rankDestinations,
@@ -375,6 +376,8 @@ function TransferStations({
         <div className="yard-site-grid">
           {rows.map((row) => {
             const selected = row.key === openKey;
+            const trashOnly = isTrashOnlyRank(row);
+            const numClass = trashOnly ? "yard-site-num full" : "yard-site-num";
             return (
               <button
                 key={row.key}
@@ -387,8 +390,8 @@ function TransferStations({
                   {row.label}
                   {row.custom ? <em className="yard-custom">Custom</em> : null}
                 </span>
-                <span className="yard-site-num">{row.trashCount}</span>
-                <span className="yard-site-num">{row.count}</span>
+                <span className={numClass}>{row.trashCount}</span>
+                <span className={numClass}>{row.count}</span>
               </button>
             );
           })}

@@ -1,6 +1,7 @@
 /* Seasonal overlay. Active only when <html data-theme="halloween">. */
 html[data-theme="halloween"] {
   color-scheme: dark;
+  --trash-only-bg: #1e3a5f;
   --bg: #12080c;
   --phone: #160a10;
   --surface: #24141a;
@@ -403,4 +404,10 @@ html[data-theme="halloween"] .rank-accordion .load-row.load-row-checked {
   color: #f8fafc !important;
   border-color: #4b5563 !important;
   box-shadow: none !important;
+}
+
+html[data-theme="halloween"] .sheet-sites td.num.full,
+html[data-theme="halloween"] .sheet-sites td.num.full.is-on,
+html[data-theme="halloween"] .yard-site-num.full {
+  color: #d6e8fb;
 }

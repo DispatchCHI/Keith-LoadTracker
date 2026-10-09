@@ -27,6 +27,7 @@ import {
   rankDestinations,
   rankPickups,
   formatRankTrashTotal,
+  isTrashOnlyRank,
   isKnownPickupName,
 } from "./totals";
 
@@ -648,6 +649,21 @@ describe("rank grouping trash / total", () => {
     const row = rankPickups(loads).find((item) => item.key === "Northlake");
     expect(row).toMatchObject({ count: 30, trashCount: 11 });
     expect(formatRankTrashTotal(row!)).toBe("11 / 30");
+  });
+
+  it("highlights a site only when MSW equals total and total is above zero", () => {
+    expect(isTrashOnlyRank({ count: 17, trashCount: 17 })).toBe(true);
+    expect(isTrashOnlyRank({ count: 16, trashCount: 15 })).toBe(false);
+    expect(isTrashOnlyRank({ count: 0, trashCount: 0 })).toBe(false);
+    const rank = readFileSync(new URL("../components/CollapsibleRank.tsx", import.meta.url), "utf8");
+    const yard = readFileSync(new URL("../screens/YardDeskScreen.tsx", import.meta.url), "utf8");
+    expect(rank).toContain("isTrashOnlyRank(row)");
+    expect(yard).toContain("isTrashOnlyRank(row)");
+    expect(yard).toContain("yard-site-num full");
+    const css = readFileSync(new URL("../screens/yard-desk.css", import.meta.url), "utf8");
+    const sheet = readFileSync(new URL("../index.css", import.meta.url), "utf8");
+    expect(css).toContain("var(--trash-only-bg");
+    expect(sheet).toContain("var(--trash-only-bg)");
   });
 
   it("does not count Van Drunen MSW as trash (walking-floor lane, same as Today TRASH)", () => {
