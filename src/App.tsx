@@ -40,7 +40,7 @@ import { LoadsProvider, useLoads } from "./store/LoadsContext";
 import type { TabId } from "./types";
 
 type Overlay =
-  | { kind: "log"; truck?: string; date?: string }
+  | { kind: "log"; truck?: string; date?: string; pickup?: string }
   | { kind: "edit"; loadId: string }
   | { kind: "day-notes"; date: string }
   | null;
@@ -166,7 +166,7 @@ function Shell() {
               date={feedDate}
               onDateChange={setFeedDate}
               justEditedId={justEditedId}
-              onLog={(date) => setOverlay({ kind: "log", date })}
+              onLog={(date, pickup) => setOverlay({ kind: "log", date, pickup })}
               onNotes={(date) => setOverlay({ kind: "day-notes", date })}
               onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
               topSlot={yardSlot}
@@ -200,7 +200,7 @@ function Shell() {
               date={feedDate}
               onDateChange={setFeedDate}
               justEditedId={justEditedId}
-              onLog={(date) => setOverlay({ kind: "log", date })}
+              onLog={(date, pickup) => setOverlay({ kind: "log", date, pickup })}
               onNotes={(date) => setOverlay({ kind: "day-notes", date })}
               onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
               skinToggle={skinToggle}
@@ -257,6 +257,7 @@ function Shell() {
               desktop,
               <LogLoadScreen
                 initialTruck={view.truck}
+                initialPickup={view.pickup}
                 date={view.date}
                 onCancel={() => setOverlay(null)}
                 onSaved={afterSave}

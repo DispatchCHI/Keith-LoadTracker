@@ -51,7 +51,7 @@ type YardDeskScreenProps = {
   date: string;
   onDateChange: (iso: string) => void;
   justEditedId: string | null;
-  onLog: (date: string) => void;
+  onLog: (date: string, pickup?: string) => void;
   onNotes: (date: string) => void;
   onEdit: (id: string) => void;
   skinToggle?: ReactNode;
@@ -254,6 +254,7 @@ export function YardDeskScreen({
               setPickupKey(openPickup === key ? null : key);
             }}
             onEdit={onEdit}
+            onLogStation={(pickup) => onLog(date, pickup)}
           />
         </div>
 
@@ -350,12 +351,14 @@ function TransferStations({
   loads,
   onSelect,
   onEdit,
+  onLogStation,
 }: {
   rows: RankRow[];
   openKey: string | null;
   loads: Load[];
   onSelect: (key: string) => void;
   onEdit: (id: string) => void;
+  onLogStation: (pickup: string) => void;
 }) {
   const open = rows.find((row) => row.key === openKey) ?? null;
   const openLoads = open
@@ -401,6 +404,13 @@ function TransferStations({
             <span>
               {open.trashCount} msw · {open.count} total
             </span>
+            <button
+              type="button"
+              className="yard-load-pop-log"
+              onClick={() => onLogStation(open.label)}
+            >
+              Log load
+            </button>
             <button type="button" className="yard-load-pop-close" onClick={() => onSelect(open.key)}>
               Close
             </button>

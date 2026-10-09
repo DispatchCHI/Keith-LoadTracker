@@ -7,6 +7,7 @@ import {
 } from "../components/LoadForm";
 import { QuantityStepper } from "../components/QuantityStepper";
 import { TruckEntry } from "../components/TruckEntry";
+import { CUSTOM_ID, resolveStationId } from "../data/stations";
 import { pickupLabel } from "../lib/cascade";
 import { chicagoToday, formatCreatedStamp, formatHeaderDate } from "../lib/chicagoDate";
 import { findNearDuplicate } from "../lib/duplicates";
@@ -30,10 +31,20 @@ import type { Load } from "../types";
 
 type LogLoadScreenProps = {
   initialTruck?: string;
+  initialPickup?: string;
   date?: string;
   onCancel: () => void;
   onSaved: (id: string, date: string) => void;
 };
+
+/** Pickup only. Commodity and destination stay blank so the dispatcher still picks them. */
+function seedPickup(name: string): { stationId: string; pickup: string } {
+  const trimmed = name.trim();
+  if (!trimmed) return { stationId: "", pickup: "" };
+  const stationId = resolveStationId(trimmed);
+  if (stationId === CUSTOM_ID) return { stationId: CUSTOM_ID, pickup: trimmed };
+  return { stationId, pickup: "" };
+}
 
 function previewForTruckListInput(
   rosterStore: Parameters<typeof previewDriversForTruckInput>[0],
@@ -55,6 +66,7 @@ function previewForTruckListInput(
 
 export function LogLoadScreen({
   initialTruck = "",
+  initialPickup = "",
   date,
   onCancel,
   onSaved,
@@ -80,12 +92,15 @@ export function LogLoadScreen({
   const [step, setStep] = useState<"truck" | "form">(
     initialTruck ? "form" : "truck",
   );
-  const [form, setForm] = useState<FormState>({
-    truck: initialTruck,
-    stationId: "",
-    pickup: "",
-    commodity: "",
-    destination: "",
+  const [form, setForm] = useState<FormState>(() => {
+    const seeded = seedPickup(initialPickup);
+    return {
+      truck: initialTruck,
+      stationId: seeded.stationId,
+      pickup: seeded.pickup,
+      commodity: "",
+      destination: "",
+    };
   });
 
   const qty = clampLoadQty(quantity);
