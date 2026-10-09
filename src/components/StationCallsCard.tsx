@@ -642,11 +642,11 @@ export function StationCallsCard({
     <article className="station-calls-card">
       <div className={noteAside ? "station-calls-head station-calls-head-aside" : "station-calls-head"}>
         <div>
-          <p className="section-title">Load Count By Hour</p>
+          <p className="section-title">{noteAside ? "Load count by hour" : "Load Count By Hour"}</p>
           <p className="station-calls-sub">
-            {formatHeaderDate(date)} · Start from prior Close · hour cells blank until you call
-            {cloud ? " · synced" : " · this device only"}
-            {" · hover or tap a station name for a note"}
+            {noteAside
+              ? "Stations down the side, hours across. Start is the prior day’s Close. Cells stay blank until a call."
+              : `${formatHeaderDate(date)} · Start from prior Close · hour cells blank until you call${cloud ? " · synced" : " · this device only"} · hover or tap a station name for a note`}
           </p>
         </div>
         {aside ? (

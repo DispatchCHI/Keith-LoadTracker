@@ -85,6 +85,8 @@ function Shell() {
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [justEditedId, setJustEditedId] = useState<string | null>(null);
   const [todaySkin, setTodaySkin] = useState<TodaySkin>(() => readTodaySkin());
+  const [yardSlot, setYardSlot] = useState<HTMLDivElement | null>(null);
+  const yardDesk = tab === "today" && todaySkin === "yard";
 
   function toggleTodaySkin() {
     setTodaySkin((current) => {
@@ -137,13 +139,14 @@ function Shell() {
   const main = (
     <>
       {desktop ? (
-        <header className="desk-topbar">
+        <header className={yardDesk ? "desk-topbar desk-topbar-yard" : "desk-topbar"}>
           <div className="desk-topbar-brand">
             <BrandMark size="lg" />
             <div>
               <h1 className="desk-brand">The Load Tracker</h1>
             </div>
           </div>
+          {yardDesk ? <div className="yard-top-slot" ref={setYardSlot} /> : null}
           {tab === "today" ? skinToggle : null}
         </header>
       ) : null}
@@ -166,6 +169,8 @@ function Shell() {
               onLog={(date) => setOverlay({ kind: "log", date })}
               onNotes={(date) => setOverlay({ kind: "day-notes", date })}
               onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
+              topSlot={yardSlot}
+              dockBand
             />
           ) : null}
 

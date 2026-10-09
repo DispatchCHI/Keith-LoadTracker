@@ -58,8 +58,11 @@ describe("today skin on this desk", () => {
     expect(screen).toContain("Transfer stations");
     expect(screen).toContain("layout=\"chips\"");
     expect(screen).toContain("noteAside");
+    expect(screen).toContain("sectionsOnly");
+    expect(screen).toContain("showUnavailable");
+    expect(screen).toContain("yard-right");
+    expect(screen).not.toContain("yard-driver-names");
     expect(screen).not.toContain("CollapsibleRank");
-    expect(screen).not.toContain("DriversCard");
     expect(screen).not.toContain("<DayPicker");
   });
 });

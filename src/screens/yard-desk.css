@@ -29,7 +29,56 @@
 
 .yard-desk {
   background: #eef1f4;
-  gap: 10px;
+  gap: 8px;
+  padding: 8px 10px 16px;
+}
+
+.desk-topbar-yard {
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: #eef1f4;
+  border-bottom: 1px solid #d5d9e0;
+}
+
+.desk-topbar-yard .desk-topbar-brand {
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.desk-topbar-yard .desk-brand {
+  margin: 0;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.desk-topbar-yard .brand-plate-lg {
+  padding: 0;
+  background: transparent;
+}
+
+.desk-topbar-yard .brand-plate-lg img {
+  height: 34px;
+  width: 52px;
+  max-width: 52px;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.yard-top-slot {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.desk-topbar-yard .yard-band {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  border-radius: 0;
 }
 
 .yard-band {
@@ -242,8 +291,14 @@
 .yard-work {
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1.45fr) minmax(220px, 300px);
-  gap: 10px;
+  gap: 8px;
   align-items: start;
+}
+
+.yard-right {
+  height: 480px;
+  max-height: 480px;
+  overflow: hidden;
 }
 
 .yard-col {
@@ -259,6 +314,21 @@
   border-radius: 12px;
   padding: 8px 10px 10px;
   min-width: 0;
+}
+
+.yard-right .yard-rank {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 8px;
+}
+
+.yard-rank-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .yard-panel-head {
@@ -485,26 +555,81 @@
 }
 
 .yard-load-feed {
-  gap: 4px;
+  gap: 3px;
   margin: 4px 0 6px;
 }
 
-.yard-desk .yard-load-feed .load-row {
+.yard-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #e1e4e8;
   border-radius: 8px;
-  padding: 6px 8px;
   background: #fff;
-  gap: 6px;
+  min-width: 0;
 }
 
-.yard-desk .yard-load-feed .load-row-checked {
+.yard-line.is-checked {
   background: #9aa3ad;
   border-color: #6f7782;
-  color: #111827;
 }
 
-.yard-desk .yard-load-feed .load-row-check-hit {
-  margin: -6px -2px -6px -8px;
-  padding: 6px 2px 6px 8px;
+.yard-line-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.yard-line-main b {
+  flex: 0 0 auto;
+}
+
+.yard-line-driver,
+.yard-line-route,
+.yard-line-kind {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yard-line-route {
+  flex: 1;
+}
+
+.yard-line-kind {
+  flex: 0 1 auto;
+  color: #4b5563;
+}
+
+.yard-line-mark {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1f2937;
+}
+
+.yard-line-edit {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: #1e3a8a;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 4px 8px 4px 0;
+  cursor: pointer;
 }
 
 .yard-specialty {
@@ -615,23 +740,34 @@
   color: #1e3a8a;
 }
 
+.yard-desk .station-calls-card {
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.yard-desk .station-calls-table th,
+.yard-desk .station-calls-table td {
+  padding: 1px 3px;
+}
+
 .yard-desk .station-calls-head-aside {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
 .yard-desk .station-note-aside {
-  flex: 0 1 340px;
+  flex: 0 1 360px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 180px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   background: #eef3f8;
   border: 1px solid #c9d4e2;
-  border-radius: 10px;
-  padding: 6px 10px;
+  border-radius: 999px;
+  padding: 4px 12px;
 }
 
 .yard-desk .station-note-aside-kicker {
@@ -651,6 +787,10 @@
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .yard-desk .station-note-aside-input {
@@ -667,6 +807,18 @@
   .yard-work,
   .yard-site-grid {
     grid-template-columns: 1fr;
+  }
+
+  .yard-right {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .yard-right .yard-rank {
+    flex: none;
+    height: 240px;
+    max-height: 240px;
   }
 
   .yard-date,

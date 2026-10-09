@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { dailyCounts } from "../lib/analytics";
 import { applyDailyEodToSummary, displayLoadCount, isSheetEodCard } from "../lib/dailyEod";
@@ -25,8 +26,8 @@ import {
 } from "../lib/totals";
 import { customerNames } from "../lib/customerLanes";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
+import { DriversCard } from "../components/DriversCard";
 import { EodReportButton } from "../components/EodReportButton";
-import { LoadRow } from "../components/LoadRow";
 import { SpecialtyBoardCard } from "../components/SpecialtyBoardCard";
 import { StationCallsCard } from "../components/StationCallsCard";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
@@ -53,6 +54,10 @@ type YardDeskScreenProps = {
   onNotes: (date: string) => void;
   onEdit: (id: string) => void;
   skinToggle?: ReactNode;
+  /** Desktop top bar slot. When set, the band sits in that bar instead of the page. */
+  topSlot?: HTMLElement | null;
+  /** Keep the band out of the page until the desktop top bar slot is ready. */
+  dockBand?: boolean;
 };
 
 export function YardDeskScreen({
@@ -63,6 +68,8 @@ export function YardDeskScreen({
   onNotes,
   onEdit,
   skinToggle,
+  topSlot = null,
+  dockBand = false,
 }: YardDeskScreenProps) {
   const { loads, loadsOn } = useLoads();
   const { notesAffordance } = useDayNotes();
@@ -130,8 +137,7 @@ export function YardDeskScreen({
     onDateChange(iso);
   };
 
-  return (
-    <div className="screen yard-desk">
+  const band = (
       <div className="yard-band">
         <div className="yard-date">
           <div>
@@ -223,6 +229,11 @@ export function YardDeskScreen({
           />
         </label>
       </div>
+  );
+
+  return (
+    <div className="screen yard-desk">
+      {dockBand ? (topSlot ? createPortal(band, topSlot) : null) : band}
 
       <div className="yard-work">
         <div className="yard-col yard-side">
@@ -230,7 +241,6 @@ export function YardDeskScreen({
             date={date}
             available={availabilityOn(date)?.available ?? null}
             loadCount={displayLoadCount(dayLoads.length, snapshot)}
-            loads={dayLoads}
           />
           <DispatchTalliesRow
             date={date}
@@ -253,7 +263,7 @@ export function YardDeskScreen({
           />
         </div>
 
-        <div className="yard-col">
+        <div className="yard-col yard-right">
           <OpeningList
             title="Landfill"
             rows={byDestination}
@@ -303,26 +313,15 @@ function YardDrivers({
   date,
   available,
   loadCount,
-  loads,
 }: {
   date: string;
   available: number | null;
   loadCount: number;
-  loads: Load[];
 }) {
   const [open, setOpen] = useState(true);
   const sunday = isChicagoSunday(date);
   const ratio =
     !sunday && available != null && available > 0 ? (loadCount / available).toFixed(2) : null;
-  const names = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const load of loads) {
-      const name = load.driverName?.trim();
-      if (!name) continue;
-      map.set(name, (map.get(name) ?? 0) + 1);
-    }
-    return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [loads]);
 
   const summary = sunday
     ? "No Sunday tally"
@@ -353,18 +352,7 @@ function YardDrivers({
         ) : null}
       </p>
       {open ? (
-        names.length > 0 ? (
-          <ul className="yard-driver-names">
-            {names.map(([name, count]) => (
-              <li key={name}>
-                <span>{name}</span>
-                <b>{count}</b>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="yard-empty">No driver names on this day’s loads.</p>
-        )
+        <DriversCard sectionsOnly showUnavailable date={date} loadCount={loadCount} />
       ) : null}
     </section>
   );
@@ -457,26 +445,28 @@ function OpeningList({
         <h2>{title}</h2>
         <span className="yard-hint">Tap to open</span>
       </div>
-      {rows.length === 0 ? <p className="yard-empty">Nothing logged this day.</p> : null}
-      <ul className="yard-rank-list">
-        {rows.map((row) => {
-          const open = row.key === openKey;
-          return (
-            <li key={row.key}>
-              <button
-                type="button"
-                className={open ? "yard-rank-row on" : "yard-rank-row"}
-                aria-expanded={open}
-                onClick={() => onSelect(row.key)}
-              >
-                <span>{row.label}</span>
-                <b>{row.count}</b>
-              </button>
-              {open ? <RankLoads loads={loads} onEdit={onEdit} /> : null}
-            </li>
-          );
-        })}
-      </ul>
+      <div className="yard-rank-scroll">
+        {rows.length === 0 ? <p className="yard-empty">Nothing logged this day.</p> : null}
+        <ul className="yard-rank-list">
+          {rows.map((row) => {
+            const open = row.key === openKey;
+            return (
+              <li key={row.key}>
+                <button
+                  type="button"
+                  className={open ? "yard-rank-row on" : "yard-rank-row"}
+                  aria-expanded={open}
+                  onClick={() => onSelect(row.key)}
+                >
+                  <span>{row.label}</span>
+                  <b>{row.count}</b>
+                </button>
+                {open ? <RankLoads loads={loads} onEdit={onEdit} /> : null}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </section>
   );
 }
@@ -500,17 +490,36 @@ function RankLoads({
       {checkoff ? (
         <p className="yard-empty">Shade turns the load darker gray. A second click clears it.</p>
       ) : null}
-      {loads.map((load) => (
-        <LoadRow
-          key={load.id}
-          load={load}
-          checked={checkoff && checkedIds.has(load.id)}
-          onToggleCheck={
-            checkoff ? () => setCheckedIds(toggleCheckedLoad(load.id)) : undefined
-          }
-          onEdit={() => onEdit(load.id)}
-        />
-      ))}
+      {loads.map((load) => {
+        const checked = checkoff && checkedIds.has(load.id);
+        return (
+          <div key={load.id} className={checked ? "yard-line is-checked" : "yard-line"}>
+            <button
+              type="button"
+              className="yard-line-main"
+              aria-pressed={checkoff ? checked : undefined}
+              onClick={
+                checkoff
+                  ? () => setCheckedIds(toggleCheckedLoad(load.id))
+                  : () => onEdit(load.id)
+              }
+            >
+              <b>{load.truck}</b>
+              {load.driverName ? <span className="yard-line-driver">{load.driverName}</span> : null}
+              <span className="yard-line-route">
+                {load.pickup} → {load.destination}
+              </span>
+              <span className="yard-line-kind">{load.commodity}</span>
+              {checked ? <em className="yard-line-mark">Checked</em> : null}
+            </button>
+            {checkoff ? (
+              <button type="button" className="yard-line-edit" onClick={() => onEdit(load.id)}>
+                Edit
+              </button>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }

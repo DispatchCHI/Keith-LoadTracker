@@ -12,9 +12,11 @@ import {
   type CallOffKind,
 } from "../lib/driverAvailability";
 import { vacationNamesOnDateAllYards } from "../lib/rosterVacation";
+import { rosterUnavailableEntries } from "../lib/rosterAvailability";
 import { canRemoveTodayCallOff } from "../lib/todayCallOffSync";
 import { DriverNameInput } from "./DriverNameInput";
 import { useCallOffLog } from "../store/CallOffLogContext";
+import { useDriverRoster } from "../store/DriverRosterContext";
 import { useDrivers } from "../store/DriversContext";
 import { useVacation } from "../store/VacationContext";
 import "./drivers-card.css";
@@ -52,11 +54,17 @@ export function DriversCard({
   collapsible = false,
   date,
   loadCount = null,
+  sectionsOnly = false,
+  showUnavailable = false,
 }: {
   compact?: boolean;
   collapsible?: boolean;
   date?: string;
   loadCount?: number | null;
+  /** Yard Desk renders these sections under its own summary. Classic Today omits this. */
+  sectionsOnly?: boolean;
+  /** Yard Desk lists roster-unavailable names. Classic Today omits this. */
+  showUnavailable?: boolean;
 }) {
   const today = chicagoToday();
   const viewed = date ?? today;
@@ -78,10 +86,28 @@ export function DriversCard({
   } = useDrivers();
   const { rows: callOffLogRows } = useCallOffLog();
   const vacation = useVacation();
+  const { store: rosterStore } = useDriverRoster();
   const vacationNames = useMemo(
     () => vacationNamesOnDateAllYards(vacation.store, viewed),
     [vacation.store, viewed],
   );
+  const unavailableNames = useMemo(() => {
+    if (!showUnavailable || sunday) return [];
+    const kind = saturday ? "sat" : "full";
+    const onVacation = new Set(vacationNames.map((name) => name.trim().toLowerCase()));
+    const seen = new Set<string>();
+    const names: string[] = [];
+    for (const entry of rosterUnavailableEntries(rosterStore, vacation.store, viewed, { kind })) {
+      const status = (entry.status ?? "").trim().toLowerCase();
+      if (status === "oot" || status === "vac") continue;
+      const key = entry.name.trim().toLowerCase();
+      if (!key || seen.has(key) || onVacation.has(key)) continue;
+      seen.add(key);
+      names.push(entry.name.trim());
+    }
+    names.sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+    return names;
+  }, [showUnavailable, sunday, saturday, vacationNames, rosterStore, vacation.store, viewed]);
   const [open, setOpen] = useState(!collapsible);
   const dayAvail = availabilityOn(viewed);
   const avg = ytdAverage(today);
@@ -171,12 +197,17 @@ export function DriversCard({
   return (
     <article
       className={[
-        compact ? "drivers-card drivers-card-compact" : "drivers-card",
-        collapsed ? "drivers-card-collapsed" : "",
+        sectionsOnly
+          ? "drivers-card-sections"
+          : compact
+            ? "drivers-card drivers-card-compact"
+            : "drivers-card",
+        !sectionsOnly && collapsed ? "drivers-card-collapsed" : "",
       ]
         .filter(Boolean)
         .join(" ")}
     >
+      {sectionsOnly ? null : (
       <div className="drivers-card-top">
         {collapsible ? (
           <button
@@ -226,9 +257,10 @@ export function DriversCard({
           </div>
         )}
       </div>
+      )}
 
       {!collapsed && showOot ? (
-        <div className="oot-block">
+        <div className="oot-block drivers-sec-oot">
           <p className="oot-label">Out of town</p>
           {displayedOot.length ? (
             <ul className="oot-list">
@@ -251,7 +283,7 @@ export function DriversCard({
       ) : null}
 
       {!collapsed && showCallOffs ? (
-        <div className="oot-block">
+        <div className="oot-block drivers-sec-call">
           <div className="calloff-head">
             <div>
               <p className="oot-label">Call offs</p>
@@ -366,8 +398,25 @@ export function DriversCard({
         </div>
       ) : null}
 
+      {showUnavailable && !sunday ? (
+        <div className="oot-block drivers-sec-unavail">
+          <p className="oot-label">Unavailable drivers</p>
+          {unavailableNames.length ? (
+            <ul className="oot-list">
+              {unavailableNames.map((name) => (
+                <li key={name} className="oot-chip">
+                  {name}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="oot-empty">No unavailable drivers</p>
+          )}
+        </div>
+      ) : null}
+
       {!collapsed && !sunday ? (
-        <div className="oot-block">
+        <div className="oot-block drivers-sec-vac">
           <p className="oot-label">Vacation</p>
           {vacationNames.length ? (
             <ul className="oot-list">
@@ -383,13 +432,13 @@ export function DriversCard({
         </div>
       ) : null}
 
-      {!collapsed && !compact && avg !== null ? (
+      {!sectionsOnly && !collapsed && !compact && avg !== null ? (
         <p className="drivers-avg">
           YTD average {avg.toFixed(0)} available · Mon–Sat (no Sundays)
         </p>
       ) : null}
 
-      {!collapsed ? (
+      {!sectionsOnly && !collapsed ? (
         <>
           <div className="drivers-actions">
             <span className="field-hint tight">
