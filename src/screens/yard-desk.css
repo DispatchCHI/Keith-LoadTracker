@@ -975,66 +975,70 @@
   cursor: pointer;
 }
 
-.yard-hour-note {
-  flex: 0 0 auto;
-  align-self: flex-start;
+.yard-hour-note-pop {
+  position: fixed;
+  z-index: 70;
   width: max-content;
-  max-width: min(420px, 100%);
+  max-width: min(420px, calc(100vw - 16px));
+  padding: 8px 10px;
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #d0d3d9;
   border-radius: 10px;
-  padding: 6px 10px;
+  box-shadow: 0 16px 36px rgba(17, 24, 39, 0.22);
+  color: #111827;
 }
 
-.yard-hour-note:has(.station-note-aside-input) {
-  width: min(280px, 100%);
+.yard-hour-note-pop.is-edit {
+  width: min(280px, calc(100vw - 16px));
 }
 
-.yard-hour-note .station-note-aside {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  width: max-content;
-  max-width: 100%;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-}
-
-.yard-hour-note .station-note-aside-kicker {
+.yard-hour-note-pop-title {
+  margin: 0 0 4px;
+  color: #1e3a8a;
   font-size: 11px;
   font-weight: 750;
-  letter-spacing: 0;
-  text-transform: none;
-  color: #1e3a8a;
 }
 
-.yard-hour-note .station-note-aside-text {
-  display: inline;
+.yard-hour-note-peek {
+  margin: 0;
   width: max-content;
   max-width: 400px;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  color: #1f2937;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.yard-hour-note-input {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  resize: vertical;
+  border: 1px solid #7eb6ff;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
   font: inherit;
   font-size: 13px;
   line-height: 1.35;
-  cursor: pointer;
-  white-space: normal;
 }
 
-.yard-hour-note .station-note-aside-input {
-  width: 100%;
-  border: 1px solid #7eb6ff;
-  border-radius: 6px;
+.yard-hour-note-pop-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.yard-hour-note-done {
+  border: 0;
+  background: transparent;
+  color: #1e3a8a;
   font: inherit;
-  font-size: 13px;
-  padding: 4px 6px;
-  resize: vertical;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 0;
+  cursor: pointer;
 }
 
 @media (max-width: 959px) {
@@ -1064,10 +1068,5 @@
 
   .yard-hour-body {
     flex-direction: column;
-  }
-
-  .yard-hour-note {
-    width: max-content;
-    max-width: 100%;
   }
 }

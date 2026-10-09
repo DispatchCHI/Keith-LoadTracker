@@ -412,6 +412,224 @@ function StationNameCell({
   );
 }
 
+function YardHourNoteButton({
+  stationId,
+  label,
+  note,
+  open,
+  onPeek,
+  onEdit,
+  onClose,
+  onCommit,
+  className,
+}: {
+  stationId: string;
+  label: string;
+  note: string | null | undefined;
+  open: NotePopMode | null;
+  onPeek: () => void;
+  onEdit: () => void;
+  onClose: () => void;
+  onCommit: (next: string | null) => void;
+  className: string;
+}) {
+  const filled = stationCellFilled(note);
+  const shown = filled ? note : "";
+  const [draft, setDraft] = useState(shown);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const areaRef = useRef<HTMLTextAreaElement>(null);
+  const hideTimer = useRef<number | null>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const cancelHide = () => {
+    if (hideTimer.current != null) {
+      window.clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+  };
+
+  const schedulePeekHide = () => {
+    cancelHide();
+    hideTimer.current = window.setTimeout(() => {
+      hideTimer.current = null;
+      if (open === "peek") onClose();
+    }, 180);
+  };
+
+  const beginEdit = () => {
+    cancelHide();
+    if (open !== "edit") setDraft(shown);
+    onEdit();
+  };
+
+  const place = useCallback(() => {
+    const anchor = btnRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const pop = popRef.current;
+    const width = pop?.offsetWidth || 160;
+    const height = pop?.offsetHeight || 40;
+    let left = rect.right + 8;
+    if (left + width > window.innerWidth - 8) {
+      left = Math.max(8, rect.left - width - 8);
+    }
+    let top = rect.top;
+    if (top + height > window.innerHeight - 8) {
+      top = Math.max(8, window.innerHeight - height - 8);
+    }
+    setPos({ top, left });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    place();
+  }, [open, place, shown]);
+
+  useEffect(() => {
+    if (open !== "edit") return;
+    const id = window.requestAnimationFrame(() => {
+      const el = areaRef.current;
+      if (!el) return;
+      el.focus();
+      const end = el.value.length;
+      el.setSelectionRange(end, end);
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const node = event.target as Node | null;
+      if (node && btnRef.current?.contains(node)) return;
+      if (node && popRef.current?.contains(node)) return;
+      if (open === "edit") onCommit(commitStationNote(draft));
+      onClose();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      if (open === "edit") onCommit(commitStationNote(draft));
+      onClose();
+    };
+    const onScrollOrResize = () => {
+      if (open === "peek") {
+        onClose();
+        return;
+      }
+      place();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
+  }, [open, draft, onClose, onCommit, place]);
+
+  useEffect(() => () => cancelHide(), []);
+
+  const pop =
+    open && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={popRef}
+            className={`yard-hour-note-pop${open === "edit" ? " is-edit" : " is-peek"}`}
+            role={open === "edit" ? "dialog" : "tooltip"}
+            aria-label={`${label} note`}
+            style={{ top: pos.top, left: pos.left }}
+            onPointerEnter={() => {
+              cancelHide();
+            }}
+            onPointerLeave={(event) => {
+              if (event.pointerType !== "mouse") return;
+              if (open === "peek") schedulePeekHide();
+            }}
+            onClick={() => {
+              if (open === "peek") beginEdit();
+            }}
+          >
+            <p className="yard-hour-note-pop-title">{label}</p>
+            {open === "edit" ? (
+              <>
+                <textarea
+                  ref={areaRef}
+                  className="yard-hour-note-input"
+                  value={draft}
+                  rows={3}
+                  placeholder="Add a note…"
+                  aria-label={`${label} note text`}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    event.stopPropagation();
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      onCommit(commitStationNote(draft));
+                      onClose();
+                    }
+                    if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                      event.preventDefault();
+                      onCommit(commitStationNote(draft));
+                      onClose();
+                    }
+                  }}
+                />
+                <div className="yard-hour-note-pop-actions">
+                  <button
+                    type="button"
+                    className="yard-hour-note-done"
+                    onClick={() => {
+                      onCommit(commitStationNote(draft));
+                      onClose();
+                    }}
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="yard-hour-note-peek">{shown}</p>
+            )}
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className={className}
+        data-station={stationId}
+        aria-haspopup="dialog"
+        aria-expanded={open === "edit"}
+        aria-label={filled ? `${label}, has note` : `${label}, add note`}
+        onPointerEnter={(event) => {
+          if (!allowHoverPeek(event.pointerType)) return;
+          if (!filled) return;
+          if (open === "edit") return;
+          cancelHide();
+          onPeek();
+        }}
+        onPointerLeave={(event) => {
+          if (event.pointerType !== "mouse") return;
+          if (open === "peek") schedulePeekHide();
+        }}
+        onClick={beginEdit}
+      >
+        {label}
+      </button>
+      {pop}
+    </>
+  );
+}
+
 function yardHourHead(label: string): string {
   if (label.endsWith("am")) return `${label.slice(0, -2)}AM`;
   if (label.endsWith("pm")) return `${label.slice(0, -2)}PM`;
@@ -660,15 +878,29 @@ export function StationCallsCard({
               <thead>
                 <tr>
                   <th>
-                    <button
-                      type="button"
+                    <YardHourNoteButton
+                      stationId={STATION_CORNER_NOTE_ID}
+                      label="Station"
                       className="yard-hour-station-head"
-                      onClick={() =>
+                      note={noteForStation(notes, STATION_CORNER_NOTE_ID)}
+                      open={activeNote?.id === STATION_CORNER_NOTE_ID ? activeNote.mode : null}
+                      onPeek={() =>
+                        setNoteOpen((cur) =>
+                          cur?.date === date && cur.mode === "edit"
+                            ? cur
+                            : { date, id: STATION_CORNER_NOTE_ID, mode: "peek" },
+                        )
+                      }
+                      onEdit={() =>
                         setNoteOpen({ date, id: STATION_CORNER_NOTE_ID, mode: "edit" })
                       }
-                    >
-                      Station
-                    </button>
+                      onClose={() =>
+                        setNoteOpen((cur) =>
+                          cur?.date === date && cur.id === STATION_CORNER_NOTE_ID ? null : cur,
+                        )
+                      }
+                      onCommit={(next) => onNote(STATION_CORNER_NOTE_ID, next)}
+                    />
                   </th>
                   <th>Start</th>
                   {STATION_CALL_HOURS.map((hour) => (
@@ -686,23 +918,27 @@ export function StationCallsCard({
                   return (
                     <tr key={yard.id} className={noted ? "has-note" : undefined}>
                       <th scope="row">
-                        <button
-                          type="button"
+                        <YardHourNoteButton
+                          stationId={yard.id}
+                          label={yard.label}
                           className="yard-hour-name"
-                          data-station={yard.id}
-                          aria-label={noted ? `${yard.label}, has note` : `${yard.label}, add note`}
-                          onPointerEnter={(event) => {
-                            if (!allowHoverPeek(event.pointerType) || !noted) return;
+                          note={note}
+                          open={activeNote?.id === yard.id ? activeNote.mode : null}
+                          onPeek={() =>
                             setNoteOpen((cur) =>
                               cur?.date === date && cur.mode === "edit"
                                 ? cur
                                 : { date, id: yard.id, mode: "peek" },
-                            );
-                          }}
-                          onClick={() => setNoteOpen({ date, id: yard.id, mode: "edit" })}
-                        >
-                          {yard.label}
-                        </button>
+                            )
+                          }
+                          onEdit={() => setNoteOpen({ date, id: yard.id, mode: "edit" })}
+                          onClose={() =>
+                            setNoteOpen((cur) =>
+                              cur?.date === date && cur.id === yard.id ? null : cur,
+                            )
+                          }
+                          onCommit={(next) => onNote(yard.id, next)}
+                        />
                         <button
                           type="button"
                           className="yard-hour-remove"
@@ -764,21 +1000,6 @@ export function StationCallsCard({
               Add row
             </button>
           </div>
-          {aside ? (
-            <div className="yard-hour-note yard-hour-note-fit">
-              <StationNoteAside
-                key={`${aside.id}-${aside.editing ? "edit" : "show"}`}
-                label={aside.label}
-                note={aside.note}
-                editing={aside.editing}
-                onEdit={() => setNoteOpen({ date, id: aside.id, mode: "edit" })}
-                onCommit={(next) => onNote(aside.id, next)}
-                onClose={() =>
-                  setNoteOpen((cur) => (cur?.date === date && cur.id === aside.id ? null : cur))
-                }
-              />
-            </div>
-          ) : null}
         </div>
       </section>
     );
