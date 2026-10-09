@@ -961,21 +961,27 @@
 }
 
 .yard-hour-note {
-  flex: 0 0 230px;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  width: max-content;
+  max-width: min(420px, 100%);
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 8px 10px;
-  min-height: 64px;
+  padding: 6px 10px;
+}
+
+.yard-hour-note:has(.station-note-aside-input) {
+  width: min(280px, 100%);
 }
 
 .yard-hour-note .station-note-aside {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  width: 100%;
-  min-width: 0;
+  gap: 2px;
+  width: max-content;
+  max-width: 100%;
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -991,6 +997,9 @@
 }
 
 .yard-hour-note .station-note-aside-text {
+  display: inline;
+  width: max-content;
+  max-width: 400px;
   border: 0;
   background: transparent;
   padding: 0;
@@ -1043,7 +1052,7 @@
   }
 
   .yard-hour-note {
-    width: 100%;
-    flex-basis: auto;
+    width: max-content;
+    max-width: 100%;
   }
 }

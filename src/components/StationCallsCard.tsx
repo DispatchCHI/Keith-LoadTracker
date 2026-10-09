@@ -765,7 +765,7 @@ export function StationCallsCard({
             </button>
           </div>
           {aside ? (
-            <div className="yard-hour-note">
+            <div className="yard-hour-note yard-hour-note-fit">
               <StationNoteAside
                 key={`${aside.id}-${aside.editing ? "edit" : "show"}`}
                 label={aside.label}
