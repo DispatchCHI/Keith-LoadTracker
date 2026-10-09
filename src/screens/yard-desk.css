@@ -666,6 +666,16 @@
   color: #4b5563;
 }
 
+.yard-line .tag-wrap {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.yard-line .tag {
+  padding: 1px 7px;
+  font-size: 11px;
+}
+
 .yard-line-mark {
   flex: 0 0 auto;
   font-style: normal;
@@ -795,65 +805,210 @@
   color: #1e3a8a;
 }
 
-.yard-desk .station-calls-card {
+.yard-hour {
+  background: #fff;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 10px 12px 8px;
 }
 
-.yard-desk .station-calls-table th,
-.yard-desk .station-calls-table td {
-  padding: 1px 3px;
-}
-
-.yard-desk .station-calls-head-aside {
+.yard-hour-top {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.yard-hour-top h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 750;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.yard-hour-top p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.yard-hour-body {
+  display: flex;
+  align-items: flex-start;
   gap: 12px;
 }
 
-.yard-desk .station-note-aside {
-  flex: 0 1 360px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
+.yard-hour-sheet {
+  flex: 1 1 auto;
   min-width: 0;
-  background: #eef3f8;
-  border: 1px solid #c9d4e2;
-  border-radius: 999px;
-  padding: 4px 12px;
 }
 
-.yard-desk .station-note-aside-kicker {
+.yard-hour-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  table-layout: fixed;
+}
+
+.yard-hour-table th,
+.yard-hour-table td {
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #eef0f3;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+  height: 26px;
+  padding: 0 2px;
+}
+
+.yard-hour-table thead th {
+  height: 22px;
+  color: #6b7280;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.yard-hour-table th:first-child,
+.yard-hour-table td:first-child {
+  width: 118px;
+  text-align: left;
+  padding-left: 2px;
+}
+
+.yard-hour-table td.is-start {
+  background: #f3f7fb;
+}
+
+.yard-hour-station-head,
+.yard-hour-name {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.yard-hour-name {
+  color: #111827;
+}
+
+.yard-hour-table tr.has-note .yard-hour-name::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #7eb6ff;
+  vertical-align: 1px;
+}
+
+.yard-hour-remove {
+  margin-left: 4px;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.yard-hour-table tr:hover .yard-hour-remove,
+.yard-hour-remove:focus-visible {
+  opacity: 1;
+}
+
+.yard-hour .station-call-start,
+.yard-hour .station-call-input {
+  height: 24px;
+  font-size: 13px;
+  font-weight: 650;
+  color: #111827;
+  background: transparent;
+}
+
+.yard-hour .station-call-start.is-zero,
+.yard-hour .station-call-input.is-zero {
+  color: #111827;
+}
+
+.yard-hour .station-call-input:focus {
+  outline: 2px solid #7eb6ff;
+  outline-offset: -2px;
+  background: #eef6ff;
+}
+
+.yard-hour-add {
+  margin-top: 6px;
+  border: 0;
+  background: transparent;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+
+.yard-hour-note {
+  flex: 0 0 230px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-height: 64px;
+}
+
+.yard-hour-note .station-note-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.yard-hour-note .station-note-aside-kicker {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: none;
   color: #1e3a8a;
 }
 
-.yard-desk .station-note-aside-text {
+.yard-hour-note .station-note-aside-text {
   border: 0;
   background: transparent;
   padding: 0;
   text-align: left;
   color: #1f2937;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.35;
   cursor: pointer;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
-.yard-desk .station-note-aside-input {
+.yard-hour-note .station-note-aside-input {
   width: 100%;
   border: 1px solid #7eb6ff;
   border-radius: 6px;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   padding: 4px 6px;
   resize: vertical;
 }
@@ -883,11 +1038,12 @@
     margin-left: 0;
   }
 
-  .yard-desk .station-calls-head-aside {
+  .yard-hour-body {
     flex-direction: column;
   }
 
-  .yard-desk .station-note-aside {
+  .yard-hour-note {
     width: 100%;
+    flex-basis: auto;
   }
 }

@@ -25,6 +25,7 @@ import {
   type RankRow,
 } from "../lib/totals";
 import { customerNames } from "../lib/customerLanes";
+import { CommodityTag } from "../components/CommodityTag";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
 import { DriversCard } from "../components/DriversCard";
 import { EodReportButton } from "../components/EodReportButton";
@@ -83,17 +84,13 @@ export function YardDeskScreen({
   const [stamp, setStamp] = useState(date);
   const [pickupKey, setPickupKey] = useState<string | null>(null);
   const [landfillKey, setLandfillKey] = useState<string | null>(null);
-  const [landfillTouched, setLandfillTouched] = useState(false);
   const [commodityKey, setCommodityKey] = useState<string | null>(null);
-  const [commodityTouched, setCommodityTouched] = useState(false);
 
   if (stamp !== date) {
     setStamp(date);
     setPickupKey(null);
     setLandfillKey(null);
-    setLandfillTouched(false);
     setCommodityKey(null);
-    setCommodityTouched(false);
   }
 
   const countByDate = useMemo(() => {
@@ -116,8 +113,8 @@ export function YardDeskScreen({
   );
   const week = weekStartingSunday(date);
   const openPickup = pickupKey;
-  const openLandfill = chosen(landfillTouched, landfillKey, byDestination[0]?.key ?? null);
-  const openCommodity = chosen(commodityTouched, commodityKey, byCommodity[0]?.key ?? null);
+  const openLandfill = landfillKey;
+  const openCommodity = commodityKey;
 
   const msWDispatchedToday = useMemo(() => {
     const counts = { batavia: 0, evanston: 0, hooker: 0 };
@@ -271,7 +268,6 @@ export function YardDeskScreen({
                 : []
             }
             onSelect={(key) => {
-              setLandfillTouched(true);
               setLandfillKey(openLandfill === key ? null : key);
             }}
             onEdit={onEdit}
@@ -286,7 +282,6 @@ export function YardDeskScreen({
                 : []
             }
             onSelect={(key) => {
-              setCommodityTouched(true);
               setCommodityKey(openCommodity === key ? null : key);
             }}
             onEdit={onEdit}
@@ -298,12 +293,6 @@ export function YardDeskScreen({
       <StationCallsCard date={date} noteAside />
     </div>
   );
-}
-
-function chosen(touched: boolean, key: string | null, fallback: string | null): string | null {
-  if (key) return key;
-  if (touched) return null;
-  return fallback;
 }
 
 function YardDrivers({
@@ -508,7 +497,11 @@ function RankLoads({
               <span className="yard-line-route">
                 {load.pickup} → {load.destination}
               </span>
-              <span className="yard-line-kind">{load.commodity}</span>
+              {checkoff ? (
+                <CommodityTag commodity={load.commodity} />
+              ) : (
+                <span className="yard-line-kind">{load.commodity}</span>
+              )}
               {checked ? <em className="yard-line-mark">Checked</em> : null}
             </button>
             {checkoff ? (

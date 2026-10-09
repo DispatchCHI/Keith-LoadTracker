@@ -412,6 +412,12 @@ function StationNameCell({
   );
 }
 
+function yardHourHead(label: string): string {
+  if (label.endsWith("am")) return `${label.slice(0, -2)}AM`;
+  if (label.endsWith("pm")) return `${label.slice(0, -2)}PM`;
+  return label.toUpperCase();
+}
+
 function stationNoteLabel(
   id: string,
   yards: readonly { id: string; label: string }[],
@@ -637,6 +643,146 @@ export function StationCallsCard({
     if (!first) return null;
     return { id: first.id, label: first.label, note: null, editing: false as const };
   }, [noteAside, activeNote, yards, notes]);
+
+  if (noteAside) {
+    return (
+      <section className="yard-hour">
+        <div className="yard-hour-top">
+          <h2>Load count by hour</h2>
+          <p>
+            Stations down the side, hours across. Start is the prior day’s Close. Cells stay
+            blank until a call.
+          </p>
+        </div>
+        <div className="yard-hour-body">
+          <div className="yard-hour-sheet">
+            <table className="yard-hour-table">
+              <thead>
+                <tr>
+                  <th>
+                    <button
+                      type="button"
+                      className="yard-hour-station-head"
+                      onClick={() =>
+                        setNoteOpen({ date, id: STATION_CORNER_NOTE_ID, mode: "edit" })
+                      }
+                    >
+                      Station
+                    </button>
+                  </th>
+                  <th>Start</th>
+                  {STATION_CALL_HOURS.map((hour) => (
+                    <th key={hour.key}>{yardHourHead(hour.label)}</th>
+                  ))}
+                  <th>Close</th>
+                </tr>
+              </thead>
+              <tbody>
+                {yards.map((yard) => {
+                  const row = board[yard.id] ?? { hours: {}, close: null };
+                  const start = startForStation(store, date, yard.id);
+                  const note = noteForStation(notes, yard.id);
+                  const noted = stationCellFilled(note);
+                  return (
+                    <tr key={yard.id} className={noted ? "has-note" : undefined}>
+                      <th scope="row">
+                        <button
+                          type="button"
+                          className="yard-hour-name"
+                          data-station={yard.id}
+                          aria-label={noted ? `${yard.label}, has note` : `${yard.label}, add note`}
+                          onPointerEnter={(event) => {
+                            if (!allowHoverPeek(event.pointerType) || !noted) return;
+                            setNoteOpen((cur) =>
+                              cur?.date === date && cur.mode === "edit"
+                                ? cur
+                                : { date, id: yard.id, mode: "peek" },
+                            );
+                          }}
+                          onClick={() => setNoteOpen({ date, id: yard.id, mode: "edit" })}
+                        >
+                          {yard.label}
+                        </button>
+                        <button
+                          type="button"
+                          className="yard-hour-remove"
+                          aria-label={`Remove ${yard.label}`}
+                          onClick={() => {
+                            if (!window.confirm(`Remove ${yard.label} from Load Count By Hour?`)) {
+                              return;
+                            }
+                            if (removeStationCallYard(yard.id)) setExtraTick((n) => n + 1);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </th>
+                      <td className="is-start">
+                        <span className={`station-call-start${start === 0 ? " is-zero" : ""}`}>
+                          {start}
+                        </span>
+                      </td>
+                      {STATION_CALL_HOURS.map((hour) => (
+                        <td key={hour.key}>
+                          <CellInput
+                            value={row.hours[hour.key]}
+                            stationId={yard.id}
+                            col={hour.key}
+                            ariaLabel={`${yard.label} ${hour.label}`}
+                            onCommit={(next) => onHour(yard.id, hour.key, next)}
+                          />
+                        </td>
+                      ))}
+                      <td>
+                        <CellInput
+                          value={row.close}
+                          stationId={yard.id}
+                          col="close"
+                          ariaLabel={`${yard.label} Close`}
+                          onCommit={(next) => onClose(yard.id, next)}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <button
+              type="button"
+              className="yard-hour-add"
+              onClick={() => {
+                const newLabel = window.prompt("Customer / station name");
+                if (!newLabel) return;
+                const yard = addStationCallYard(newLabel);
+                if (!yard) {
+                  window.alert("That name is already on the list.");
+                  return;
+                }
+                setExtraTick((n) => n + 1);
+              }}
+            >
+              Add row
+            </button>
+          </div>
+          {aside ? (
+            <div className="yard-hour-note">
+              <StationNoteAside
+                key={`${aside.id}-${aside.editing ? "edit" : "show"}`}
+                label={aside.label}
+                note={aside.note}
+                editing={aside.editing}
+                onEdit={() => setNoteOpen({ date, id: aside.id, mode: "edit" })}
+                onCommit={(next) => onNote(aside.id, next)}
+                onClose={() =>
+                  setNoteOpen((cur) => (cur?.date === date && cur.id === aside.id ? null : cur))
+                }
+              />
+            </div>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <article className="station-calls-card">

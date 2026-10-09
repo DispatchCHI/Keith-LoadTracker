@@ -62,6 +62,11 @@ describe("today skin on this desk", () => {
     expect(screen).toContain("showUnavailable");
     expect(screen).toContain("yard-right");
     expect(screen).toContain("yard-load-pop");
+    expect(screen).toContain("CommodityTag");
+    const hour = readFileSync(new URL("../components/StationCallsCard.tsx", import.meta.url), "utf8");
+    expect(hour).toContain('className="yard-hour"');
+    expect(hour).toContain('className="station-calls-card"');
+    expect(hour).toContain("if (noteAside)");
     expect(screen).not.toContain("yard-driver-names");
     expect(screen).not.toContain("CollapsibleRank");
     expect(screen).not.toContain("<DayPicker");
