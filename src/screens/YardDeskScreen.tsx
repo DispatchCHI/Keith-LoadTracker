@@ -304,7 +304,7 @@ function YardDrivers({
   available: number | null;
   loadCount: number;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const sunday = isChicagoSunday(date);
   const ratio =
     !sunday && available != null && available > 0 ? (loadCount / available).toFixed(2) : null;
