@@ -8,6 +8,7 @@ import {
   dropOffsAlreadyUnavailable,
   liveSheetFromRoster,
   rosterOotNames,
+  rosterUnavailableEntries,
 } from "./rosterAvailability";
 import { addVacationEntry, emptyVacationStore } from "./vacationBoard";
 
@@ -70,6 +71,19 @@ describe("chicago Full Roster available base", () => {
       available: 0,
       rosterTotal: 2,
     });
+  });
+
+  it("carries Full Roster Workmans Comp onto a Saturday row that has no status", () => {
+    let roster = rosterWith([{ yard: "rockford", name: "Ken Bryant", status: "wc" }]);
+    roster = addRosterEntry(roster, {
+      kind: "sat",
+      yard: "rockford",
+      name: "Ken Bryant",
+    }).store;
+    const rows = rosterUnavailableEntries(roster, emptyVacationStore(), "2026-09-12", {
+      kind: "sat",
+    });
+    expect(rows.map((row) => [row.name, row.status])).toEqual([["Ken Bryant", "wc"]]);
   });
 
   it("lists OOT names from Full Roster status, not a sheet L13 pull", () => {

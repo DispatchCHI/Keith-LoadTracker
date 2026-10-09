@@ -12,7 +12,7 @@ import {
   type CallOffKind,
 } from "../lib/driverAvailability";
 import { vacationNamesOnDateAllYards } from "../lib/rosterVacation";
-import { rosterUnavailableEntries } from "../lib/rosterAvailability";
+import { nameMatchesUnavailable, rosterUnavailableEntries } from "../lib/rosterAvailability";
 import { canRemoveTodayCallOff } from "../lib/todayCallOffSync";
 import { DriverNameInput } from "./DriverNameInput";
 import { useCallOffLog } from "../store/CallOffLogContext";
@@ -148,6 +148,14 @@ export function DriversCard({
       : dayAvail && Array.isArray(dayAvail.ootNames)
         ? dayAvail.ootNames
         : [];
+  // Names already in Unavailable (Workmans Comp and the other roster marks)
+  // must not be repeated under Call offs, Out of town, or Vacation.
+  const unavailableListed = unavailableNames.map((listed) => ({ name: listed }));
+  const alreadyUnavailable = (name: string) =>
+    nameMatchesUnavailable(name, unavailableListed);
+  const visibleOot = displayedOot.filter((name) => !alreadyUnavailable(name));
+  const visibleCallOffs = callOffs.filter((entry) => !alreadyUnavailable(entry.name));
+  const visibleVacation = vacationNames.filter((name) => !alreadyUnavailable(name));
   const showOot =
     !sunday &&
     (viewingToday || viewingFuture
@@ -262,9 +270,9 @@ export function DriversCard({
       {!collapsed && showOot ? (
         <div className="oot-block drivers-sec-oot">
           <p className="oot-label">Out of town</p>
-          {displayedOot.length ? (
+          {visibleOot.length ? (
             <ul className="oot-list">
-              {displayedOot.map((name) => (
+              {visibleOot.map((name) => (
                 <li key={name} className="oot-chip">
                   {name}
                 </li>
@@ -366,9 +374,9 @@ export function DriversCard({
               </div>
             </form>
           ) : null}
-          {callOffs.length ? (
+          {visibleCallOffs.length ? (
             <ul className="oot-list">
-              {callOffs.map((entry) => (
+              {visibleCallOffs.map((entry) => (
                 <li
                   key={`${entry.source}:${entry.name}`}
                   className={`oot-chip calloff-chip calloff-chip-${entry.kind}`}
@@ -418,9 +426,9 @@ export function DriversCard({
       {!collapsed && !sunday ? (
         <div className="oot-block drivers-sec-vac">
           <p className="oot-label">Vacation</p>
-          {vacationNames.length ? (
+          {visibleVacation.length ? (
             <ul className="oot-list">
-              {vacationNames.map((name) => (
+              {visibleVacation.map((name) => (
                 <li key={name} className="oot-chip vacation-chip">
                   {name}
                 </li>

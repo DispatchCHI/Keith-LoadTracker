@@ -123,7 +123,9 @@ export function rosterUnavailableEntries(
         const statusSource = full ?? entry;
         const effective = effectiveRosterStatus(statusSource, names);
         if (rosterStatusRemovesFromAvailable(effective.status) || effective.onVacation) {
-          out.push(entry);
+          // Sat rows do not store the mark. Carry the Full Roster status so
+          // Workmans Comp stays distinguishable from OOT and Vacation.
+          out.push({ ...entry, status: effective.status });
         }
       }
       continue;
@@ -131,7 +133,7 @@ export function rosterUnavailableEntries(
     for (const entry of entriesForRoster(roster, "full", yard)) {
       const effective = effectiveRosterStatus(entry, names);
       if (rosterStatusRemovesFromAvailable(effective.status) || effective.onVacation) {
-        out.push(entry);
+        out.push({ ...entry, status: effective.status });
       }
     }
   }
