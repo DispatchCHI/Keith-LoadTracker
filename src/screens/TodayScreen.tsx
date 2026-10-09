@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { dailyCounts } from "../lib/analytics";
 import { displayLoadCount } from "../lib/dailyEod";
@@ -47,6 +47,7 @@ type TodayScreenProps = {
   onNotes: (date: string) => void;
   onEdit: (id: string) => void;
   showDayPicker?: boolean;
+  skinToggle?: ReactNode;
 };
 
 export function TodayScreen({
@@ -57,6 +58,7 @@ export function TodayScreen({
   onNotes,
   onEdit,
   showDayPicker = false,
+  skinToggle,
 }: TodayScreenProps) {
   const today = chicagoToday();
   const { loads, loadsOn } = useLoads();
@@ -118,7 +120,12 @@ export function TodayScreen({
         <div className="page-header-brand">
           <h1 className="page-title">{formatHeaderDate(date)}</h1>
         </div>
-        {justEditedId ? <span className="updated-badge">Updated</span> : null}
+        {justEditedId || skinToggle ? (
+          <div className="today-header-tools">
+            {justEditedId ? <span className="updated-badge">Updated</span> : null}
+            {skinToggle}
+          </div>
+        ) : null}
       </header>
 
       {showDayPicker ? (

@@ -1,0 +1,150 @@
+.today-skin-toggle {
+  border: 1px solid #7eb6ff;
+  background: #d6e8fb;
+  color: #123152;
+  border-radius: 10px;
+  font-weight: 750;
+  font-size: 13px;
+  line-height: 1;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.today-skin-toggle:hover,
+.today-skin-toggle:focus-visible {
+  background: #c5ddf8;
+  outline: 2px solid #7eb6ff;
+  outline-offset: 2px;
+}
+
+.desk-topbar .today-skin-toggle {
+  align-self: center;
+}
+
+.today-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yard-desk {
+  background: #eef1f4;
+  gap: 10px;
+}
+
+.yard-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.yard-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.yard-date .page-title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.yard-desk .day-picker {
+  flex: 1 1 460px;
+  margin: 0;
+  gap: 6px;
+}
+
+.yard-desk .day-chip-active {
+  background: #d6e8fb;
+  color: #123152;
+  border-color: #7eb6ff;
+}
+
+.yard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.yard-desk button.log-load-top:not(.notes-top) {
+  background: #1e3a8a;
+  color: #fff;
+}
+
+.yard-eod {
+  margin-left: auto;
+}
+
+.yard-desk .eod-stat {
+  background: #fff;
+  border: 1px solid #d0d3d9;
+  color: #111;
+  border-radius: 10px;
+  padding: 4px 8px 5px;
+  min-width: 72px;
+}
+
+.yard-desk .eod-stat-loads {
+  background: #d6e8fb;
+  border-color: #7eb6ff;
+  color: #123152;
+}
+
+.yard-desk .eod-stat-label {
+  color: #6b7280;
+  font-size: 10px;
+}
+
+.yard-desk .eod-stat-loads .eod-stat-label {
+  color: #1e3a8a;
+}
+
+.yard-desk .eod-stat-value {
+  font-size: 22px;
+  color: inherit;
+}
+
+.yard-work {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1.4fr) minmax(240px, 320px);
+  gap: 10px;
+  align-items: start;
+}
+
+.yard-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.yard-side .tally-chip-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.yard-side .tally-chip {
+  width: 100%;
+  align-items: stretch;
+}
+
+.yard-col .totals-block {
+  margin: 0;
+}
+
+@media (max-width: 959px) {
+  .yard-work {
+    grid-template-columns: 1fr;
+  }
+
+  .yard-date,
+  .yard-eod {
+    width: 100%;
+    margin-left: 0;
+  }
+}

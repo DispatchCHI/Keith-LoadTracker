@@ -17,8 +17,11 @@ import { LoginScreen } from "./screens/LoginScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { SearchScreen } from "./screens/SearchScreen";
 import { DispatchScreen } from "./screens/DispatchScreen";
+import { TodaySkinToggle } from "./components/TodaySkinToggle";
+import { readTodaySkin, writeTodaySkin, type TodaySkin } from "./lib/todaySkin";
 import { TodayScreen } from "./screens/TodayScreen";
 import { TotalsScreen } from "./screens/TotalsScreen";
+import { YardDeskScreen } from "./screens/YardDeskScreen";
 import { VacationScreen } from "./screens/VacationScreen";
 import { AuthProvider, useAuth } from "./store/AuthContext";
 import { CallOffLogProvider } from "./store/CallOffLogContext";
@@ -81,6 +84,19 @@ function Shell() {
   const [feedDate, setFeedDate] = useState(chicagoToday);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [justEditedId, setJustEditedId] = useState<string | null>(null);
+  const [todaySkin, setTodaySkin] = useState<TodaySkin>(() => readTodaySkin());
+
+  function toggleTodaySkin() {
+    setTodaySkin((current) => {
+      const next: TodaySkin = current === "yard" ? "classic" : "yard";
+      writeTodaySkin(next);
+      return next;
+    });
+  }
+
+  const skinToggle = (
+    <TodaySkinToggle skin={todaySkin} onToggle={toggleTodaySkin} />
+  );
 
   const editingLoad =
     overlay?.kind === "edit" ? findById(overlay.loadId) : undefined;
@@ -128,6 +144,7 @@ function Shell() {
               <h1 className="desk-brand">The Load Tracker</h1>
             </div>
           </div>
+          {tab === "today" ? skinToggle : null}
         </header>
       ) : null}
 
@@ -141,7 +158,18 @@ function Shell() {
         ) : null}
 
         <div className="phone-body">
-          {tab === "today" && desktop ? (
+          {tab === "today" && desktop && todaySkin === "yard" ? (
+            <YardDeskScreen
+              date={feedDate}
+              onDateChange={setFeedDate}
+              justEditedId={justEditedId}
+              onLog={(date) => setOverlay({ kind: "log", date })}
+              onNotes={(date) => setOverlay({ kind: "day-notes", date })}
+              onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
+            />
+          ) : null}
+
+          {tab === "today" && desktop && todaySkin !== "yard" ? (
             <div className="desktop-split">
               <TodayScreen
                 date={feedDate}
@@ -162,7 +190,19 @@ function Shell() {
             </div>
           ) : null}
 
-          {tab === "today" && !desktop ? (
+          {tab === "today" && !desktop && todaySkin === "yard" ? (
+            <YardDeskScreen
+              date={feedDate}
+              onDateChange={setFeedDate}
+              justEditedId={justEditedId}
+              onLog={(date) => setOverlay({ kind: "log", date })}
+              onNotes={(date) => setOverlay({ kind: "day-notes", date })}
+              onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
+              skinToggle={skinToggle}
+            />
+          ) : null}
+
+          {tab === "today" && !desktop && todaySkin !== "yard" ? (
             <TodayScreen
               date={feedDate}
               onDateChange={setFeedDate}
@@ -171,6 +211,7 @@ function Shell() {
               onNotes={(date) => setOverlay({ kind: "day-notes", date })}
               onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
               showDayPicker
+              skinToggle={skinToggle}
             />
           ) : null}
 
