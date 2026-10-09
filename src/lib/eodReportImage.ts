@@ -359,10 +359,14 @@ function drawHourGrid(
   ctx.textAlign = "left";
   yards.forEach((yard, r) => {
     const ry = y + headerH + r * rowH;
-    if (r % 2 === 1) {
-      ctx.fillStyle = "#f9fafb";
+    const striped = r % 2 === 1;
+    if (striped) {
+      ctx.fillStyle = "#f3f4f6";
       ctx.fillRect(x, ry, nameColW + COLS.length * hourColW, rowH);
     }
+    // Start stays a touch bluer than the row, including on the gray stripe.
+    ctx.fillStyle = striped ? "#e4ebf3" : "#f3f7fb";
+    ctx.fillRect(x + nameColW, ry, hourColW, rowH);
     ctx.fillStyle = "#111827";
     ctx.font = canvasFont(600, EOD_IMAGE_TYPE.hourCell);
     ctx.textBaseline = "middle";

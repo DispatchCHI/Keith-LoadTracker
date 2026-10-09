@@ -1094,7 +1094,7 @@ export function StationCallsCard({
                       if (removeStationCallYard(yard.id)) setExtraTick((n) => n + 1);
                     }}
                   />
-                  <td>
+                  <td className="is-start">
                     <span className={`station-call-start${start === 0 ? " is-zero" : ""}`}>
                       {start}
                     </span>

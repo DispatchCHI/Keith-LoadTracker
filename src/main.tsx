@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { applyAppTheme, readAppTheme } from "./lib/theme";
 import "./index.css";
 import "./theme-light.css";
+import "./theme-halloween.css";
 
 applyAppTheme(readAppTheme());
 

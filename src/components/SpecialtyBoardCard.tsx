@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { ChevronDown, Minus, Plus, X } from "lucide-react";
 import { formatHeaderDate } from "../lib/chicagoDate";
 import { MAX_LOAD_QTY } from "../lib/quantity";
@@ -33,6 +33,7 @@ import {
 } from "../lib/specialtyBoard";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useSpecialty } from "../store/SpecialtyContext";
+import { specialtyPillTone } from "../lib/specialtyPillTone";
 import { Chip } from "./Chip";
 import { QuantityStepper } from "./QuantityStepper";
 import "./specialty-board.css";
@@ -134,12 +135,28 @@ export function SpecialtyBoardCard({
             const custom = isCustomSpecialtyId(slot.id);
             const count = slotsForStation(board, slot.id).length;
             const label = custom ? customSpecialtyDisplayName(slot.id) : slot.name;
+            const tone = count > 0 ? specialtyPillTone(label) : null;
             return (
               <button
                 key={slot.id}
                 type="button"
                 role="listitem"
-                className={openId === slot.id ? "yard-spec-chip on" : "yard-spec-chip"}
+                className={[
+                  "yard-spec-chip",
+                  openId === slot.id ? "on" : "",
+                  count > 0 ? "has-count" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={
+                  tone
+                    ? ({
+                        "--spec-pill-bg": tone.background,
+                        "--spec-pill-border": tone.border,
+                        "--spec-pill-ink": tone.color,
+                      } as CSSProperties)
+                    : undefined
+                }
                 aria-pressed={openId === slot.id}
                 onClick={() => setChipOpen((prev) => (prev === slot.id ? null : slot.id))}
               >

@@ -770,6 +770,30 @@
   color: #123152;
 }
 
+.yard-spec-chip.has-count {
+  background: var(--spec-pill-bg);
+  border-color: var(--spec-pill-border);
+  color: var(--spec-pill-ink);
+}
+
+.yard-spec-chip.has-count .yard-spec-count,
+.yard-spec-chip.has-count .yard-spec-count.has-open,
+.yard-spec-chip.on.has-count .yard-spec-count {
+  color: var(--spec-pill-ink);
+}
+
+.yard-spec-chip.has-count .yard-spec-tag {
+  color: var(--spec-pill-ink);
+  background: color-mix(in srgb, var(--spec-pill-border) 14%, #ffffff);
+}
+
+.yard-spec-chip.on.has-count {
+  background: var(--spec-pill-bg);
+  border-color: var(--spec-pill-border);
+  color: var(--spec-pill-ink);
+  box-shadow: inset 0 0 0 1.5px var(--spec-pill-border);
+}
+
 .yard-spec-count {
   min-width: 1.1em;
   text-align: center;
@@ -860,15 +884,19 @@
 }
 
 .yard-hour-table {
+  --hour-row: #ffffff;
+  --hour-stripe: #f3f4f6;
+  --hour-start: #f3f7fb;
+  --hour-start-stripe: #e4ebf3;
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
+  background: var(--hour-row);
   table-layout: fixed;
 }
 
 .yard-hour-table th,
 .yard-hour-table td {
-  background: #fff;
+  background: var(--hour-row);
   border: 0;
   border-bottom: 1px solid #eef0f3;
   color: #111827;
@@ -896,8 +924,17 @@
   padding-left: 2px;
 }
 
-.yard-hour-table td.is-start {
-  background: #f3f7fb;
+.yard-hour-table tbody td.is-start {
+  background: var(--hour-start);
+}
+
+.yard-hour-table tbody tr:nth-child(even) > th,
+.yard-hour-table tbody tr:nth-child(even) > td {
+  background: var(--hour-stripe);
+}
+
+.yard-hour-table tbody tr:nth-child(even) > td.is-start {
+  background: var(--hour-start-stripe);
 }
 
 .yard-hour-station-head,

@@ -2749,6 +2749,10 @@ body.app-ready .splash {
   background: #f5f3f0;
 }
 .station-calls-table {
+  --call-row: #fafaf9;
+  --call-stripe: #f3f4f6;
+  --call-start: #f3f7fb;
+  --call-start-stripe: #e4ebf3;
   border-collapse: collapse;
   width: max-content;
   min-width: 100%;
@@ -2796,7 +2800,7 @@ body.app-ready .splash {
   padding: 0;
   font-size: 10px;
   font-weight: 700;
-  background: #f5f3f0;
+  background: var(--call-row);
   position: sticky;
   left: 0;
   z-index: 2;
@@ -2867,11 +2871,8 @@ body.app-ready .splash {
   border-color: transparent var(--amber) transparent transparent;
   pointer-events: none;
 }
-@media (hover: hover) and (pointer: fine) {
-  .station-calls-table tbody th:hover,
-  .station-calls-table tbody tr:nth-child(even) th:hover {
-    background: #fae6e7;
-  }
+.station-calls-table tbody td {
+  background: var(--call-row);
 }
 .station-call-note-pop {
   position: fixed;
@@ -2937,12 +2938,21 @@ body.app-ready .splash {
   padding: 6px 4px;
   min-height: 36px;
 }
-.station-calls-table tbody tr:nth-child(even) th,
-.station-calls-table tbody tr:nth-child(even) td {
-  background: #fafaf9;
+.station-calls-table tbody tr:nth-child(even) > th,
+.station-calls-table tbody tr:nth-child(even) > td {
+  background: var(--call-stripe);
 }
-.station-calls-table tbody tr:nth-child(even) th {
-  background: #f5f3f0;
+.station-calls-table tbody td.is-start {
+  background: var(--call-start);
+}
+.station-calls-table tbody tr:nth-child(even) > td.is-start {
+  background: var(--call-start-stripe);
+}
+@media (hover: hover) and (pointer: fine) {
+  .station-calls-table tbody th:hover,
+  .station-calls-table tbody tr:nth-child(even) > th:hover {
+    background: #fae6e7;
+  }
 }
 .station-call-start {
   display: inline-flex;

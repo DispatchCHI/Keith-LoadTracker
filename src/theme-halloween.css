@@ -206,12 +206,83 @@ html[data-theme="halloween"] .calloffs-table thead th {
 
 html[data-theme="halloween"] .vac-table th,
 html[data-theme="halloween"] .vac-table td,
-html[data-theme="halloween"] .station-calls-table tbody td,
-html[data-theme="halloween"] .station-calls-table tbody th,
 html[data-theme="halloween"] .calloffs-table th,
 html[data-theme="halloween"] .calloffs-table td {
   background: rgba(28, 16, 20, 0.88) !important;
   color: #f7ead6 !important;
+}
+
+html[data-theme="halloween"] .station-calls-table {
+  --call-row: #2a161c;
+  --call-stripe: #3a222a;
+  --call-start: #3d2c36;
+  --call-start-stripe: #4a3542;
+}
+
+html[data-theme="halloween"] .station-calls-table tbody td,
+html[data-theme="halloween"] .station-calls-table tbody th {
+  background: var(--call-row) !important;
+  color: #f7ead6 !important;
+}
+
+html[data-theme="halloween"] .station-calls-table tbody tr:nth-child(even) > td,
+html[data-theme="halloween"] .station-calls-table tbody tr:nth-child(even) > th {
+  background: var(--call-stripe) !important;
+}
+
+html[data-theme="halloween"] .station-calls-table tbody td.is-start {
+  background: var(--call-start) !important;
+}
+
+html[data-theme="halloween"] .station-calls-table tbody tr:nth-child(even) > td.is-start {
+  background: var(--call-start-stripe) !important;
+}
+
+html[data-theme="halloween"] .station-calls-table tbody th:hover,
+html[data-theme="halloween"] .station-calls-table tbody tr:nth-child(even) > th:hover,
+html[data-theme="halloween"] .station-call-input:focus {
+  background: rgba(244, 162, 97, 0.28) !important;
+}
+
+html[data-theme="halloween"] .yard-hour-table {
+  --hour-row: #2a161c;
+  --hour-stripe: #3a222a;
+  --hour-start: #3d2c36;
+  --hour-start-stripe: #4a3542;
+  background: #24141a;
+  color: #f7ead6;
+}
+
+html[data-theme="halloween"] .yard-hour-table th,
+html[data-theme="halloween"] .yard-hour-table td,
+html[data-theme="halloween"] .yard-hour-name,
+html[data-theme="halloween"] .yard-hour .station-call-input,
+html[data-theme="halloween"] .yard-hour .station-call-start {
+  color: #f7ead6;
+  border-bottom-color: #6b3a22;
+}
+
+html[data-theme="halloween"] .yard-hour-table thead th {
+  background: #3a2018;
+  color: #f4a261;
+}
+
+html[data-theme="halloween"] .yard-hour .station-call-input:focus {
+  outline-color: #f4a261;
+  background: rgba(244, 162, 97, 0.28);
+}
+
+html[data-theme="halloween"] .yard-spec-chip.has-count,
+html[data-theme="halloween"] .yard-spec-chip.on.has-count {
+  background: color-mix(in srgb, var(--spec-pill-border) 32%, #1c1014);
+  border-color: color-mix(in srgb, var(--spec-pill-border) 72%, #f7ead6);
+  color: #f7ead6;
+}
+
+html[data-theme="halloween"] .yard-spec-chip.has-count .yard-spec-count,
+html[data-theme="halloween"] .yard-spec-chip.has-count .yard-spec-tag {
+  color: #f7ead6;
+  background: transparent;
 }
 
 html[data-theme="halloween"] .theme-toggle {
