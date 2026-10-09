@@ -50,4 +50,16 @@ describe("today skin on this desk", () => {
     expect(app).toContain('todaySkin !== "yard"');
     expect(app).toContain('todaySkin === "yard"');
   });
+
+  it("builds Yard Desk as the full page from the screenshot", () => {
+    const screen = readFileSync(new URL("../screens/YardDeskScreen.tsx", import.meta.url), "utf8");
+    expect(screen).toContain("Walking floor");
+    expect(screen).toContain("Available drivers");
+    expect(screen).toContain("Transfer stations");
+    expect(screen).toContain("layout=\"chips\"");
+    expect(screen).toContain("noteAside");
+    expect(screen).not.toContain("CollapsibleRank");
+    expect(screen).not.toContain("DriversCard");
+    expect(screen).not.toContain("<DayPicker");
+  });
 });

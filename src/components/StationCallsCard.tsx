@@ -185,6 +185,7 @@ function StationNameCell({
   onClose,
   onCommit,
   onRemove,
+  suppressPortal = false,
 }: {
   stationId: string;
   label: string;
@@ -195,6 +196,8 @@ function StationNameCell({
   onClose: () => void;
   onCommit: (next: string | null) => void;
   onRemove?: () => void;
+  /** Yard Desk draws the note beside the grid, so this cell does not float a popover. */
+  suppressPortal?: boolean;
 }) {
   const filled = stationCellFilled(note);
   const shown = filled ? note : "";
@@ -261,7 +264,7 @@ function StationNameCell({
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || suppressPortal) return;
     const onPointerDown = (event: PointerEvent) => {
       const node = event.target as Node | null;
       if (node && btnRef.current?.contains(node)) return;
@@ -292,12 +295,12 @@ function StationNameCell({
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
     };
-  }, [open, draft, onClose, onCommit, place]);
+  }, [open, suppressPortal, draft, onClose, onCommit, place]);
 
   useEffect(() => () => cancelHide(), []);
 
   const pop =
-    open && typeof document !== "undefined"
+    open && !suppressPortal && typeof document !== "undefined"
       ? createPortal(
           <div
             ref={popRef}
@@ -409,7 +412,80 @@ function StationNameCell({
   );
 }
 
-export function StationCallsCard({ date }: { date: string }) {
+function stationNoteLabel(
+  id: string,
+  yards: readonly { id: string; label: string }[],
+): string {
+  if (id === STATION_CORNER_NOTE_ID) return "Day";
+  return yards.find((yard) => yard.id === id)?.label ?? "Station";
+}
+
+function StationNoteAside({
+  label,
+  note,
+  editing,
+  onEdit,
+  onCommit,
+  onClose,
+}: {
+  label: string;
+  note: string | null;
+  editing: boolean;
+  onEdit: () => void;
+  onCommit: (next: string | null) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState(note ?? "");
+
+  useEffect(() => {
+    if (!editing) setDraft(note ?? "");
+  }, [editing, note]);
+
+  const finish = (raw: string) => {
+    onCommit(commitStationNote(raw));
+    onClose();
+  };
+
+  return (
+    <div className="station-note-aside">
+      <span className="station-note-aside-kicker">{label} note</span>
+      {editing ? (
+        <textarea
+          className="station-note-aside-input"
+          value={draft}
+          rows={2}
+          aria-label={`${label} note text`}
+          autoFocus
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => finish(draft)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              onClose();
+            }
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              finish(draft);
+            }
+          }}
+        />
+      ) : (
+        <button type="button" className="station-note-aside-text" onClick={onEdit}>
+          {stationCellFilled(note) ? note : "Add a note"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function StationCallsCard({
+  date,
+  noteAside = false,
+}: {
+  date: string;
+  /** Show the station note beside the grid header. Classic Today leaves this off. */
+  noteAside?: boolean;
+}) {
   const { configured, session, user } = useAuth();
   const cloud = configured && !!session;
   const [store, setStore] = useState(() => readStationCallStore());
@@ -532,9 +608,39 @@ export function StationCallsCard({ date }: { date: string }) {
     [persistNotes, notes],
   );
 
+  const aside = useMemo(() => {
+    if (!noteAside) return null;
+    if (activeNote) {
+      return {
+        id: activeNote.id,
+        label: stationNoteLabel(activeNote.id, yards),
+        note: noteForStation(notes, activeNote.id),
+        editing: activeNote.mode === "edit",
+      };
+    }
+    for (const yard of yards) {
+      const note = noteForStation(notes, yard.id);
+      if (stationCellFilled(note)) {
+        return { id: yard.id, label: yard.label, note, editing: false as const };
+      }
+    }
+    const corner = noteForStation(notes, STATION_CORNER_NOTE_ID);
+    if (stationCellFilled(corner)) {
+      return {
+        id: STATION_CORNER_NOTE_ID,
+        label: "Day",
+        note: corner,
+        editing: false as const,
+      };
+    }
+    const first = yards[0];
+    if (!first) return null;
+    return { id: first.id, label: first.label, note: null, editing: false as const };
+  }, [noteAside, activeNote, yards, notes]);
+
   return (
     <article className="station-calls-card">
-      <div className="station-calls-head">
+      <div className={noteAside ? "station-calls-head station-calls-head-aside" : "station-calls-head"}>
         <div>
           <p className="section-title">Load Count By Hour</p>
           <p className="station-calls-sub">
@@ -543,6 +649,19 @@ export function StationCallsCard({ date }: { date: string }) {
             {" · hover or tap a station name for a note"}
           </p>
         </div>
+        {aside ? (
+          <StationNoteAside
+            key={`${aside.id}-${aside.editing ? "edit" : "show"}`}
+            label={aside.label}
+            note={aside.note}
+            editing={aside.editing}
+            onEdit={() => setNoteOpen({ date, id: aside.id, mode: "edit" })}
+            onCommit={(next) => onNote(aside.id, next)}
+            onClose={() =>
+              setNoteOpen((cur) => (cur?.date === date && cur.id === aside.id ? null : cur))
+            }
+          />
+        ) : null}
       </div>
       <div className="station-calls-scroll">
         <table className="station-calls-table">
@@ -552,6 +671,7 @@ export function StationCallsCard({ date }: { date: string }) {
                 stationId={STATION_CORNER_NOTE_ID}
                 label=""
                 note={noteForStation(notes, STATION_CORNER_NOTE_ID)}
+                suppressPortal={noteAside}
                 open={activeNote?.id === STATION_CORNER_NOTE_ID ? activeNote.mode : null}
                 onPeek={() =>
                   setNoteOpen((cur) =>
@@ -586,6 +706,7 @@ export function StationCallsCard({ date }: { date: string }) {
                     stationId={yard.id}
                     label={yard.label}
                     note={note}
+                    suppressPortal={noteAside}
                     open={activeNote?.id === yard.id ? activeNote.mode : null}
                     onPeek={() =>
                       setNoteOpen((cur) =>

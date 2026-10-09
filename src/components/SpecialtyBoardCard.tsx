@@ -37,10 +37,18 @@ import { Chip } from "./Chip";
 import { QuantityStepper } from "./QuantityStepper";
 import "./specialty-board.css";
 
-export function SpecialtyBoardCard({ date }: { date: string }) {
+export function SpecialtyBoardCard({
+  date,
+  layout = "board",
+}: {
+  date: string;
+  /** Chip row for Yard Desk. Classic Today keeps the full board. */
+  layout?: "board" | "chips";
+}) {
   const { boardOn, addOpen, removeOpen, clearStation, cloud } = useSpecialty();
   const { store: customerLanes } = useCustomerLanes();
   const [addingFor, setAddingFor] = useState<string | null>(null);
+  const [chipOpen, setChipOpen] = useState<string | null>(null);
   const [open, setOpen] = useState(true);
   const [fresh, setFresh] = useState<{ date: string; id: string } | null>(null);
   const freshId = fresh?.date === date ? fresh.id : null;
@@ -105,6 +113,58 @@ export function SpecialtyBoardCard({ date }: { date: string }) {
         }
         laneDestinations={laneDestinations}
       />
+    );
+  }
+
+  if (layout === "chips") {
+    const stationSlots = gridSlots.filter((slot) => slot.kind === "station");
+    const openId =
+      chipOpen && stationSlots.some((slot) => slot.id === chipOpen) ? chipOpen : null;
+    const openStation = openId
+      ? SPECIALTY_STATIONS.find((station) => station.id === openId)
+      : undefined;
+    return (
+      <section className="yard-specialty">
+        <div className="yard-specialty-head">
+          <h2>Specialty transfers</h2>
+          <p>Odd-ball cards only for {formatHeaderDate(date)}</p>
+        </div>
+        <div className="yard-spec-row" role="list">
+          {stationSlots.map((slot) => {
+            const custom = isCustomSpecialtyId(slot.id);
+            const count = slotsForStation(board, slot.id).length;
+            const label = custom ? customSpecialtyDisplayName(slot.id) : slot.name;
+            return (
+              <button
+                key={slot.id}
+                type="button"
+                role="listitem"
+                className={openId === slot.id ? "yard-spec-chip on" : "yard-spec-chip"}
+                aria-pressed={openId === slot.id}
+                onClick={() => setChipOpen((prev) => (prev === slot.id ? null : slot.id))}
+              >
+                <span className="yard-spec-name">{label}</span>
+                <span className={`yard-spec-count${count ? " has-open" : ""}`}>{count}</span>
+                {custom ? <span className="yard-spec-tag">Odd-ball</span> : null}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            className="yard-spec-add"
+            aria-label="Add odd-ball specialty card"
+            title="Add an odd-ball card for this day"
+            onClick={() => {
+              const id = addOddCard(date);
+              setFresh({ date, id });
+              setChipOpen(id);
+            }}
+          >
+            <Plus size={14} strokeWidth={2.6} />
+          </button>
+        </div>
+        {openStation ? <ul className="yard-spec-detail">{renderStation(openStation)}</ul> : null}
+      </section>
     );
   }
 

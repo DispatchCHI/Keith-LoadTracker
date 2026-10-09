@@ -1,7 +1,17 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { dailyCounts } from "../lib/analytics";
 import { applyDailyEodToSummary, displayLoadCount, isSheetEodCard } from "../lib/dailyEod";
-import { formatHeaderDate, weekStartingSunday } from "../lib/chicagoDate";
+import {
+  addDays,
+  dayNumber,
+  formatHeaderDate,
+  formatShortDate,
+  isChicagoSunday,
+  parseISODate,
+  weekdayMed,
+  weekStartingSunday,
+} from "../lib/chicagoDate";
 import { notesButtonAriaLabel, notesButtonClassName } from "../lib/dayNotes";
 import { readCheckedLoadIds, toggleCheckedLoad } from "../lib/loadCheckoff";
 import {
@@ -11,16 +21,12 @@ import {
   rankCommodities,
   rankDestinations,
   rankPickups,
-  type TotalsFilter,
+  type RankRow,
 } from "../lib/totals";
 import { customerNames } from "../lib/customerLanes";
-import { useDesktopLayout } from "../lib/layout";
-import { DayPicker } from "../components/DayPicker";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
-import { DriversCard } from "../components/DriversCard";
 import { EodReportButton } from "../components/EodReportButton";
 import { LoadRow } from "../components/LoadRow";
-import { CollapsibleRank } from "../components/CollapsibleRank";
 import { SpecialtyBoardCard } from "../components/SpecialtyBoardCard";
 import { StationCallsCard } from "../components/StationCallsCard";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
@@ -28,7 +34,16 @@ import { useDailyEod } from "../store/DailyEodContext";
 import { useDayNotes } from "../store/DayNotesContext";
 import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
+import type { Load } from "../types";
 import "./yard-desk.css";
+
+const EOD_LABELS: Record<string, string> = {
+  trash: "Trash",
+  leachate: "Leachate",
+  "walking-floor": "Walking floor",
+  loads: "Loads",
+  subs: "Subs",
+};
 
 type YardDeskScreenProps = {
   date: string;
@@ -49,7 +64,6 @@ export function YardDeskScreen({
   onEdit,
   skinToggle,
 }: YardDeskScreenProps) {
-  const desktop = useDesktopLayout();
   const { loads, loadsOn } = useLoads();
   const { notesAffordance } = useDayNotes();
   const notesState = notesAffordance(date);
@@ -59,9 +73,23 @@ export function YardDeskScreen({
   const knownCustomers = useMemo(() => customerNames(customerLanes), [customerLanes]);
   const dayLoads = useMemo(() => loadsOn(date), [date, loadsOn]);
   const snapshot = totalsOn(date);
+  const [stamp, setStamp] = useState(date);
   const [pickupKey, setPickupKey] = useState<string | null>(null);
+  const [pickupTouched, setPickupTouched] = useState(false);
   const [landfillKey, setLandfillKey] = useState<string | null>(null);
+  const [landfillTouched, setLandfillTouched] = useState(false);
   const [commodityKey, setCommodityKey] = useState<string | null>(null);
+  const [commodityTouched, setCommodityTouched] = useState(false);
+
+  if (stamp !== date) {
+    setStamp(date);
+    setPickupKey(null);
+    setPickupTouched(false);
+    setLandfillKey(null);
+    setLandfillTouched(false);
+    setCommodityKey(null);
+    setCommodityTouched(false);
+  }
 
   const countByDate = useMemo(() => {
     const map = new Map<string, number>();
@@ -81,16 +109,10 @@ export function YardDeskScreen({
     () => applyDailyEodToSummary(endOfDaySummary(dayLoads, {}), snapshot),
     [dayLoads, snapshot],
   );
-
-  const pickupFilter: TotalsFilter | null = pickupKey
-    ? { kind: "pickup", key: pickupKey }
-    : null;
-  const landfillFilter: TotalsFilter | null = landfillKey
-    ? { kind: "destination", key: landfillKey }
-    : null;
-  const commodityFilter: TotalsFilter | null = commodityKey
-    ? { kind: "commodity", key: commodityKey }
-    : null;
+  const week = weekStartingSunday(date);
+  const openPickup = chosen(pickupTouched, pickupKey, byPickup[0]?.key ?? null);
+  const openLandfill = chosen(landfillTouched, landfillKey, byDestination[0]?.key ?? null);
+  const openCommodity = chosen(commodityTouched, commodityKey, byCommodity[0]?.key ?? null);
 
   const msWDispatchedToday = useMemo(() => {
     const counts = { batavia: 0, evanston: 0, hooker: 0 };
@@ -106,22 +128,11 @@ export function YardDeskScreen({
 
   const changeDate = (iso: string) => {
     onDateChange(iso);
-    setPickupKey(null);
-    setLandfillKey(null);
-    setCommodityKey(null);
-  };
-
-  const toggleKey = (
-    current: string | null,
-    set: (key: string | null) => void,
-    next: TotalsFilter,
-  ) => {
-    set(current === next.key ? null : next.key);
   };
 
   return (
     <div className="screen yard-desk">
-      <div className="yard-toolbar">
+      <div className="yard-band">
         <div className="yard-date">
           <div>
             <p className="eyebrow">Chicago</p>
@@ -129,12 +140,39 @@ export function YardDeskScreen({
           </div>
           {skinToggle}
         </div>
-        <DayPicker
-          date={date}
-          onChange={changeDate}
-          loadCountFor={(iso) => countByDate.get(iso) ?? 0}
-          driverCountFor={(iso) => availabilityOn(iso)?.available ?? null}
-        />
+
+        <div className="yard-week" role="group" aria-label="Week">
+          <button
+            type="button"
+            className="yard-week-nav"
+            aria-label="Previous week"
+            onClick={() => changeDate(addDays(week[0], -7))}
+          >
+            <ChevronLeft size={14} />
+          </button>
+          {week.map((iso) => (
+            <button
+              key={iso}
+              type="button"
+              className={iso === date ? "yard-day on" : "yard-day"}
+              aria-pressed={iso === date}
+              onClick={() => changeDate(iso)}
+            >
+              <span className="yard-day-w">{weekdayMed(iso)}</span>
+              <span className="yard-day-n">{dayNumber(iso)}</span>
+              <span className="yard-day-c">{countByDate.get(iso) ?? 0}</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className="yard-week-nav"
+            aria-label="Next week"
+            onClick={() => changeDate(addDays(week[0], 7))}
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+
         <div className="yard-actions">
           <button type="button" className="log-load-top" onClick={() => onLog(date)}>
             + Log load
@@ -151,6 +189,7 @@ export function YardDeskScreen({
           <EodReportButton date={date} />
           {justEditedId ? <span className="updated-badge">Updated</span> : null}
         </div>
+
         <div className="eod-stat-row yard-eod">
           {endOfDayCards(eod).map((card) => {
             const fromSheet = Boolean(snapshot) && isSheetEodCard(card.key);
@@ -164,21 +203,34 @@ export function YardDeskScreen({
                   .filter(Boolean)
                   .join(" ")}
               >
-                <span className="eod-stat-label">{card.label}</span>
+                <span className="eod-stat-label">{EOD_LABELS[card.key] ?? card.label}</span>
                 <span className="eod-stat-value">{card.count}</span>
               </article>
             );
           })}
         </div>
+
+        <label className="yard-cal">
+          <span className="yard-cal-kicker">Calendar</span>
+          <input
+            type="date"
+            value={date}
+            aria-label={`Calendar, ${formatShortDate(date)}, ${parseISODate(date).y}`}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next) changeDate(next);
+            }}
+          />
+        </label>
       </div>
 
       <div className="yard-work">
         <div className="yard-col yard-side">
-          <DriversCard
-            compact
-            collapsible
+          <YardDrivers
             date={date}
+            available={availabilityOn(date)?.available ?? null}
             loadCount={displayLoadCount(dayLoads.length, snapshot)}
+            loads={dayLoads}
           />
           <DispatchTalliesRow
             date={date}
@@ -189,79 +241,243 @@ export function YardDeskScreen({
         </div>
 
         <div className="yard-col">
-          <CollapsibleRank
-            title="Transfer stations"
-            hint="Tap a site · custom stays tagged"
+          <TransferStations
             rows={byPickup}
-            filterKind="pickup"
-            active={pickupFilter}
-            onSelect={(next) => toggleKey(pickupKey, setPickupKey, next)}
-            defaultOpen
-            compact
-            columns={desktop ? 2 : 1}
-            layout="sheet"
-            emptyText="Nothing logged this day."
-            expandedPanel={
-              pickupFilter ? (
-                <RankLoads
-                  loads={rankAccordionLoads(dayLoads, pickupFilter)}
-                  onEdit={onEdit}
-                  checkoff
-                />
-              ) : null
-            }
+            openKey={openPickup}
+            loads={dayLoads}
+            onSelect={(key) => {
+              setPickupTouched(true);
+              setPickupKey(openPickup === key ? null : key);
+            }}
+            onEdit={onEdit}
           />
         </div>
 
         <div className="yard-col">
-          <CollapsibleRank
+          <OpeningList
             title="Landfill"
-            hint="Tap to open"
             rows={byDestination}
-            filterKind="destination"
-            active={landfillFilter}
-            onSelect={(next) => toggleKey(landfillKey, setLandfillKey, next)}
-            defaultOpen
-            compact
-            columns={1}
-            layout="sheet"
-            emptyText="Nothing logged this day."
-            expandedPanel={
-              landfillFilter ? (
-                <RankLoads
-                  loads={rankAccordionLoads(dayLoads, landfillFilter)}
-                  onEdit={onEdit}
-                />
-              ) : null
+            openKey={openLandfill}
+            loads={
+              openLandfill
+                ? rankAccordionLoads(dayLoads, { kind: "destination", key: openLandfill })
+                : []
             }
+            onSelect={(key) => {
+              setLandfillTouched(true);
+              setLandfillKey(openLandfill === key ? null : key);
+            }}
+            onEdit={onEdit}
           />
-          <CollapsibleRank
+          <OpeningList
             title="Commodity"
-            hint="Tap to open"
             rows={byCommodity}
-            filterKind="commodity"
-            active={commodityFilter}
-            onSelect={(next) => toggleKey(commodityKey, setCommodityKey, next)}
-            defaultOpen
-            compact
-            columns={1}
-            layout="sheet"
-            emptyText="Nothing logged this day."
-            expandedPanel={
-              commodityFilter ? (
-                <RankLoads
-                  loads={rankAccordionLoads(dayLoads, commodityFilter)}
-                  onEdit={onEdit}
-                />
-              ) : null
+            openKey={openCommodity}
+            loads={
+              openCommodity
+                ? rankAccordionLoads(dayLoads, { kind: "commodity", key: openCommodity })
+                : []
             }
+            onSelect={(key) => {
+              setCommodityTouched(true);
+              setCommodityKey(openCommodity === key ? null : key);
+            }}
+            onEdit={onEdit}
           />
         </div>
       </div>
 
-      <SpecialtyBoardCard date={date} />
-      <StationCallsCard date={date} />
+      <SpecialtyBoardCard date={date} layout="chips" />
+      <StationCallsCard date={date} noteAside />
     </div>
+  );
+}
+
+function chosen(touched: boolean, key: string | null, fallback: string | null): string | null {
+  if (key) return key;
+  if (touched) return null;
+  return fallback;
+}
+
+function YardDrivers({
+  date,
+  available,
+  loadCount,
+  loads,
+}: {
+  date: string;
+  available: number | null;
+  loadCount: number;
+  loads: Load[];
+}) {
+  const [open, setOpen] = useState(true);
+  const sunday = isChicagoSunday(date);
+  const ratio =
+    !sunday && available != null && available > 0 ? (loadCount / available).toFixed(2) : null;
+  const names = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const load of loads) {
+      const name = load.driverName?.trim();
+      if (!name) continue;
+      map.set(name, (map.get(name) ?? 0) + 1);
+    }
+    return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [loads]);
+
+  const summary = sunday
+    ? "No Sunday tally"
+    : available == null
+      ? "Roster not loaded"
+      : `${available} available`;
+
+  return (
+    <section className="yard-panel yard-drivers">
+      <div className="yard-panel-head">
+        <h2>Available drivers</h2>
+        <button
+          type="button"
+          className="yard-expand"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? "Expanded" : "Expand"}
+        </button>
+      </div>
+      <p className="yard-driver-summary">
+        {summary}
+        {ratio ? (
+          <>
+            {" "}
+            <strong>{ratio}</strong> loads per driver
+          </>
+        ) : null}
+      </p>
+      {open ? (
+        names.length > 0 ? (
+          <ul className="yard-driver-names">
+            {names.map(([name, count]) => (
+              <li key={name}>
+                <span>{name}</span>
+                <b>{count}</b>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="yard-empty">No driver names on this day’s loads.</p>
+        )
+      ) : null}
+    </section>
+  );
+}
+
+function TransferStations({
+  rows,
+  openKey,
+  loads,
+  onSelect,
+  onEdit,
+}: {
+  rows: RankRow[];
+  openKey: string | null;
+  loads: Load[];
+  onSelect: (key: string) => void;
+  onEdit: (id: string) => void;
+}) {
+  const open = rows.find((row) => row.key === openKey) ?? null;
+  const rest = open ? rows.filter((row) => row.key !== open.key) : rows;
+  const openLoads = open
+    ? rankAccordionLoads(loads, { kind: "pickup", key: open.key })
+    : [];
+
+  return (
+    <section className="yard-panel yard-transfers">
+      <div className="yard-panel-head">
+        <h2>Transfer stations</h2>
+        <span className="yard-hint">Tap a site · MSW / total</span>
+      </div>
+      {open ? (
+        <div className="yard-open-site">
+          <button
+            type="button"
+            className="yard-open-head"
+            aria-expanded
+            onClick={() => onSelect(open.key)}
+          >
+            <strong>{open.label}</strong>
+            {open.custom ? <em className="yard-custom">Custom</em> : null}
+            <span>
+              {open.trashCount} msw · {open.count} total
+            </span>
+          </button>
+          <RankLoads loads={openLoads} onEdit={onEdit} checkoff />
+        </div>
+      ) : null}
+      {rest.length > 0 ? (
+        <div className="yard-site-grid">
+          {rest.map((row) => (
+            <button
+              key={row.key}
+              type="button"
+              className="yard-site"
+              onClick={() => onSelect(row.key)}
+            >
+              <span className="yard-site-name">
+                {row.label}
+                {row.custom ? <em className="yard-custom">Custom</em> : null}
+              </span>
+              <span className="yard-site-num">{row.trashCount}</span>
+              <span className="yard-site-num">{row.count}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {rows.length === 0 ? <p className="yard-empty">Nothing logged this day.</p> : null}
+    </section>
+  );
+}
+
+function OpeningList({
+  title,
+  rows,
+  openKey,
+  loads,
+  onSelect,
+  onEdit,
+}: {
+  title: string;
+  rows: RankRow[];
+  openKey: string | null;
+  loads: Load[];
+  onSelect: (key: string) => void;
+  onEdit: (id: string) => void;
+}) {
+  return (
+    <section className="yard-panel yard-rank">
+      <div className="yard-panel-head">
+        <h2>{title}</h2>
+        <span className="yard-hint">Tap to open</span>
+      </div>
+      {rows.length === 0 ? <p className="yard-empty">Nothing logged this day.</p> : null}
+      <ul className="yard-rank-list">
+        {rows.map((row) => {
+          const open = row.key === openKey;
+          return (
+            <li key={row.key}>
+              <button
+                type="button"
+                className={open ? "yard-rank-row on" : "yard-rank-row"}
+                aria-expanded={open}
+                onClick={() => onSelect(row.key)}
+              >
+                <span>{row.label}</span>
+                <b>{row.count}</b>
+              </button>
+              {open ? <RankLoads loads={loads} onEdit={onEdit} /> : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -270,21 +486,19 @@ function RankLoads({
   onEdit,
   checkoff = false,
 }: {
-  loads: ReturnType<typeof rankAccordionLoads>;
+  loads: Load[];
   onEdit: (id: string) => void;
   checkoff?: boolean;
 }) {
   const [checkedIds, setCheckedIds] = useState(() => readCheckedLoadIds());
 
   if (loads.length === 0) {
-    return <p className="field-hint">No loads in this group.</p>;
+    return <p className="yard-empty">No loads in this group.</p>;
   }
   return (
-    <div className="feed rank-accordion-feed">
+    <div className="feed yard-load-feed">
       {checkoff ? (
-        <p className="field-hint tight">
-          Click a load to shade the card. Click it again to clear it.
-        </p>
+        <p className="yard-empty">Shade turns the load darker gray. A second click clears it.</p>
       ) : null}
       {loads.map((load) => (
         <LoadRow
