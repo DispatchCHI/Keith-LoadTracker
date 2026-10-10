@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "The Load Tracker",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "com.chitrader.loadtracker",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -28,7 +28,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": [
+      "nsis"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -38,10 +40,13 @@
     ],
     "publisher": "Keith Lawson",
     "shortDescription": "Log and review transfer-station loads",
-    "longDescription": "The Load Tracker — truck, pickup, commodity, and destination. Not dispatch software.",
+    "longDescription": "The Load Tracker - truck, pickup, commodity, and destination. Not dispatch software.",
     "windows": {
       "webviewInstallMode": {
         "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser"
       }
     }
   }

@@ -31,3 +31,6 @@ dist-sync.zip
 tauri-build.log
 src-tauri/target
 Thumbs.db
+
+# desktop installer output (npm run desktop:build)
+installer/
