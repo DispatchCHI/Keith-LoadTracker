@@ -41,6 +41,11 @@ import {
   type CustomerLaneStore,
   type RenameCustomerStatus,
 } from "../lib/customerLanes";
+import {
+  clearLaneTombstones,
+  fetchLaneTombstones,
+  pushLaneTombstones,
+} from "../lib/customerLaneTombstonesCloud";
 import { getSupabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
@@ -67,6 +72,9 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
   );
   const deletedLanesRef = useRef<Set<string>>(
     new Set(readCustomerLanePersisted().deletedLaneIds),
+  );
+  const deletedLaneAtRef = useRef<Record<string, string>>(
+    readCustomerLanePersisted().deletedLaneAt ?? {},
   );
   const [store, setStore] = useState<CustomerLaneStore>(() => {
     const persisted = readCustomerLanePersisted();
@@ -122,6 +130,9 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       seededAt: readCustomerLanePersisted().seededAt,
       deletedCustomerNames: [...deletedCustomersRef.current],
       deletedLaneIds: [...deletedLanesRef.current],
+      deletedLaneAt: Object.fromEntries(
+        Object.entries(deletedLaneAtRef.current).filter(([id]) => deletedLanesRef.current.has(id)),
+      ),
     };
     writeCustomerLanePersisted(snapshot);
     storeRef.current = next;
@@ -182,8 +193,17 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
 
   const refreshInner = useCallback(async () => {
     if (!cloud) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
     const remote = await pullRemote();
     if (!remote) {
+      await syncBrandOverrides();
+      return;
+    }
+    // Shared lane deletes. A failed read (not a missing table) means this desk
+    // cannot know what other desks deleted: upload nothing this round.
+    const tombPull = await fetchLaneTombstones(supabase);
+    if (!tombPull.ok) {
       await syncBrandOverrides();
       return;
     }
@@ -193,8 +213,11 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       seenRemoteIds: seenRef.current,
       deletedCustomerNames: deletedCustomersRef.current,
       deletedLaneIds: deletedLanesRef.current,
+      deletedLaneAt: deletedLaneAtRef.current,
+      remoteTombstones: tombPull.tombstones,
     });
-    for (const id of reconciled.deletedLaneIds) deletedLanesRef.current.add(id);
+    deletedLanesRef.current = new Set(reconciled.deletedLaneIds);
+    deletedLaneAtRef.current = reconciled.deletedLaneAt;
     for (const id of Object.keys(remote.lanes)) seenRef.current.add(id);
     const upload = reconciled.upload.filter((lane) => !deletedLanesRef.current.has(lane.id));
     const lanes = { ...reconciled.lanes };
@@ -208,8 +231,28 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       ]),
     ];
     if (deleteIds.length) await cloudDelete(deleteIds);
+    if (tombPull.tombstones) {
+      await pushLaneTombstones(supabase, reconciled.tombstonesToPush, user?.id ?? null);
+    }
     await syncBrandOverrides();
-  }, [cloud, cloudDelete, cloudUpsert, persistLocal, pullRemote, syncBrandOverrides]);
+  }, [cloud, cloudDelete, cloudUpsert, persistLocal, pullRemote, syncBrandOverrides, user?.id]);
+
+  const shareLaneDeletes = useCallback(
+    (ids: string[]) => {
+      const at = new Date().toISOString();
+      const stamped: Record<string, string> = {};
+      for (const id of ids) {
+        deletedLanesRef.current.add(id);
+        deletedLaneAtRef.current[id] = at;
+        stamped[id] = at;
+      }
+      const supabase = getSupabase();
+      if (cloud && supabase && ids.length) {
+        void pushLaneTombstones(supabase, stamped, user?.id ?? null);
+      }
+    },
+    [cloud, user?.id],
+  );
 
   const refresh = useCallback(() => {
     const run = refreshTailRef.current.then(refreshInner, refreshInner);
@@ -257,9 +300,14 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       if (key && deletedCustomersRef.current.has(key)) {
         deletedCustomersRef.current.delete(key);
       }
-      deletedLanesRef.current.delete(result.lane.id);
+      const wasDeleted =
+        deletedLanesRef.current.delete(result.lane.id) ||
+        Boolean(deletedLaneAtRef.current[result.lane.id]);
+      delete deletedLaneAtRef.current[result.lane.id];
       persistLocal(result.store);
       if (cloud) void cloudUpsert([result.lane]);
+      const supabase = getSupabase();
+      if (cloud && supabase && wasDeleted) void clearLaneTombstones(supabase, [result.lane.id]);
       return result.lane;
     },
     [cloud, cloudUpsert, persistLocal],
@@ -269,11 +317,11 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     async (id: string) => {
       const result = removeCustomerLane(storeRef.current, id);
       if (!result.removed) return;
-      deletedLanesRef.current.add(id);
+      shareLaneDeletes([id]);
       persistLocal(result.store);
       if (cloud) void cloudDelete([id]);
     },
-    [cloud, cloudDelete, persistLocal],
+    [cloud, cloudDelete, persistLocal, shareLaneDeletes],
   );
 
   const deleteCustomer = useCallback(
@@ -281,12 +329,14 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       const result = removeCustomerByName(storeRef.current, name);
       const key = normalizePlaceName(name);
       if (key) deletedCustomersRef.current.add(key);
+      // Share each removed lane's delete so a fresh desk does not seed them back.
+      shareLaneDeletes(result.removedIds);
       clearCustomerBrandOverride(name);
       persistLocal(result.store);
       flushCustomerBrandOverrides();
       if (cloud && result.removedIds.length) void cloudDelete(result.removedIds);
     },
-    [cloud, cloudDelete, persistLocal],
+    [cloud, cloudDelete, persistLocal, shareLaneDeletes],
   );
 
   const renameCustomer = useCallback(

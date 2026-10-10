@@ -3,6 +3,7 @@
 import { CUSTOMER_LANE_SEED } from "../data/customerLaneSeed";
 import { canonicalDestination } from "../data/stations";
 import { isValidISODate } from "./chicagoDate";
+import { isIsoAfter } from "./isoTime";
 import { commodityRankLabel, tallyLabel } from "./commodity";
 import { safeSetItem } from "./localStorageSafe";
 
@@ -63,7 +64,22 @@ export type CustomerLanePersisted = {
   deletedCustomerNames: string[];
   /** Lane ids the dispatcher deleted. Seed and cloud refresh must not put them back. */
   deletedLaneIds: string[];
+  /** When each lane delete happened (ISO). Ids without a time are legacy deletes. */
+  deletedLaneAt?: Record<string, string>;
 };
+
+/** Supabase table holding lane deletes so every desk (even a brand-new one) knows them. */
+export const CUSTOMER_LANE_TOMBSTONES_TABLE = "customer_lane_tombstones";
+
+/** updatedAt stamped on built-in (seed) lanes. */
+export const SEED_LANE_STAMP = "2026-09-16T12:00:00.000Z";
+
+/**
+ * Effective time of a legacy delete (no recorded time): just after the
+ * built-in stamp. It still beats an untouched built-in a stale desk
+ * re-uploaded, but never a lane someone saved after the built-ins shipped.
+ */
+export const LEGACY_LANE_DELETE_AT = "2026-09-16T12:00:00.001Z";
 
 export type CustomerLaneRow = {
   id: string;
@@ -223,7 +239,7 @@ export function seedLaneId(customer: string, destination: string, commodity: str
   return `cl-${slug(customer)}-${slug(destination)}-${laneCommodityKey(commodity)}-${effectiveDate}`;
 }
 
-export function lanesFromSeed(at = "2026-09-16T12:00:00.000Z"): CustomerLane[] {
+export function lanesFromSeed(at = SEED_LANE_STAMP): CustomerLane[] {
   return CUSTOMER_LANE_SEED.map((row) => {
     const customer = cleanPlaceName(row.customer);
     const destination = cleanPlaceName(row.destination);
@@ -305,7 +321,17 @@ function emptyCustomerLanePersisted(): CustomerLanePersisted {
     seededAt: null,
     deletedCustomerNames: [],
     deletedLaneIds: [],
+    deletedLaneAt: {},
   };
+}
+
+export function parseDeletedLaneAt(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [id, at] of Object.entries(raw as Record<string, unknown>)) {
+    if (id && typeof at === "string" && Number.isFinite(Date.parse(at))) out[id] = at;
+  }
+  return out;
 }
 
 function parseIdList(raw: unknown): string[] {
@@ -341,6 +367,7 @@ export function readCustomerLanePersisted(): CustomerLanePersisted {
       seededAt: typeof parsed.seededAt === "string" ? parsed.seededAt : null,
       deletedCustomerNames: [...new Set(deleted)],
       deletedLaneIds: parseIdList(parsed.deletedLaneIds),
+      deletedLaneAt: parseDeletedLaneAt(parsed.deletedLaneAt),
     };
   } catch {
     return emptyCustomerLanePersisted();
@@ -608,72 +635,126 @@ export type CustomerLaneReconcile = {
   seenRemoteIds: Iterable<string>;
   deletedCustomerNames: Iterable<string>;
   deletedLaneIds: Iterable<string>;
+  /** Local delete times (ISO). Ids in deletedLaneIds without a time are legacy. */
+  deletedLaneAt?: Record<string, string>;
+  /**
+   * Lane deletes recorded in Supabase (id -> deleted_at). null when the
+   * tombstone table is not there yet: fall back to this desk's own memory.
+   */
+  remoteTombstones?: Record<string, string> | null;
+  /** Stamp for deletes this reconcile discovers. Defaults to now. */
+  now?: string;
 };
 
 /**
  * Merge a cloud pull with this device.
  * A deleted lane stays deleted: seed rows do not return, a remote copy is
  * deleted again, and a lane that disappeared from the cloud is not uploaded.
+ *
+ * Deletes are shared through the cloud tombstone table, so a brand-new or
+ * stale desk cannot re-upload a built-in lane another desk deleted. A delete
+ * only wins over a cloud lane that is older than it (parsed instants, not
+ * string order); a lane saved after the delete wins and clears it.
  */
 export function reconcileCustomerLanes(input: CustomerLaneReconcile): {
   lanes: Record<string, CustomerLane>;
   upload: CustomerLane[];
   deleteIds: string[];
   deletedLaneIds: string[];
+  deletedLaneAt: Record<string, string>;
+  /** Deletes the cloud tombstone table does not have yet (id -> deleted_at). */
+  tombstonesToPush: Record<string, string>;
 } {
+  const now = input.now ?? new Date().toISOString();
   const deletedCustomers = new Set(
     [...input.deletedCustomerNames].map((name) => normalizePlaceName(name)).filter(Boolean),
   );
-  const deletedLanes = new Set(input.deletedLaneIds);
   const seen = new Set(input.seenRemoteIds);
+  const remoteTombs = input.remoteTombstones ?? {};
   const customerGone = (lane: CustomerLane) =>
     deletedCustomers.has(normalizePlaceName(lane.customer));
+
+  // id -> delete time; null = legacy local delete with no time.
+  const tombs = new Map<string, string | null>();
+  for (const id of input.deletedLaneIds) tombs.set(id, input.deletedLaneAt?.[id] ?? null);
+  for (const [id, at] of Object.entries(remoteTombs)) {
+    const mine = tombs.get(id);
+    if (mine == null || isIsoAfter(at, mine)) tombs.set(id, at);
+  }
+  const tombWins = (id: string, lane: CustomerLane) =>
+    isIsoAfter(tombs.get(id) ?? LEGACY_LANE_DELETE_AT, lane.updatedAt);
 
   const lanes: Record<string, CustomerLane> = {};
   const upload: CustomerLane[] = [];
   const deleteIds: string[] = [];
 
   for (const [id, lane] of Object.entries(input.remote.lanes)) {
-    if (deletedLanes.has(id) || customerGone(lane)) {
+    if (customerGone(lane)) {
       deleteIds.push(id);
       continue;
+    }
+    if (tombs.has(id)) {
+      if (tombWins(id, lane)) {
+        deleteIds.push(id);
+        continue;
+      }
+      // Saved again after the delete: the lane wins, the delete is dropped.
+      tombs.delete(id);
     }
     lanes[id] = lane;
   }
 
   for (const lane of Object.values(input.local.lanes)) {
-    if (deletedLanes.has(lane.id) || customerGone(lane)) {
+    if (customerGone(lane)) {
       if (!deleteIds.includes(lane.id)) deleteIds.push(lane.id);
+      continue;
+    }
+    if (tombs.has(lane.id)) {
+      if (!deleteIds.includes(lane.id) && input.remote.lanes[lane.id]) deleteIds.push(lane.id);
       continue;
     }
     const remoteLane = input.remote.lanes[lane.id];
     if (!remoteLane) {
       if (seen.has(lane.id)) {
-        deletedLanes.add(lane.id);
+        tombs.set(lane.id, now);
         continue;
       }
       lanes[lane.id] = lane;
       upload.push(lane);
       continue;
     }
-    if (lane.updatedAt > remoteLane.updatedAt) {
+    if (isIsoAfter(lane.updatedAt, remoteLane.updatedAt)) {
       lanes[lane.id] = lane;
       upload.push(lane);
     }
   }
 
   const beforeSeed = new Set(Object.keys(lanes));
-  const seeded = mergeSeededLanes({ lanes }, undefined, deletedCustomers, deletedLanes);
+  const seeded = mergeSeededLanes({ lanes }, undefined, deletedCustomers, tombs.keys());
   for (const lane of Object.values(seeded.lanes)) {
     if (beforeSeed.has(lane.id) || input.remote.lanes[lane.id]) continue;
     upload.push(lane);
+  }
+
+  const deletedLaneAt: Record<string, string> = {};
+  const tombstonesToPush: Record<string, string> = {};
+  for (const [id, at] of tombs) {
+    // Legacy deletes get a real time the first time they are shared.
+    const stamped = at ?? now;
+    deletedLaneAt[id] = stamped;
+    const remoteAt = remoteTombs[id];
+    if (input.remoteTombstones !== null && (!remoteAt || isIsoAfter(stamped, remoteAt))) {
+      tombstonesToPush[id] = stamped;
+    }
   }
 
   return {
     lanes: seeded.lanes,
     upload,
     deleteIds,
-    deletedLaneIds: [...deletedLanes],
+    deletedLaneIds: [...tombs.keys()],
+    deletedLaneAt,
+    tombstonesToPush,
   };
 }
 

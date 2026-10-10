@@ -1,3 +1,4 @@
+import { isIsoAfter } from "./isoTime";
 import {
   assignedTruckKey,
   cleanAssignedTruck,
@@ -33,7 +34,7 @@ function previousAssignedTruck(
     // blank came from cloud (see mergeAssignedTruckFields). Local status /
     // hire / reorder bumps must not paste-null over a saved unit — that is
     // handled by preferring remote/local non-null in merge, not here.
-    if (blankIsAuthoritative && priorSame && row.updatedAt > priorSame.updatedAt) return null;
+    if (blankIsAuthoritative && priorSame && isIsoAfter(row.updatedAt, priorSame.updatedAt)) return null;
     return byId;
   }
   // This card already exists and its truck is blank. That blank is the value
@@ -47,7 +48,7 @@ function previousAssignedTruck(
       if (personKey(prior) !== key) continue;
       const kept = cleanAssignedTruck(prior.assignedTruck);
       if (!kept) continue;
-      if (blankIsAuthoritative && row.updatedAt > prior.updatedAt) continue;
+      if (blankIsAuthoritative && isIsoAfter(row.updatedAt, prior.updatedAt)) continue;
       return kept;
     }
   }
@@ -85,7 +86,7 @@ export function mergeAssignedTruckFields(
       remoteRow &&
       !remoteTruck &&
       localTruck &&
-      remoteRow.updatedAt > (localRow?.updatedAt ?? "")
+      isIsoAfter(remoteRow.updatedAt, localRow?.updatedAt ?? "")
     ) {
       continue;
     }
@@ -158,7 +159,7 @@ export function assignedTrucksNeedingUpload(
     const remoteTruck = cleanAssignedTruck(remoteRow?.assignedTruck ?? null);
     if (localTruck === remoteTruck) continue;
     if (!localTruck) continue;
-    if (!remoteTruck && remoteRow && remoteRow.updatedAt > row.updatedAt) continue;
+    if (!remoteTruck && remoteRow && isIsoAfter(remoteRow.updatedAt, row.updatedAt)) continue;
     out.push(row);
   }
   return out;
@@ -190,7 +191,8 @@ export function resolveDuplicateAssignedTrucks(
   for (const list of groups.values()) {
     if (list.length < 2) continue;
     const ranked = [...list].sort((a, b) => {
-      if (a.updatedAt !== b.updatedAt) return a.updatedAt < b.updatedAt ? 1 : -1;
+      if (isIsoAfter(a.updatedAt, b.updatedAt)) return -1;
+      if (isIsoAfter(b.updatedAt, a.updatedAt)) return 1;
       return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
     for (const row of ranked.slice(1)) {
