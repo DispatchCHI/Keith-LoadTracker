@@ -52,6 +52,7 @@ import {
   formatAllYardsWorklist,
   formatWorklistDate,
   formatYardWorklist,
+  isPastPlanningSaturday,
   worklistTitle,
   type WorklistPrefix,
 } from "../lib/satWorklist";
@@ -512,6 +513,12 @@ export function DriverScreen() {
     window.setTimeout(() => setCopied(null), 1600);
   }
 
+  const pastPlanningHere = kind === "sat" && isPastPlanningSaturday(satDate, today);
+  const pastPlanningOther =
+    !pastPlanningHere &&
+    kind === "sat" &&
+    Boolean(allYardsWorklist?.yards.some((item) => isPastPlanningSaturday(item.saturday, today)));
+
   function onPrintYard() {
     printHtmlDocument(
       buildWorklistPrintHtml({
@@ -805,6 +812,13 @@ export function DriverScreen() {
               <button type="button" className="text-btn" onClick={onPrintAll}>
                 Print all yards
               </button>
+              {pastPlanningHere || pastPlanningOther ? (
+                <span className="drv-worklist-warn" role="status">
+                  {pastPlanningHere
+                    ? "Planning Saturday is a past date"
+                    : "Another yard's Planning Saturday is a past date"}
+                </span>
+              ) : null}
             </div>
           </div>
           <label className="drv-worklist-footer">

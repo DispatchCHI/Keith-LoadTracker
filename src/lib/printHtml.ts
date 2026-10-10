@@ -19,6 +19,8 @@ export function printHtmlDocument(html: string): void {
     doc.open();
     doc.write(html);
     doc.close();
+    // Blank title: nothing to leak into a browser print header.
+    doc.title = "\u00A0";
     const win = frame.contentWindow;
     const cleanup = () => window.setTimeout(() => frame.remove(), 1000);
     win.addEventListener("afterprint", cleanup, { once: true });

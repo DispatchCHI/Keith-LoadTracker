@@ -6813,3 +6813,8 @@ body.app-ready .splash {
   font-weight: 700;
   margin-bottom: 6px;
 }
+.drv-worklist-warn {
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 800;
+}

@@ -118,6 +118,14 @@ export function allYardsSaturday(
   return yardSaturdays.find((day): day is string => Boolean(day)) ?? fallback;
 }
 
+/** Non-breaking space: an empty <title> makes some browsers print the URL instead. */
+export const PRINT_DOCUMENT_TITLE = "&#160;";
+
+/** True when a saved Planning Saturday is before the coming Saturday (Chicago). */
+export function isPastPlanningSaturday(saved: string | null | undefined, chicagoTodayIso: string): boolean {
+  return Boolean(saved) && saved! < comingSaturday(chicagoTodayIso);
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -134,13 +142,18 @@ export type PrintSection = {
 /**
  * Standalone, black-on-white printable page. Names flow down multi-column
  * lists in roster order; each yard section avoids splitting across pages.
+ *
+ * Printed page = title, names, footer. No Total Drivers line and no per-yard
+ * counts (the copied text keeps those). `@page { margin: 0 }` leaves no room
+ * for the browser's own date / title / URL / page-number header and footer
+ * (Chrome, Edge, WebView2); the body padding supplies the real margin. The
+ * document title is a blank so nothing leaks if a header is still drawn.
  */
 export function buildWorklistPrintHtml(input: {
   title: string;
   sections: readonly PrintSection[];
   footer: string;
 }): string {
-  const total = input.sections.reduce((sum, section) => sum + rosterLines(section.entries).length, 0);
   const many = input.sections.length > 1;
   const sectionHtml = input.sections
     .map((section) => {
@@ -155,36 +168,36 @@ export function buildWorklistPrintHtml(input: {
       const body = lines.length
         ? `<ol class="names">${lines.join("")}</ol>`
         : `<p class="none">(no drivers)</p>`;
-      const count = lines.length;
-      return `<section class="yard">${
-        many ? `<h2>${escapeHtml(section.heading)} <span class="count">${count} driver${count === 1 ? "" : "s"}</span></h2>` : ""
-      }${body}</section>`;
+      return `<section class="yard">${many ? `<h2>${escapeHtml(section.heading)}</h2>` : ""}${body}</section>`;
     })
     .join("");
   const footer = cleanFooter(input.footer);
   return `<!doctype html>
-<html><head><meta charset="utf-8"><title>${escapeHtml(input.title)}</title>
+<html><head><meta charset="utf-8"><title>${PRINT_DOCUMENT_TITLE}</title>
 <style>
-  @page { margin: 0.5in; }
+  @page { margin: 0; }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: #fff; color: #000; }
-  body { font: 12pt/1.3 Arial, Helvetica, sans-serif; padding: 0.25in; }
+  body { font: 12pt/1.3 Arial, Helvetica, sans-serif; padding: 0 0.5in; }
+  /* thead/tfoot spacers repeat on every printed page = 0.5in top/bottom margin with @page margin 0. */
+  .sheet { width: 100%; border-collapse: collapse; }
+  .sheet td { padding: 0; vertical-align: top; }
+  .gap { height: 0.5in; }
   h1 { font-size: 16pt; margin: 0 0 10pt; }
   h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1px solid #000; padding-bottom: 2pt; }
-  h2 .count { font-weight: normal; font-size: 11pt; }
   .yard { break-inside: avoid; page-break-inside: avoid; }
   .names { list-style: none; margin: 0; padding: 0; columns: ${many ? 4 : 3}; column-gap: 18pt; font-size: ${many ? 10 : 12}pt; }
   .names li { break-inside: avoid; padding: 1pt 0; white-space: nowrap; }
   .emp { display: inline-block; min-width: 4.2em; font-variant-numeric: tabular-nums; }
   .none { margin: 0; font-style: italic; }
-  .total { font-weight: bold; margin: 12pt 0 4pt; font-size: 13pt; }
-  .footer { margin: 4pt 0 0; font-size: 12pt; white-space: pre-wrap; }
-  @media print { body { padding: 0; } }
+  .footer { margin: 14pt 0 0; font-size: 12pt; font-weight: bold; white-space: pre-wrap; }
+  @media print { html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style></head>
 <body>
+<table class="sheet"><thead><tr><td class="gap"></td></tr></thead><tfoot><tr><td class="gap"></td></tr></tfoot><tbody><tr><td>
 <h1>${escapeHtml(input.title)}</h1>
 ${sectionHtml}
-<p class="total">Total Drivers: ${total}</p>
 ${footer ? `<p class="footer">${escapeHtml(footer)}</p>` : ""}
+</td></tr></tbody></table>
 </body></html>`;
 }

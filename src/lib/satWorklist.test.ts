@@ -8,6 +8,7 @@ import {
   formatAllYardsWorklist,
   formatWorklistDate,
   formatYardWorklist,
+  isPastPlanningSaturday,
   worklistTitle,
 } from "./satWorklist";
 import {
@@ -119,16 +120,49 @@ describe("Saturday Worklist text", () => {
     expect(allYardsSaturday([null, undefined], "2026-10-10")).toBe("2026-10-10");
   });
 
-  it("print page escapes names and shows total + footer", () => {
+  it("print page: title + names + footer, no Total Drivers, no browser header/footer room", () => {
     const html = buildWorklistPrintHtml({
       title: "Saturday Worklist - Burnham - Sat 10/10/26",
       sections: [{ heading: "Burnham", entries: [{ truckNumber: "1", name: "A <b>&</b> B" }] }],
       footer: DEFAULT_SAT_FOOTER,
     });
     expect(html).toContain("A &lt;b&gt;&amp;&lt;/b&gt; B");
-    expect(html).toContain("Total Drivers: 1");
+    expect(html).toContain("<h1>Saturday Worklist - Burnham - Sat 10/10/26</h1>");
     expect(html).toContain("Keep phones on case we cut list back");
-    expect(html).toContain("@page");
+    expect(html).not.toContain("Total Drivers");
+    expect(html).toMatch(/@page \{ margin: 0; \}/);
+    expect(html).toContain("<title>&#160;</title>");
+    expect(html).not.toMatch(/<title>[^<]*Worklist/);
+    expect(html).toContain('class="gap"');
+  });
+
+  it("all-yards print shows yard names without driver counts", () => {
+    const html = buildWorklistPrintHtml({
+      title: "Saturday Worklist - All Yards - Sat 10/10/26",
+      sections: [
+        { heading: "Burnham", entries: names },
+        { heading: "Pontiac", entries: [] },
+      ],
+      footer: DEFAULT_SAT_FOOTER,
+    });
+    expect(html).toContain("<h2>Burnham</h2>");
+    expect(html).toContain("<h2>Pontiac</h2>");
+    expect(html).not.toMatch(/\d+ drivers?/);
+    expect(html).not.toContain("Total Drivers");
+    expect(html.match(/Keep phones/g)).toHaveLength(1);
+  });
+
+  it("copied text still carries Total Drivers", () => {
+    const text = formatYardWorklist({ yardLabel: "Burnham", saturday: "2026-10-10", entries: names, footer: "" });
+    expect(text).toContain("Total Drivers: 2");
+  });
+
+  it("flags a saved Planning Saturday before the coming Saturday", () => {
+    expect(isPastPlanningSaturday("2026-09-19", "2026-10-09")).toBe(true);
+    expect(isPastPlanningSaturday("2026-10-10", "2026-10-09")).toBe(false);
+    expect(isPastPlanningSaturday("2026-10-10", "2026-10-10")).toBe(false);
+    expect(isPastPlanningSaturday("2026-10-10", "2026-10-11")).toBe(true);
+    expect(isPastPlanningSaturday(null, "2026-10-09")).toBe(false);
   });
 });
 
