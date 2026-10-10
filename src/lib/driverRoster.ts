@@ -111,6 +111,12 @@ export type DriverRosterPersisted = {
   version: 1;
   entries: Record<string, DriverRosterEntry>;
   deletedEntryIds: string[];
+  /**
+   * When each tombstone was made (ISO). A Sat tombstone only beats a cloud row
+   * that is older than the delete; a newer cloud row (Reset / re-add after the
+   * delete) wins and the tombstone is dropped. Legacy ids with no time yield.
+   */
+  deletedEntryAt?: Record<string, string>;
   seenRemoteEntryIds: string[];
   importedAt: string | null;
   /**
@@ -362,10 +368,20 @@ export function emptyDriverRosterPersisted(): DriverRosterPersisted {
     version: 1,
     entries: {},
     deletedEntryIds: [],
+    deletedEntryAt: {},
     seenRemoteEntryIds: [],
     importedAt: null,
     satInitializedYards: [],
   };
+}
+
+export function parseDeletedEntryAt(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [id, at] of Object.entries(raw as Record<string, unknown>)) {
+    if (id && typeof at === "string" && at) out[id] = at;
+  }
+  return out;
 }
 
 function parseYardList(raw: unknown): DriverRosterYard[] {
@@ -439,6 +455,7 @@ export function readDriverRosterPersisted(): DriverRosterPersisted {
       version: 1,
       entries,
       deletedEntryIds: parseIdList(parsed.deletedEntryIds),
+      deletedEntryAt: parseDeletedEntryAt(parsed.deletedEntryAt),
       seenRemoteEntryIds: parseIdList(parsed.seenRemoteEntryIds),
       importedAt: typeof parsed.importedAt === "string" ? parsed.importedAt : null,
       satInitializedYards: Array.isArray(parsed.satInitializedYards)
@@ -455,6 +472,7 @@ export function writeDriverRosterPersisted(next: DriverRosterPersisted): void {
     version: 1,
     entries: next.entries,
     deletedEntryIds: parseIdList(next.deletedEntryIds),
+    deletedEntryAt: parseDeletedEntryAt(next.deletedEntryAt),
     seenRemoteEntryIds: parseIdList(next.seenRemoteEntryIds),
     importedAt: next.importedAt ?? null,
     satInitializedYards: parseYardList(next.satInitializedYards),
@@ -1198,12 +1216,17 @@ export type DriverRosterCloudReconcileInput = {
   local: DriverRosterStore;
   remote: DriverRosterStore;
   deletedEntryIds: Iterable<string>;
+  /** Tombstone times (see DriverRosterPersisted.deletedEntryAt). */
+  deletedEntryAt?: Record<string, string>;
   seenRemoteEntryIds?: Iterable<string>;
+  /** Stamp for tombstones this reconcile creates. Defaults to now. */
+  now?: string;
 };
 
 export type DriverRosterCloudReconcileResult = {
   next: DriverRosterStore;
   deletedEntryIds: string[];
+  deletedEntryAt: Record<string, string>;
   seenRemoteEntryIds: string[];
   toDeleteRemoteEntries: string[];
   toUploadEntries: DriverRosterEntry[];
@@ -1236,7 +1259,22 @@ export function reconcileDriverRosterCloud(
     ),
   );
   const remoteIds = new Set(Object.keys(input.remote.entries));
-  const deleted = new Set(incomingDeleted);
+  const now = input.now ?? new Date().toISOString();
+  const deletedAt: Record<string, string> = {};
+  const deleted = new Set<string>();
+  for (const id of incomingDeleted) {
+    const at = input.deletedEntryAt?.[id];
+    const remote = input.remote.entries[id];
+    // Sat ids are stable per person (Reset / seed re-create the same id), so a
+    // stale tombstone (old desk, old desktop install) would delete a name that
+    // was put back on the cloud list after it. The cloud row wins unless this
+    // delete is newer than it (a delete still waiting to reach the cloud).
+    if (remote && remote.kind === "sat" && !(at && isIsoAfter(at, remote.updatedAt))) {
+      continue;
+    }
+    deleted.add(id);
+    if (at) deletedAt[id] = at;
+  }
 
   const next: DriverRosterStore = { entries: {} };
   const toUploadEntries: DriverRosterEntry[] = [];
@@ -1260,6 +1298,7 @@ export function reconcileDriverRosterCloud(
       // Roster still keeps local-only rows (never auto-wipe hired drivers).
       if (local.kind === "sat" && seen.has(id)) {
         deleted.add(id);
+        deletedAt[id] = now;
         continue;
       }
       next.entries[id] = local;
@@ -1285,6 +1324,7 @@ export function reconcileDriverRosterCloud(
   return {
     next,
     deletedEntryIds: [...deleted],
+    deletedEntryAt: deletedAt,
     seenRemoteEntryIds: [...nextSeen],
     toDeleteRemoteEntries,
     toUploadEntries,

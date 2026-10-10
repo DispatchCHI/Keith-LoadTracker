@@ -106,3 +106,81 @@ describe("DriverRosterProvider guards", () => {
     expect(src).toMatch(/if \(!pulled\) return;/);
   });
 });
+
+describe("stale Sat tombstones never delete names put back on the cloud list", () => {
+  function satRow(store: DriverRosterStore) {
+    return Object.values(store.entries).find((entry) => entry.kind === "sat")!;
+  }
+
+  it("a legacy tombstone (old desk / old desktop install) yields to the live cloud row", () => {
+    const remote = cloudSnapshot();
+    const row = satRow(remote);
+    const result = reconcileDriverRosterCloud({
+      local: emptyDriverRosterStore(),
+      remote,
+      deletedEntryIds: [row.id],
+      seenRemoteEntryIds: [row.id],
+    });
+    expect(result.toDeleteRemoteEntries).toEqual([]);
+    expect(result.deletedEntryIds).not.toContain(row.id);
+    expect(result.next.entries[row.id]?.name).toBe("Dave Vanderbilt");
+  });
+
+  it("a tombstone older than a Reset / re-add yields to the cloud row", () => {
+    const remote = cloudSnapshot();
+    const row = satRow(remote);
+    const result = reconcileDriverRosterCloud({
+      local: emptyDriverRosterStore(),
+      remote,
+      deletedEntryIds: [row.id],
+      deletedEntryAt: { [row.id]: "2026-09-20T15:00:00.000Z" },
+      seenRemoteEntryIds: [row.id],
+    });
+    expect(result.toDeleteRemoteEntries).toEqual([]);
+    expect(result.next.entries[row.id]).toBeTruthy();
+  });
+
+  it("a delete newer than the cloud row is still retried", () => {
+    const remote = cloudSnapshot();
+    const row = satRow(remote);
+    const result = reconcileDriverRosterCloud({
+      local: emptyDriverRosterStore(),
+      remote,
+      deletedEntryIds: [row.id],
+      deletedEntryAt: { [row.id]: "2026-10-09T21:00:00.000Z" },
+      seenRemoteEntryIds: [row.id],
+    });
+    expect(result.toDeleteRemoteEntries).toEqual([row.id]);
+    expect(result.next.entries[row.id]).toBeUndefined();
+    expect(result.deletedEntryAt[row.id]).toBe("2026-10-09T21:00:00.000Z");
+  });
+
+  it("a Sat name deleted on another desk is dropped here and stamped", () => {
+    const remote = cloudSnapshot();
+    const row = satRow(remote);
+    const withoutRow = { entries: { ...remote.entries } };
+    delete withoutRow.entries[row.id];
+    const result = reconcileDriverRosterCloud({
+      local: remote,
+      remote: withoutRow,
+      deletedEntryIds: [],
+      seenRemoteEntryIds: [row.id],
+      now: "2026-10-09T22:30:00.000Z",
+    });
+    expect(result.next.entries[row.id]).toBeUndefined();
+    expect(result.toUploadEntries.map((entry) => entry.id)).not.toContain(row.id);
+    expect(result.deletedEntryAt[row.id]).toBe("2026-10-09T22:30:00.000Z");
+  });
+
+  it("Full Roster tombstones keep their old behavior", () => {
+    const remote = cloudSnapshot();
+    const full = Object.values(remote.entries).find((entry) => entry.kind === "full")!;
+    const result = reconcileDriverRosterCloud({
+      local: emptyDriverRosterStore(),
+      remote,
+      deletedEntryIds: [full.id],
+      seenRemoteEntryIds: [full.id],
+    });
+    expect(result.toDeleteRemoteEntries).toEqual([full.id]);
+  });
+});

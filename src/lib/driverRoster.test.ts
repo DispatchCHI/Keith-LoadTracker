@@ -672,6 +672,8 @@ describe("driver roster cloud delete posture", () => {
       local: emptyDriverRosterStore(),
       remote: added.store,
       deletedEntryIds: [id],
+      // The A- / Reset happened after the cloud row was written.
+      deletedEntryAt: { [id]: new Date(Date.parse(added.entry!.updatedAt) + 1000).toISOString() },
       seenRemoteEntryIds: [id],
     });
     expect(result.next.entries[id]).toBeUndefined();

@@ -183,6 +183,13 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
   const storeRef = useRef(store);
   storeRef.current = store;
   const deletedRef = useRef<Set<string>>(new Set(readDriverRosterPersisted().deletedEntryIds));
+  const deletedAtRef = useRef<Record<string, string>>(
+    readDriverRosterPersisted().deletedEntryAt ?? {},
+  );
+  const markDeleted = useCallback((id: string) => {
+    deletedRef.current.add(id);
+    deletedAtRef.current[id] = new Date().toISOString();
+  }, []);
   const seenRef = useRef<Set<string>>(new Set(readDriverRosterPersisted().seenRemoteEntryIds));
   const importedAtRef = useRef<string | null>(readDriverRosterPersisted().importedAt);
   const satInitializedRef = useRef<Set<DriverRosterYard>>(
@@ -196,12 +203,19 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
   const persistLocal = useCallback((next: DriverRosterStore) => {
     const owned = enforceOneYardPerDriver(next);
     const collapsed = collapseDuplicateRosterEntries(owned.store);
-    for (const row of owned.removed) deletedRef.current.add(row.id);
-    for (const id of collapsed.droppedIds) deletedRef.current.add(id);
+    for (const row of owned.removed) markDeleted(row.id);
+    for (const id of collapsed.droppedIds) markDeleted(id);
+    const deletedEntryAt: Record<string, string> = {};
+    for (const id of deletedRef.current) {
+      const at = deletedAtRef.current[id];
+      if (at) deletedEntryAt[id] = at;
+    }
+    deletedAtRef.current = deletedEntryAt;
     const snapshot: DriverRosterPersisted = {
       version: 1,
       entries: collapsed.store.entries,
       deletedEntryIds: [...deletedRef.current],
+      deletedEntryAt,
       seenRemoteEntryIds: [...seenRef.current],
       importedAt: importedAtRef.current,
       satInitializedYards: [...satInitializedRef.current],
@@ -215,7 +229,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         .map((id) => owned.store.entries[id] ?? next.entries[id])
         .filter((row): row is DriverRosterEntry => Boolean(row)),
     ];
-  }, []);
+  }, [markDeleted]);
 
   const pullRemote = useCallback(async (): Promise<{
     store: DriverRosterStore;
@@ -386,6 +400,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         local: prior,
         remote,
         deletedEntryIds: deletedRef.current,
+        deletedEntryAt: deletedAtRef.current,
         seenRemoteEntryIds: seenRef.current,
       });
       if (epoch !== epochRef.current) return;
@@ -421,6 +436,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       }
       if (epoch !== epochRef.current) return;
       deletedRef.current = new Set(result.deletedEntryIds);
+      deletedAtRef.current = result.deletedEntryAt;
       seenRef.current = new Set(result.seenRemoteEntryIds);
       if (result.toDeleteRemoteEntries.length) {
         await cloudDeleteEntries(result.toDeleteRemoteEntries);
@@ -534,7 +550,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       epochRef.current += 1;
       const result = removeRosterEntry(storeRef.current, id);
       if (!result.removed) return;
-      deletedRef.current.add(id);
+      markDeleted(id);
       if (result.removed.kind === "sat") {
         satInitializedRef.current.add(result.removed.yard);
       }
@@ -550,7 +566,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       const result = removeHiredAndMatchingSat(storeRef.current, id);
       if (!result.removed.length) return;
       for (const entry of result.removed) {
-        deletedRef.current.add(entry.id);
+        markDeleted(entry.id);
         if (entry.kind === "sat") satInitializedRef.current.add(entry.yard);
       }
       persistLocal(result.store);
@@ -593,8 +609,11 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     epochRef.current += 1;
     const yard = ui.yard;
     const result = resetSatRosterFromFull(storeRef.current, yard);
-    for (const id of result.addedIds) deletedRef.current.delete(id);
-    for (const id of result.removedIds) deletedRef.current.add(id);
+    for (const id of result.addedIds) {
+      deletedRef.current.delete(id);
+      delete deletedAtRef.current[id];
+    }
+    for (const id of result.removedIds) markDeleted(id);
     satInitializedRef.current.add(yard);
     persistLocal(result.store);
     if (!cloud) return;
