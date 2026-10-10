@@ -50,6 +50,7 @@ export function SpecialtyBoardCard({
   const { store: customerLanes } = useCustomerLanes();
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [chipOpen, setChipOpen] = useState<string | null>(null);
+  const [laneReveal, setLaneReveal] = useState(false);
   const [open, setOpen] = useState(true);
   const [fresh, setFresh] = useState<{ date: string; id: string } | null>(null);
   const freshId = fresh?.date === date ? fresh.id : null;
@@ -124,13 +125,30 @@ export function SpecialtyBoardCard({
     const openStation = openId
       ? SPECIALTY_STATIONS.find((station) => station.id === openId)
       : undefined;
+    const openTransfers = stationSlots.flatMap((slot) => {
+      const slots = slotsForStation(board, slot.id);
+      if (slots.length === 0) return [];
+      const custom = isCustomSpecialtyId(slot.id);
+      const label = custom ? customSpecialtyDisplayName(slot.id) : slot.name;
+      const lanes = destSummary(slots)
+        .map((row) => (row.count > 1 ? `${row.destination} ×${row.count}` : row.destination))
+        .join(" · ");
+      return [{ id: slot.id, label, lanes, color: specialtyPillTone(label).color }];
+    });
     return (
       <section className="yard-specialty">
         <div className="yard-specialty-head">
           <h2>Specialty transfers</h2>
           <p>Odd-ball cards only for {formatHeaderDate(date)}</p>
         </div>
-        <div className="yard-spec-row" role="list">
+        <div
+          className="yard-spec-row"
+          role="list"
+          onClick={(event) => {
+            if (event.target !== event.currentTarget) return;
+            setLaneReveal((open) => !open);
+          }}
+        >
           {stationSlots.map((slot) => {
             const custom = isCustomSpecialtyId(slot.id);
             const count = slotsForStation(board, slot.id).length;
@@ -179,7 +197,30 @@ export function SpecialtyBoardCard({
           >
             <Plus size={14} strokeWidth={2.6} />
           </button>
+          <button
+            type="button"
+            className="yard-spec-gap"
+            aria-pressed={laneReveal}
+            aria-label={laneReveal ? "Hide open specialty lanes" : "Show open specialty lanes"}
+            onClick={() => setLaneReveal((open) => !open)}
+          />
         </div>
+        {laneReveal ? (
+          openTransfers.length > 0 ? (
+            <ul className="yard-spec-open">
+              {openTransfers.map((row) => (
+                <li key={row.id} className="yard-spec-open-row">
+                  <span className="yard-spec-open-name" style={{ color: row.color }}>
+                    {row.label}
+                  </span>
+                  <span className="yard-spec-open-lanes">{row.lanes}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="yard-empty yard-spec-open-empty">No open lanes</p>
+          )
+        ) : null}
         {openStation ? <ul className="yard-spec-detail">{renderStation(openStation)}</ul> : null}
       </section>
     );

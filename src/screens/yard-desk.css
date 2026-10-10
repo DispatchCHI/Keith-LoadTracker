@@ -842,6 +842,47 @@
   color: #1e3a8a;
 }
 
+.yard-spec-gap {
+  flex: 1 0 28px;
+  align-self: stretch;
+  min-width: 28px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.yard-spec-open {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.yard-spec-open-empty {
+  margin-top: 8px;
+}
+
+.yard-spec-open-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.yard-spec-open-name {
+  flex: 0 0 auto;
+  font-weight: 750;
+}
+
+.yard-spec-open-lanes {
+  min-width: 0;
+  color: #374151;
+}
+
 .yard-spec-detail {
   list-style: none;
   margin: 8px 0 0;
