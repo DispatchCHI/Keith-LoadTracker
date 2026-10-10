@@ -14,6 +14,7 @@ import { DRIVER_ROSTER_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
 import {
   addRosterEntry,
   applyRosterTombstones,
+  autoSeedSatRosters,
   cleanAssignedTruck,
   cleanDriverRosterKind,
   cleanDriverRosterYard,
@@ -32,7 +33,6 @@ import {
   resetSatRosterFromFull,
   rosterEntryCount,
   rosterStoreIsEmpty,
-  seedEmptySatRostersFromFull,
   setSatDateForYard,
   updateRosterEntry,
   writeDriverRosterPersisted,
@@ -313,7 +313,13 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     const pendingYards = DRIVER_ROSTER_YARDS.filter((yard) => !satInitializedRef.current.has(yard));
     if (!pendingYards.length) return;
     const initializedBefore = satInitializedRef.current.size;
-    const result = seedEmptySatRostersFromFull(storeRef.current, { yards: pendingYards });
+    // Cloud-configured desks never auto-fill Sat: the cloud list (even an empty
+    // yard) is authoritative and only Reset / a user add may fill it. A fresh
+    // desk (new desktop install) used to refill trimmed yards here and push them.
+    const result = autoSeedSatRosters(storeRef.current, {
+      cloudConfigured: configured,
+      yards: pendingYards,
+    });
     for (const yard of DRIVER_ROSTER_YARDS) {
       if (rosterEntryCount(result.store, "sat", yard) > 0) {
         satInitializedRef.current.add(yard);
@@ -335,7 +341,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         ),
       );
     }
-  }, [cloud, cloudDeleteEntries, cloudUpsert, persistLocal]);
+  }, [cloud, cloudDeleteEntries, cloudUpsert, configured, persistLocal]);
 
   const seedIfEmpty = useCallback(async () => {
     if (seedingRef.current) return;
@@ -369,8 +375,11 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     const epoch = epochRef.current;
     const pulled = await pullRemote();
     if (epoch !== epochRef.current) return;
+    // No cloud snapshot yet (offline / failed pull): never seed or upload from
+    // local state. A desk only writes roster rows after it has seen the cloud.
+    if (!pulled) return;
 
-    if (pulled) {
+    {
       const remote = pulled.store;
       const prior = storeRef.current;
       const result = reconcileDriverRosterCloud({

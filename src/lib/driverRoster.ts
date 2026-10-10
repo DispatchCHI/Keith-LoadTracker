@@ -9,6 +9,7 @@
 
 import { isValidISODate } from "./chicagoDate";
 import { isFullDayOff } from "./driverAvailability";
+import { isIsoAfter } from "./isoTime";
 import { safeSetItem } from "./localStorageSafe";
 import { sanitizeTruck } from "./truck";
 
@@ -828,6 +829,22 @@ export function seedEmptySatRostersFromFull(
   return { store: next, added, seededYards };
 }
 
+/**
+ * Automatic Sat seeding (empty yard -> copy Full) is for local-only use (no
+ * Supabase configured). With cloud sync configured, the cloud Sat list is the
+ * source of truth: an empty yard there can be a deliberate trim, and a fresh
+ * desk (new desktop install, cleared browser, new PC) has no local memory of
+ * that. Seeding there would refill the yard with the whole Full Roster under a
+ * brand-new timestamp and push it to every desk. Only an explicit Reset to
+ * full roster (or a user add) may fill a cloud Sat list.
+ */
+export function autoSeedSatRosters(
+  store: DriverRosterStore,
+  opts: { cloudConfigured: boolean; yards?: readonly DriverRosterYard[]; at?: string },
+): SeedEmptySatFromFullResult {
+  if (opts.cloudConfigured) return { store, added: 0, seededYards: [] };
+  return seedEmptySatRostersFromFull(store, { yards: opts.yards, at: opts.at });
+}
 export type ResetSatRosterFromFullResult = {
   store: DriverRosterStore;
   removedIds: string[];
@@ -1250,7 +1267,9 @@ export function reconcileDriverRosterCloud(
       continue;
     }
     if (local && remote) {
-      if (local.updatedAt > remote.updatedAt) {
+      // Parsed instants, not raw strings: a client `Z` stamp sorts after the
+      // PostgREST `+00:00` echo of the same instant and would look "newer".
+      if (isIsoAfter(local.updatedAt, remote.updatedAt)) {
         next.entries[id] = local;
         toUploadEntries.push(local);
       } else {
