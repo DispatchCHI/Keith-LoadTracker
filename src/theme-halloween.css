@@ -286,6 +286,27 @@ html[data-theme="halloween"] .yard-spec-chip.has-count .yard-spec-tag {
   background: transparent;
 }
 
+html[data-theme="halloween"] .yard-specialty {
+  background: #24141a;
+  border-color: #6b3a22;
+  color: #f7ead6;
+}
+
+html[data-theme="halloween"] .yard-specialty-date,
+html[data-theme="halloween"] .yard-specialty-hint,
+html[data-theme="halloween"] .yard-specialty .yard-empty {
+  color: #c4a07a;
+}
+
+html[data-theme="halloween"] button.yard-specialty-head:focus-visible {
+  outline-color: #f4a261;
+}
+
+html[data-theme="halloween"] .yard-specialty .specialty-row {
+  background: #2e1a22;
+  border-color: #6b3a22;
+}
+
 html[data-theme="halloween"] .theme-toggle {
   min-height: 32px;
   padding: 4px 10px;

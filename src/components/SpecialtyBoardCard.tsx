@@ -34,6 +34,11 @@ import {
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useSpecialty } from "../store/SpecialtyContext";
 import { specialtyPillTone } from "../lib/specialtyPillTone";
+import {
+  readSpecialtyLoadsOpen,
+  specialtyLocationsWithLoads,
+  writeSpecialtyLoadsOpen,
+} from "../lib/specialtyLoadsOpen";
 import { Chip } from "./Chip";
 import { QuantityStepper } from "./QuantityStepper";
 import "./specialty-board.css";
@@ -50,7 +55,7 @@ export function SpecialtyBoardCard({
   const { store: customerLanes } = useCustomerLanes();
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [chipOpen, setChipOpen] = useState<string | null>(null);
-  const [laneReveal, setLaneReveal] = useState(false);
+  const [laneReveal, setLaneReveal] = useState(readSpecialtyLoadsOpen);
   const [open, setOpen] = useState(true);
   const [fresh, setFresh] = useState<{ date: string; id: string } | null>(null);
   const freshId = fresh?.date === date ? fresh.id : null;
@@ -125,28 +130,47 @@ export function SpecialtyBoardCard({
     const openStation = openId
       ? SPECIALTY_STATIONS.find((station) => station.id === openId)
       : undefined;
-    const openTransfers = stationSlots.flatMap((slot) => {
-      const slots = slotsForStation(board, slot.id);
-      if (slots.length === 0) return [];
-      const custom = isCustomSpecialtyId(slot.id);
-      const label = custom ? customSpecialtyDisplayName(slot.id) : slot.name;
-      const lanes = destSummary(slots)
-        .map((row) => (row.count > 1 ? `${row.destination} ×${row.count}` : row.destination))
-        .join(" · ");
-      return [{ id: slot.id, label, lanes, color: specialtyPillTone(label).color }];
-    });
+    const locationsWithLoads = specialtyLocationsWithLoads(
+      stationSlots.map((slot) => ({
+        slot,
+        count: slotsForStation(board, slot.id).length,
+      })),
+    );
+    function toggleLoads() {
+      setLaneReveal((open) => {
+        const next = !open;
+        writeSpecialtyLoadsOpen(next);
+        return next;
+      });
+    }
     return (
       <section className="yard-specialty">
-        <div className="yard-specialty-head">
+        <button
+          type="button"
+          className="yard-specialty-head"
+          aria-expanded={laneReveal}
+          onClick={toggleLoads}
+        >
           <h2>Specialty transfers</h2>
-          <p>Odd-ball cards only for {formatHeaderDate(date)}</p>
-        </div>
+          <span className="yard-specialty-head-gap" />
+          <span className="yard-specialty-date">
+            Odd-ball cards only for {formatHeaderDate(date)}
+          </span>
+          <span className="yard-specialty-hint">
+            <ChevronDown
+              size={14}
+              className={laneReveal ? "totals-chevron open" : "totals-chevron"}
+              aria-hidden
+            />
+            {laneReveal ? "Hide loads" : "Show loads"}
+          </span>
+        </button>
         <div
           className="yard-spec-row"
           role="list"
           onClick={(event) => {
             if (event.target !== event.currentTarget) return;
-            setLaneReveal((open) => !open);
+            toggleLoads();
           }}
         >
           {stationSlots.map((slot) => {
@@ -201,24 +225,24 @@ export function SpecialtyBoardCard({
             type="button"
             className="yard-spec-gap"
             aria-pressed={laneReveal}
-            aria-label={laneReveal ? "Hide open specialty lanes" : "Show open specialty lanes"}
-            onClick={() => setLaneReveal((open) => !open)}
+            aria-label={laneReveal ? "Hide loads" : "Show loads"}
+            onClick={toggleLoads}
           />
         </div>
         {laneReveal ? (
-          openTransfers.length > 0 ? (
-            <ul className="yard-spec-open">
-              {openTransfers.map((row) => (
-                <li key={row.id} className="yard-spec-open-row">
-                  <span className="yard-spec-open-name" style={{ color: row.color }}>
-                    {row.label}
-                  </span>
-                  <span className="yard-spec-open-lanes">{row.lanes}</span>
-                </li>
-              ))}
+          locationsWithLoads.length > 0 ? (
+            <ul className="yard-spec-loads">
+              {locationsWithLoads.map(({ slot }) =>
+                renderStation(
+                  SPECIALTY_STATIONS.find((station) => station.id === slot.id) ?? {
+                    id: slot.id,
+                    name: slot.name,
+                  },
+                ),
+              )}
             </ul>
           ) : (
-            <p className="yard-empty yard-spec-open-empty">No open lanes</p>
+            <p className="yard-empty yard-spec-open-empty">No specialty loads.</p>
           )
         ) : null}
         {openStation ? <ul className="yard-spec-detail">{renderStation(openStation)}</ul> : null}
