@@ -17,7 +17,6 @@ import {
   ROSTER_UNAVAILABLE_REASONS,
   driverRosterYardLabel,
   entriesForRoster,
-  formatRosterCopyList,
   fullRosterTally,
   rosterEntryCount,
   rosterStatusRemovesFromAvailable,
@@ -43,6 +42,19 @@ import { useDriverRoster } from "../store/DriverRosterContext";
 import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
 import { useVacation } from "../store/VacationContext";
+import { useSatWorklistSettings } from "../hooks/useSatWorklistSettings";
+import { printHtmlDocument } from "../lib/printHtml";
+import {
+  WORKLIST_PREFIXES,
+  allYardsSaturday,
+  buildWorklistPrintHtml,
+  comingSaturday,
+  formatAllYardsWorklist,
+  formatWorklistDate,
+  formatYardWorklist,
+  worklistTitle,
+  type WorklistPrefix,
+} from "../lib/satWorklist";
 
 function upcomingSaturday(today: string): string {
   const dow = weekdayOfISO(today);
@@ -318,7 +330,9 @@ export function DriverScreen() {
   const { loads } = useLoads();
   const { store: customerLanes } = useCustomerLanes();
   const [adding, setAdding] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"yard" | "all" | null>(null);
+  const worklist = useSatWorklistSettings();
+  const [footerDraft, setFooterDraft] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [resetConfirm, setResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -362,8 +376,44 @@ export function DriverScreen() {
     [kind, entries, vacationNames],
   );
   const satDate = satDateForYard(store, yard);
-  const copyTextValue = formatRosterCopyList(entries);
   const yardLabel = driverRosterYardLabel(yard);
+  const planningSaturday = satDate ?? comingSaturday(today);
+  const worklistPrefix = worklist.prefixFor(planningSaturday);
+  const copyTextValue = useMemo(
+    () =>
+      kind === "sat"
+        ? formatYardWorklist({
+            yardLabel,
+            saturday: planningSaturday,
+            entries,
+            footer: worklist.footer,
+            prefix: worklistPrefix,
+          })
+        : "",
+    [kind, yardLabel, planningSaturday, entries, worklist.footer, worklistPrefix],
+  );
+  const allYardsWorklist = useMemo(() => {
+    if (kind !== "sat") return null;
+    const yards = DRIVER_ROSTER_YARDS.map((item) => ({
+      yardLabel: driverRosterYardLabel(item),
+      saturday: satDateForYard(store, item),
+      entries: entriesForRoster(store, "sat", item),
+    }));
+    const saturday = allYardsSaturday(
+      [satDate, ...yards.map((item) => item.saturday)],
+      comingSaturday(today),
+    );
+    return {
+      yards,
+      saturday,
+      text: formatAllYardsWorklist({
+        saturday,
+        yards,
+        footer: worklist.footer,
+        prefix: worklistPrefix,
+      }),
+    };
+  }, [kind, store, satDate, today, worklist.footer, worklistPrefix]);
   const vacationWeekOf = kind === "full" ? sundayOnOrBefore(asOf) : null;
   const fullCount = rosterEntryCount(store, "full", yard);
   const satMatchesFull = kind === "sat" && satRosterMatchesFull(store, yard);
@@ -450,16 +500,49 @@ export function DriverScreen() {
     await removeHiredAndSat(entry.id);
   }
 
-  async function onCopy() {
-    const ok = await copyText(copyTextValue);
+  async function onCopy(text: string, which: "yard" | "all") {
+    const ok = await copyText(text);
     if (!ok) {
-      setCopyError("Could not copy — select the list and copy manually.");
-      setCopied(false);
+      setCopyError("Could not copy - select the text and copy manually.");
+      setCopied(null);
       return;
     }
     setCopyError(null);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    setCopied(which);
+    window.setTimeout(() => setCopied(null), 1600);
+  }
+
+  function onPrintYard() {
+    printHtmlDocument(
+      buildWorklistPrintHtml({
+        title: worklistTitle(worklistPrefix, yardLabel, planningSaturday),
+        sections: [{ heading: yardLabel, entries }],
+        footer: worklist.footer,
+      }),
+    );
+  }
+
+  function onPrintAll() {
+    if (!allYardsWorklist) return;
+    printHtmlDocument(
+      buildWorklistPrintHtml({
+        title: worklistTitle(worklistPrefix, "All Yards", allYardsWorklist.saturday),
+        sections: allYardsWorklist.yards.map((item) => ({
+          heading:
+            item.saturday && item.saturday !== allYardsWorklist.saturday
+              ? `${item.yardLabel} - Sat ${formatWorklistDate(item.saturday)}`
+              : item.yardLabel,
+          entries: item.entries,
+        })),
+        footer: worklist.footer,
+      }),
+    );
+  }
+
+  function commitFooter() {
+    if (footerDraft == null) return;
+    worklist.setFooter(footerDraft);
+    setFooterDraft(null);
   }
 
   return (
@@ -689,18 +772,76 @@ export function DriverScreen() {
 
       {!onGone && kind === "sat" ? (
         <div className="drv-copy-card">
-          <div className="drv-copy-toolbar">
-            <p className="drv-copy-label">Email paste block</p>
-            <button type="button" className="text-btn amber" onClick={() => void onCopy()}>
-              {copied ? "Copied" : "Copy list"}
-            </button>
+          <div className="drv-copy-toolbar drv-worklist-toolbar">
+            <p className="drv-copy-label">Saturday Worklist message</p>
+            <div className="drv-worklist-actions">
+              <div className="drv-worklist-prefix" role="group" aria-label="Title prefix">
+                {WORKLIST_PREFIXES.map((option) => (
+                  <button
+                    key={option || "none"}
+                    type="button"
+                    className={`text-btn${worklistPrefix === option ? " is-selected" : ""}`}
+                    aria-pressed={worklistPrefix === option}
+                    onClick={() => worklist.setPrefix(planningSaturday, option as WorklistPrefix)}
+                  >
+                    {option || "No prefix"}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="text-btn amber" onClick={() => void onCopy(copyTextValue, "yard")}>
+                {copied === "yard" ? "Copied" : "Copy list"}
+              </button>
+              <button
+                type="button"
+                className="text-btn amber"
+                disabled={!allYardsWorklist}
+                onClick={() => allYardsWorklist && void onCopy(allYardsWorklist.text, "all")}
+              >
+                {copied === "all" ? "Copied" : "Copy all yards"}
+              </button>
+              <button type="button" className="text-btn" onClick={onPrintYard}>
+                Print
+              </button>
+              <button type="button" className="text-btn" onClick={onPrintAll}>
+                Print all yards
+              </button>
+            </div>
           </div>
+          <label className="drv-worklist-footer">
+            Footer (all yards, every desk)
+            <input
+              className="text-input"
+              type="text"
+              value={footerDraft ?? worklist.footer}
+              placeholder="Footer line"
+              onChange={(event) => setFooterDraft(event.target.value)}
+              onBlur={commitFooter}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitFooter();
+                }
+                if (event.key === "Escape") setFooterDraft(null);
+              }}
+            />
+          </label>
           <textarea
-            className="drv-copy-block"
+            className="drv-copy-block drv-worklist-preview"
             readOnly
             value={copyTextValue}
-            aria-label="Saturday roster as plain text"
+            aria-label={`${yardLabel} Saturday Worklist exactly as copied`}
           />
+          {allYardsWorklist ? (
+            <details className="drv-worklist-all">
+              <summary>Preview all yards (exactly as Copy all yards)</summary>
+              <textarea
+                className="drv-copy-block drv-worklist-preview"
+                readOnly
+                value={allYardsWorklist.text}
+                aria-label="All yards Saturday Worklist exactly as copied"
+              />
+            </details>
+          ) : null}
           {copyError ? <p className="form-error">{copyError}</p> : null}
         </div>
       ) : null}

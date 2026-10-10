@@ -566,10 +566,10 @@ describe("sat roster seeds and resets from full", () => {
     expect(satRosterMatchesFull(reset.store, "rockford")).toBe(true);
   });
 
-  it("Driver Sat grid still feeds copy list from formatRosterCopyList, not the cell layout", () => {
+  it("Driver Sat grid still feeds the copied worklist from the ordered entries, not the cell layout", () => {
     const src = readFileSync(new URL("../screens/DriverScreen.tsx", import.meta.url), "utf8");
-    expect(src).toContain("formatRosterCopyList(entries)");
-    expect(src).toContain('className="drv-copy-block"');
+    expect(src).toMatch(/formatYardWorklist\(\{[\s\S]*?entries,/);
+    expect(src).toContain('className="drv-copy-block drv-worklist-preview"');
     expect(src).toContain("value={copyTextValue}");
     expect(src).toContain("drv-sat-grid");
     expect(src).toContain("Reset to full roster");

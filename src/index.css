@@ -6751,3 +6751,65 @@ body.app-ready .splash {
 
 
 
+
+/* Saturday Worklist copy / print */
+.drv-worklist-toolbar {
+  flex-wrap: wrap;
+}
+
+.drv-worklist-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.drv-worklist-prefix {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.drv-worklist-prefix .text-btn {
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.drv-worklist-prefix .text-btn.is-selected {
+  background: var(--text);
+  color: var(--surface);
+}
+
+.drv-worklist-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.drv-worklist-footer .text-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.drv-worklist-preview {
+  min-height: 160px;
+  max-height: 320px;
+}
+
+.drv-worklist-all {
+  margin-top: 8px;
+}
+
+.drv-worklist-all summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
