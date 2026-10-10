@@ -937,7 +937,8 @@
 }
 
 .yard-hour-table th:first-child,
-.yard-hour-table td:first-child {
+.yard-hour-table td:first-child,
+.yard-hour-table .yard-hour-name-end {
   width: 118px;
   text-align: left;
   padding-left: 2px;

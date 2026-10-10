@@ -724,6 +724,8 @@ export function StationCallsCard({
     date: string;
     id: string;
     mode: NotePopMode;
+    /** Right-hand copy of the station-name column. Omitted on the left. */
+    anchor?: "end";
   } | null>(null);
   const activeNote = noteOpen?.date === date ? noteOpen : null;
 
@@ -883,7 +885,11 @@ export function StationCallsCard({
                       label="Station"
                       className="yard-hour-station-head"
                       note={noteForStation(notes, STATION_CORNER_NOTE_ID)}
-                      open={activeNote?.id === STATION_CORNER_NOTE_ID ? activeNote.mode : null}
+                      open={
+                        activeNote?.id === STATION_CORNER_NOTE_ID && activeNote.anchor !== "end"
+                          ? activeNote.mode
+                          : null
+                      }
                       onPeek={() =>
                         setNoteOpen((cur) =>
                           cur?.date === date && cur.mode === "edit"
@@ -907,6 +913,40 @@ export function StationCallsCard({
                     <th key={hour.key}>{yardHourHead(hour.label)}</th>
                   ))}
                   <th>Close</th>
+                  <th className="yard-hour-name-end">
+                    <YardHourNoteButton
+                      stationId={STATION_CORNER_NOTE_ID}
+                      label="Station"
+                      className="yard-hour-station-head"
+                      note={noteForStation(notes, STATION_CORNER_NOTE_ID)}
+                      open={
+                        activeNote?.id === STATION_CORNER_NOTE_ID && activeNote.anchor === "end"
+                          ? activeNote.mode
+                          : null
+                      }
+                      onPeek={() =>
+                        setNoteOpen((cur) =>
+                          cur?.date === date && cur.mode === "edit"
+                            ? cur
+                            : { date, id: STATION_CORNER_NOTE_ID, mode: "peek", anchor: "end" },
+                        )
+                      }
+                      onEdit={() =>
+                        setNoteOpen({
+                          date,
+                          id: STATION_CORNER_NOTE_ID,
+                          mode: "edit",
+                          anchor: "end",
+                        })
+                      }
+                      onClose={() =>
+                        setNoteOpen((cur) =>
+                          cur?.date === date && cur.id === STATION_CORNER_NOTE_ID ? null : cur,
+                        )
+                      }
+                      onCommit={(next) => onNote(STATION_CORNER_NOTE_ID, next)}
+                    />
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -923,7 +963,11 @@ export function StationCallsCard({
                           label={yard.label}
                           className="yard-hour-name"
                           note={note}
-                          open={activeNote?.id === yard.id ? activeNote.mode : null}
+                          open={
+                            activeNote?.id === yard.id && activeNote.anchor !== "end"
+                              ? activeNote.mode
+                              : null
+                          }
                           onPeek={() =>
                             setNoteOpen((cur) =>
                               cur?.date === date && cur.mode === "edit"
@@ -977,6 +1021,48 @@ export function StationCallsCard({
                           ariaLabel={`${yard.label} Close`}
                           onCommit={(next) => onClose(yard.id, next)}
                         />
+                      </td>
+                      <td className="yard-hour-name-end">
+                        <YardHourNoteButton
+                          stationId={yard.id}
+                          label={yard.label}
+                          className="yard-hour-name"
+                          note={note}
+                          open={
+                            activeNote?.id === yard.id && activeNote.anchor === "end"
+                              ? activeNote.mode
+                              : null
+                          }
+                          onPeek={() =>
+                            setNoteOpen((cur) =>
+                              cur?.date === date && cur.mode === "edit"
+                                ? cur
+                                : { date, id: yard.id, mode: "peek", anchor: "end" },
+                            )
+                          }
+                          onEdit={() =>
+                            setNoteOpen({ date, id: yard.id, mode: "edit", anchor: "end" })
+                          }
+                          onClose={() =>
+                            setNoteOpen((cur) =>
+                              cur?.date === date && cur.id === yard.id ? null : cur,
+                            )
+                          }
+                          onCommit={(next) => onNote(yard.id, next)}
+                        />
+                        <button
+                          type="button"
+                          className="yard-hour-remove"
+                          aria-label={`Remove ${yard.label}`}
+                          onClick={() => {
+                            if (!window.confirm(`Remove ${yard.label} from Load Count By Hour?`)) {
+                              return;
+                            }
+                            if (removeStationCallYard(yard.id)) setExtraTick((n) => n + 1);
+                          }}
+                        >
+                          ×
+                        </button>
                       </td>
                     </tr>
                   );
