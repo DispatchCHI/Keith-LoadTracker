@@ -7,7 +7,7 @@
  * `reconcileDriverRosterCloud`.
  */
 
-import { isValidISODate } from "./chicagoDate";
+import { comingSaturday, isValidISODate } from "./chicagoDate";
 import { isFullDayOff } from "./driverAvailability";
 import { isIsoAfter } from "./isoTime";
 import { safeSetItem } from "./localStorageSafe";
@@ -689,11 +689,40 @@ export function matchDriverNameSuggestions(
   return out;
 }
 
-export function satDateForYard(store: DriverRosterStore, yard: DriverRosterYard): string | null {
+/**
+ * The yard's Planning Saturday. Every Sat row carries for_date, so the latest
+ * one wins (a single stale row, e.g. one added by an out-of-date desk, can no
+ * longer drag the yard back to an old week).
+ *
+ * Pass `today` (Chicago ISO) to get the *effective* date: a saved date before
+ * the coming Saturday is stale and ignored (returns null, so callers fall back
+ * to the coming Saturday). Explicit future Saturdays are kept.
+ */
+export function satDateForYard(
+  store: DriverRosterStore,
+  yard: DriverRosterYard,
+  opts?: { today?: string },
+): string | null {
+  let latest: string | null = null;
   for (const entry of entriesForRoster(store, "sat", yard)) {
-    if (entry.forDate) return entry.forDate;
+    if (entry.forDate && (!latest || entry.forDate > latest)) latest = entry.forDate;
   }
-  return null;
+  if (latest && opts?.today && isStalePlanningSaturday(latest, opts.today)) return null;
+  return latest;
+}
+
+/** A saved Planning Saturday before the coming Saturday (Chicago) is stale. */
+export function isStalePlanningSaturday(saved: string, chicagoTodayIso: string): boolean {
+  return saved < comingSaturday(chicagoTodayIso);
+}
+
+/** Planning Saturday to show / print / copy: saved future date, else the coming Saturday. */
+export function planningSaturdayForYard(
+  store: DriverRosterStore,
+  yard: DriverRosterYard,
+  chicagoTodayIso: string,
+): string {
+  return satDateForYard(store, yard, { today: chicagoTodayIso }) ?? comingSaturday(chicagoTodayIso);
 }
 
 export function nextSortOrder(
@@ -803,7 +832,7 @@ export type SeedEmptySatFromFullResult = {
  */
 export function seedEmptySatRostersFromFull(
   store: DriverRosterStore,
-  opts?: { yards?: readonly DriverRosterYard[]; at?: string },
+  opts?: { yards?: readonly DriverRosterYard[]; at?: string; today?: string },
 ): SeedEmptySatFromFullResult {
   const yards = opts?.yards?.length ? opts.yards.map(cleanDriverRosterYard) : [...DRIVER_ROSTER_YARDS];
   const at = opts?.at;
@@ -816,7 +845,7 @@ export function seedEmptySatRostersFromFull(
     if (rosterEntryCount(next, "sat", yard) > 0) continue;
     const full = entriesForRoster(next, "full", yard);
     if (!full.length) continue;
-    const forDate = satDateForYard(next, yard);
+    const forDate = satDateForYard(next, yard, { today: opts?.today });
     let yardAdded = 0;
     for (let index = 0; index < full.length; index += 1) {
       const person = full[index];

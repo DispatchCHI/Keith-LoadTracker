@@ -8,7 +8,6 @@ import {
   formatAllYardsWorklist,
   formatWorklistDate,
   formatYardWorklist,
-  isPastPlanningSaturday,
   worklistTitle,
 } from "./satWorklist";
 import {
@@ -157,13 +156,7 @@ describe("Saturday Worklist text", () => {
     expect(text).toContain("Total Drivers: 2");
   });
 
-  it("flags a saved Planning Saturday before the coming Saturday", () => {
-    expect(isPastPlanningSaturday("2026-09-19", "2026-10-09")).toBe(true);
-    expect(isPastPlanningSaturday("2026-10-10", "2026-10-09")).toBe(false);
-    expect(isPastPlanningSaturday("2026-10-10", "2026-10-10")).toBe(false);
-    expect(isPastPlanningSaturday("2026-10-10", "2026-10-11")).toBe(true);
-    expect(isPastPlanningSaturday(null, "2026-10-09")).toBe(false);
-  });
+
 });
 
 describe("Saturday Worklist footer sync", () => {

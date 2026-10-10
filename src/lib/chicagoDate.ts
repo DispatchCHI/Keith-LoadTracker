@@ -51,6 +51,12 @@ export function isChicagoSaturday(iso: string): boolean {
   return weekdayOfISO(iso) === 6;
 }
 
+/** The coming Saturday on the Chicago calendar (today when today is Saturday). */
+export function comingSaturday(chicagoTodayIso: string): string {
+  const dow = weekdayOfISO(chicagoTodayIso);
+  return dow === 6 ? chicagoTodayIso : addDays(chicagoTodayIso, 6 - dow);
+}
+
 export function isChicagoSunday(iso: string): boolean {
   return weekdayOfISO(iso) === 0;
 }

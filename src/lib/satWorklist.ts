@@ -2,7 +2,7 @@
  * Saturday Worklist text + print layout for the Sat Roster tab.
  * Plain text only: the copy goes into the drivers' tablet messaging system.
  */
-import { addDays, parseISODate, weekdayOfISO } from "./chicagoDate";
+import { comingSaturday, parseISODate } from "./chicagoDate";
 import { formatRosterLine, type DriverRosterEntry } from "./driverRoster";
 
 export const DEFAULT_SAT_FOOTER = "Keep phones on case we cut list back";
@@ -14,11 +14,7 @@ export function isWorklistPrefix(value: unknown): value is WorklistPrefix {
   return value === "" || value === "Tentative" || value === "Final";
 }
 
-/** The coming Saturday on the Chicago calendar (today when today is Saturday). */
-export function comingSaturday(chicagoTodayIso: string): string {
-  const dow = weekdayOfISO(chicagoTodayIso);
-  return dow === 6 ? chicagoTodayIso : addDays(chicagoTodayIso, 6 - dow);
-}
+export { comingSaturday };
 
 /** `2026-10-10` -> `10/10/26`. */
 export function formatWorklistDate(iso: string): string {
@@ -120,11 +116,6 @@ export function allYardsSaturday(
 
 /** Non-breaking space: an empty <title> makes some browsers print the URL instead. */
 export const PRINT_DOCUMENT_TITLE = "&#160;";
-
-/** True when a saved Planning Saturday is before the coming Saturday (Chicago). */
-export function isPastPlanningSaturday(saved: string | null | undefined, chicagoTodayIso: string): boolean {
-  return Boolean(saved) && saved! < comingSaturday(chicagoTodayIso);
-}
 
 function escapeHtml(text: string): string {
   return text

@@ -52,7 +52,6 @@ import {
   formatAllYardsWorklist,
   formatWorklistDate,
   formatYardWorklist,
-  isPastPlanningSaturday,
   worklistTitle,
   type WorklistPrefix,
 } from "../lib/satWorklist";
@@ -376,7 +375,8 @@ export function DriverScreen() {
         : null,
     [kind, entries, vacationNames],
   );
-  const satDate = satDateForYard(store, yard);
+  // Effective date: a saved Planning Saturday in the past is ignored.
+  const satDate = satDateForYard(store, yard, { today });
   const yardLabel = driverRosterYardLabel(yard);
   const planningSaturday = satDate ?? comingSaturday(today);
   const worklistPrefix = worklist.prefixFor(planningSaturday);
@@ -397,7 +397,7 @@ export function DriverScreen() {
     if (kind !== "sat") return null;
     const yards = DRIVER_ROSTER_YARDS.map((item) => ({
       yardLabel: driverRosterYardLabel(item),
-      saturday: satDateForYard(store, item),
+      saturday: satDateForYard(store, item, { today }),
       entries: entriesForRoster(store, "sat", item),
     }));
     const saturday = allYardsSaturday(
@@ -512,12 +512,6 @@ export function DriverScreen() {
     setCopied(which);
     window.setTimeout(() => setCopied(null), 1600);
   }
-
-  const pastPlanningHere = kind === "sat" && isPastPlanningSaturday(satDate, today);
-  const pastPlanningOther =
-    !pastPlanningHere &&
-    kind === "sat" &&
-    Boolean(allYardsWorklist?.yards.some((item) => isPastPlanningSaturday(item.saturday, today)));
 
   function onPrintYard() {
     printHtmlDocument(
@@ -678,6 +672,7 @@ export function DriverScreen() {
               className="text-input drv-sat-input"
               type="date"
               value={satDate ?? upcomingSaturday(today)}
+              min={upcomingSaturday(today)}
               onChange={(event) => void setSatDate(event.target.value || null)}
             />
           </label>
@@ -812,13 +807,7 @@ export function DriverScreen() {
               <button type="button" className="text-btn" onClick={onPrintAll}>
                 Print all yards
               </button>
-              {pastPlanningHere || pastPlanningOther ? (
-                <span className="drv-worklist-warn" role="status">
-                  {pastPlanningHere
-                    ? "Planning Saturday is a past date"
-                    : "Another yard's Planning Saturday is a past date"}
-                </span>
-              ) : null}
+
             </div>
           </div>
           <label className="drv-worklist-footer">

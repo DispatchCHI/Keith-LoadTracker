@@ -33,6 +33,7 @@ import {
   resetSatRosterFromFull,
   rosterEntryCount,
   rosterStoreIsEmpty,
+  satDateForYard,
   setSatDateForYard,
   updateRosterEntry,
   writeDriverRosterPersisted,
@@ -52,6 +53,7 @@ import {
   preserveHireDates,
 } from "../lib/rosterHireDate";
 import { enforceOneYardPerDriver } from "../lib/rosterYardOwnership";
+import { chicagoToday } from "../lib/chicagoDate";
 import { getSupabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
@@ -481,11 +483,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       epochRef.current += 1;
       const satDate =
         ui.kind === "sat"
-          ? (input.forDate ??
-            Object.values(storeRef.current.entries).find(
-              (entry) => entry.kind === "sat" && entry.yard === ui.yard && entry.forDate,
-            )?.forDate ??
-            null)
+          ? (input.forDate ?? satDateForYard(storeRef.current, ui.yard, { today: chicagoToday() }))
           : null;
       const result = addRosterEntry(storeRef.current, {
         ...input,
@@ -608,7 +606,10 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
   const resetSatToFullRoster = useCallback(async () => {
     epochRef.current += 1;
     const yard = ui.yard;
-    const result = resetSatRosterFromFull(storeRef.current, yard);
+    // Never carry a stale (past) Planning Saturday onto the fresh Sat rows.
+    const result = resetSatRosterFromFull(storeRef.current, yard, {
+      forDate: satDateForYard(storeRef.current, yard, { today: chicagoToday() }),
+    });
     for (const id of result.addedIds) {
       deletedRef.current.delete(id);
       delete deletedAtRef.current[id];
