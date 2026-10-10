@@ -781,6 +781,12 @@ const SPECIALTY_DEST_ALIASES: Record<string, string> = {
   prairiehill: "prairie hill",
   "grays lake": "grayslake",
   "dekalb san": "dekalb sanitary",
+  "dekalb sanitation": "dekalb sanitary",
+  "dekalb sanitation district": "dekalb sanitary",
+  "dekalb sanitary district": "dekalb sanitary",
+  dsd: "dekalb sanitary",
+  "fox river water reclamation": "frwrd",
+  "fox river water reclamation district": "frwrd",
   "trash (msw)": "trash",
   msw: "trash",
   "kan spcl": "kanspcl",
@@ -847,6 +853,9 @@ function isSpecialtyBoardCommodity(
     const c = commodity.toLowerCase();
     if (!c.includes("c&d") && !c.includes("tire")) return false;
   }
+  // Dekalb stores Leachate as a commodity chip. The log's destination is
+  // FRWRD or Dekalb Sanitation, not the chip label.
+  if (isDekalbLeachateLoad(specialtyId, destination, commodity)) return true;
   if (specialtyChipMode(specialtyId) === "commodity") {
     return specialtyDestinationsFor(specialtyId).some((chip) =>
       sameSpecialtyDest(chip, commodity),
@@ -910,6 +919,9 @@ export function specialtyLaneChips(
     return uniqueSpecialtyChipLabels(
       customSpecialtyLaneChips(destination, commodity),
     );
+  }
+  if (isDekalbLeachateLoad(specialtyId, destination, commodity)) {
+    return uniqueSpecialtyChipLabels(["Leachate (tanker)", "Leachate"]);
   }
   const chips: string[] = [];
   const allowed = specialtyLaneChipLabel(specialtyId, destination, commodity);
@@ -996,8 +1008,28 @@ export function specialtyStationKey(stationId: string): string {
 }
 
 export function specialtyDestKey(destination: string): string {
-  const dest = destination.trim().toLowerCase().replace(/\s+/g, " ");
+  const dest = destination
+    .trim()
+    .toLowerCase()
+    .replace(/[.'’]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
   return SPECIALTY_DEST_ALIASES[dest] ?? dest;
+}
+
+/** FRWRD and Dekalb Sanitation, including the names dispatchers actually type. */
+const DEKALB_LEACHATE_DEST_KEYS = new Set(["frwrd", "dekalb sanitary"]);
+
+function isDekalbLeachateLoad(
+  specialtyId: string,
+  destination: string,
+  commodity: string,
+): boolean {
+  return (
+    specialtyId === "dekalb" &&
+    tallyLabel(commodity) === "LEACHATE" &&
+    DEKALB_LEACHATE_DEST_KEYS.has(specialtyDestKey(destination))
+  );
 }
 
 export function sameSpecialtyStation(a: string, b: string): boolean {

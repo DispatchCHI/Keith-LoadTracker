@@ -1193,6 +1193,84 @@ describe("specialty consume on logged loads", () => {
     expect(countSpecialtyOpens(gone, date, "liberty-tank", "CID")).toBe(0);
   });
 
+  it("consumes the Dekalb Leachate chip for FRWRD or Dekalb Sanitation", () => {
+    const date = "2026-10-10";
+    const open = () => {
+      let store = addSpecialtySlot({}, date, "dekalb", "Leachate (tanker)");
+      store = addSpecialtySlot(store, date, "dekalb", "Wood");
+      store = addSpecialtySlot(store, date, "dekalb-reload", "Hodgkins");
+      store = addSpecialtySlot(store, date, "grayslake", "FRWRD");
+      return store;
+    };
+
+    const cases = [
+      ["dekalb", "Dekalb", "FRWRD", "Leachate (tanker)"],
+      ["dekalb", "  DeKalb  ", "  frwrd ", " leachate (tanker) "],
+      ["dekalb", "DeKalb", "Fox River Water Reclamation", "Leachate"],
+      ["dekalb", "Dekalb", "Fox River Water Reclamation District", "LEACHATE (TANKER)"],
+      ["dekalb", "Dekalb", "Dekalb Sanitary", "Leachate (tanker)"],
+      ["dekalb", "Dekalb", "Dekalb San", "Leachate (tanker)"],
+      ["dekalb", "Dekalb", "Dekalb Sanitation", "Leachate"],
+      ["dekalb", "Dekalb", "DeKalb Sanitation District", "Leachate (tanker)"],
+      ["dekalb", "Dekalb", "DSD", "Leachate (tanker)"],
+      ["dekalb", "Dekalb", "D.S.D.", "Leachate (tanker)"],
+    ] as const;
+
+    for (const [stationId, pickup, destination, commodity] of cases) {
+      const store = logLoadConsume(open(), date, stationId, pickup, destination, 1, commodity);
+      expect(countSpecialtyOpens(store, date, "dekalb", "Leachate (tanker)"), destination).toBe(0);
+      expect(countSpecialtyOpens(store, date, "dekalb", "Wood"), destination).toBe(1);
+      expect(countSpecialtyOpens(store, date, "dekalb-reload", "Hodgkins"), destination).toBe(1);
+      expect(countSpecialtyOpens(store, date, "grayslake", "FRWRD"), destination).toBe(1);
+    }
+
+    const shortName = addSpecialtySlot({}, date, "dekalb", "Leachate");
+    const burnedShort = logLoadConsume(
+      shortName,
+      date,
+      "dekalb",
+      "Dekalb",
+      "FRWRD",
+      1,
+      "Leachate (tanker)",
+    );
+    expect(countSpecialtyOpens(burnedShort, date, "dekalb", "Leachate")).toBe(0);
+
+    const reload = logLoadConsume(
+      open(),
+      date,
+      "dekalb-reload",
+      "Dekalb Reload",
+      "FRWRD",
+      1,
+      "Leachate (tanker)",
+    );
+    expect(countSpecialtyOpens(reload, date, "dekalb", "Leachate (tanker)")).toBe(1);
+
+    const otherDest = logLoadConsume(
+      open(),
+      date,
+      "dekalb",
+      "Dekalb",
+      "CID",
+      1,
+      "Leachate (tanker)",
+    );
+    expect(countSpecialtyOpens(otherDest, date, "dekalb", "Leachate (tanker)")).toBe(1);
+
+    const recycle = logLoadConsume(
+      open(),
+      date,
+      "dekalb",
+      "Dekalb",
+      "FRWRD",
+      1,
+      "Recycle",
+    );
+    expect(countSpecialtyOpens(recycle, date, "dekalb", "Leachate (tanker)")).toBe(1);
+    expect(countSpecialtyOpens(recycle, date, "dekalb", "Wood")).toBe(1);
+  });
+
   it("consumes Dekalb Wood and Prairie Hill C&D chips from the load commodity", () => {
     const date = "2026-09-08";
     let store = addSpecialtySlot({}, date, "dekalb", "Wood");
