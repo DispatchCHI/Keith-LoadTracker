@@ -6,6 +6,7 @@ import { applyDailyEodToSummary, displayLoadCount, isSheetEodCard } from "../lib
 import {
   addDays,
   dayNumber,
+  formatCreatedStamp,
   formatHeaderDate,
   formatShortDate,
   isChicagoSunday,
@@ -27,6 +28,7 @@ import {
 } from "../lib/totals";
 import { customerNames } from "../lib/customerLanes";
 import { CommodityTag } from "../components/CommodityTag";
+import { LoadEditedMark } from "../components/LoadRow";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
 import { DriversCard } from "../components/DriversCard";
 import { EodReportButton } from "../components/EodReportButton";
@@ -493,6 +495,7 @@ function RankLoads({
       ) : null}
       {loads.map((load) => {
         const checked = checkoff && checkedIds.has(load.id);
+        const loggedAt = checkoff ? formatCreatedStamp(load.createdAt) : "";
         return (
           <div key={load.id} className={checked ? "yard-line is-checked" : "yard-line"}>
             <button
@@ -516,6 +519,12 @@ function RankLoads({
                 <span className="yard-line-kind">{load.commodity}</span>
               )}
               {checked ? <em className="yard-line-mark">Checked</em> : null}
+              {checkoff && loggedAt ? (
+                <time className="yard-line-time" dateTime={load.createdAt}>
+                  {loggedAt}
+                </time>
+              ) : null}
+              {checkoff ? <LoadEditedMark name={load.editedBy} /> : null}
             </button>
             {checkoff ? (
               <button type="button" className="yard-line-edit" onClick={() => onEdit(load.id)}>
