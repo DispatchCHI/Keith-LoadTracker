@@ -25,7 +25,7 @@ export const CLOUD_FETCH_TIMEOUT_MS = 45_000;
 export const CLOUD_FETCH_SLOT_WAIT_MS = 30_000;
 
 const NETWORK_ERROR_RE =
-  /failed to fetch|networkerror|network request failed|load failed|err_insufficient|insufficient.resources|error sending request|timed?\s*out|econnreset|enotfound|fetch failed|slot wait timed out|cloud fetch timed out/i;
+  /failed to fetch|networkerror|network request failed|load failed|err_insufficient|insufficient.resources|error sending request|timed?\s*out|econnreset|enotfound|fetch failed|slot wait timed out|cloud fetch timed out|cloud writes paused/i;
 
 export function errorText(error: unknown): string {
   if (error && typeof error === "object" && "message" in error) {

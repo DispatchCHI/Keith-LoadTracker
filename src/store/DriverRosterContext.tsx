@@ -54,6 +54,12 @@ import {
 } from "../lib/rosterHireDate";
 import { enforceOneYardPerDriver } from "../lib/rosterYardOwnership";
 import { chicagoToday } from "../lib/chicagoDate";
+import {
+  groupDeletesByTime,
+  isMissingRpcError,
+  ROSTER_DELETE_RPC,
+  ROSTER_RPC_MISSING_RETRY_MS,
+} from "../lib/rosterDeleteGuard";
 import { getSupabase } from "../lib/supabase";
 import { useAuth } from "./AuthContext";
 
@@ -275,14 +281,47 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     return { store: rowsToStore(page.data), assignedTruckKnown };
   }, [session]);
 
-  const cloudDeleteEntries = useCallback(async (ids: string[]) => {
-    if (!ids.length) return;
-    const supabase = getSupabase();
-    if (!supabase) return;
-    // Explicit Ã— and Sat Reset are the only paths that may DELETE a cloud roster row.
-    const { error } = await supabase.from("driver_roster_entries").delete().in("id", ids);
-    if (error) console.warn("driver roster delete failed", error.message);
-  }, []);
+  const rpcMissingUntilRef = useRef(0);
+  const cloudDeleteEntries = useCallback(
+    async (ids: string[], fallbackAt?: (id: string) => string | undefined) => {
+      if (!ids.length) return;
+      const supabase = getSupabase();
+      if (!supabase) return;
+      // Explicit Ã— and Sat Reset are the only paths that may DELETE a cloud roster row.
+      // Each delete carries its recorded time; the server guard
+      // (delete_roster_rows) skips any row that changed after it, so a name
+      // put back on the cloud list wins over an old / stale delete.
+      const batches = groupDeletesByTime(
+        ids,
+        (id) => deletedAtRef.current[id],
+        (id) => fallbackAt?.(id),
+        new Date().toISOString(),
+      );
+      for (const batch of batches) {
+        if (Date.now() >= rpcMissingUntilRef.current) {
+          const { error } = await supabase.rpc(ROSTER_DELETE_RPC, {
+            p_ids: batch.ids,
+            p_deleted_at: batch.at,
+          });
+          if (!error) continue;
+          if (!isMissingRpcError(error)) {
+            // Paused build, permission, or network: keep the tombstone; the
+            // next refresh retries. Never throw out of sync.
+            console.warn("driver roster delete failed", error.message);
+            continue;
+          }
+          rpcMissingUntilRef.current = Date.now() + ROSTER_RPC_MISSING_RETRY_MS;
+        }
+        // Guard SQL not installed yet: legacy direct delete (old behavior).
+        // Once Keith runs Load-Tracker-roster-guard-history.sql this path is
+        // revoked server-side and the RPC above is used instead.
+        const ids = batch.ids;
+        const { error } = await supabase.from("driver_roster_entries").delete().in("id", ids);
+        if (error) console.warn("driver roster delete failed", error.message);
+      }
+    },
+    [],
+  );
 
   const cloudUpsert = useCallback(
     async (
@@ -441,7 +480,11 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       deletedAtRef.current = result.deletedEntryAt;
       seenRef.current = new Set(result.seenRemoteEntryIds);
       if (result.toDeleteRemoteEntries.length) {
-        await cloudDeleteEntries(result.toDeleteRemoteEntries);
+        // Legacy tombstones with no time: delete only the row as last seen.
+        await cloudDeleteEntries(
+          result.toDeleteRemoteEntries,
+          (id) => remote.entries[id]?.updatedAt,
+        );
       }
       const removed = persistLocal(next);
       if (removed.length) await cloudDeleteEntries(removed.map((row) => row.id));

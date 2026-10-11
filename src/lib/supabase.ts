@@ -5,6 +5,7 @@ import {
   isAuthSupabaseUrl,
   withCloudFetchSlot,
 } from "./syncControl";
+import { assertCloudWriteAllowed } from "./versionGuard";
 
 export function supabaseConfig(): { url: string; anonKey: string } | null {
   const url = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -131,6 +132,13 @@ async function supabaseFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
+  // Stale-build guard: one central gate for every synced store. A paused
+  // client keeps reading but never writes or deletes (throws a TypeError so
+  // queues treat it as transient and keep the change for after reload).
+  assertCloudWriteAllowed(
+    requestUrl(input),
+    init?.method ?? (input instanceof Request ? input.method : "GET"),
+  );
   // Auth refresh is often nested under an in-flight data request. Taking a
   // data slot here deadlocks both slots and freezes flush/refresh on Syncing.
   if (isAuthSupabaseUrl(requestUrl(input))) {

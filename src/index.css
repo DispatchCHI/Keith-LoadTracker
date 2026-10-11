@@ -6813,3 +6813,47 @@ body.app-ready .splash {
   font-weight: 700;
   margin-bottom: 6px;
 }
+
+/* Stale-build guard banner (VersionBanner.tsx) */
+.version-banner {
+  position: sticky;
+  top: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  background: #fff4cc;
+  color: #4a3b00;
+  border-bottom: 1px solid #e6c84f;
+  font-size: 14px;
+  font-weight: 600;
+}
+.version-banner.is-hard {
+  background: #b42318;
+  color: #fff;
+  border-bottom-color: #7a1a12;
+}
+.version-banner-btn {
+  border: 0;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #1d4ed8;
+  color: #fff;
+}
+.version-banner.is-hard .version-banner-btn {
+  background: #fff;
+  color: #b42318;
+}
+.version-banner-later {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 500;
+}

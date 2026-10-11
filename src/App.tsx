@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { BrandMark } from "./components/BrandMark";
 import { SessionBar } from "./components/SessionBar";
 import { TabBar } from "./components/TabBar";
+import { VersionBanner } from "./components/VersionBanner";
 import { chicagoToday } from "./lib/chicagoDate";
 import { useDesktopLayout } from "./lib/layout";
 import { setActiveTab } from "./lib/activeTab";
@@ -296,6 +297,8 @@ function Shell() {
 
 export default function App() {
   return (
+    <>
+    <VersionBanner />
     <AuthProvider>
       <LoadsProvider>
         <SpecialtyProvider>
@@ -327,5 +330,6 @@ export default function App() {
         </SpecialtyProvider>
       </LoadsProvider>
     </AuthProvider>
+    </>
   );
 }
