@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { CREW_ROSTER, crewDisplayName, joinCrewPresence } from "../lib/presence";
+import { crewDisplayName, joinCrewPresence } from "../lib/presence";
 import { useAuth } from "../store/AuthContext";
 
+/** Shows only crew members who are signed in with the app open right now. */
 export function CrewPresenceList() {
   const { configured, user } = useAuth();
   const [onlineEmails, setOnlineEmails] = useState<Set<string>>(new Set());
@@ -13,26 +14,21 @@ export function CrewPresenceList() {
 
   if (!configured || !user?.email) return null;
 
-  const others = CREW_ROSTER.filter(
-    (person) => person.email.toLowerCase() !== user.email!.toLowerCase(),
-  );
+  const me = user.email.toLowerCase();
+  const others = [...onlineEmails]
+    .filter((email) => email && email !== me)
+    .sort((a, b) => crewDisplayName(a).localeCompare(crewDisplayName(b)));
   if (!others.length) return null;
 
   return (
     <div className="crew-presence">
-      {others.map((person) => {
-        const online = onlineEmails.has(person.email.toLowerCase());
-        return (
-          <span key={person.email} className="crew-presence-row">
-            <span
-              className={online ? "crew-dot is-online" : "crew-dot is-offline"}
-              aria-hidden="true"
-            />
-            {crewDisplayName(person.email)}
-            <span className="sr-only">{online ? " — online" : " — offline"}</span>
-          </span>
-        );
-      })}
+      {others.map((email) => (
+        <span key={email} className="crew-presence-row">
+          <span className="crew-dot is-online" aria-hidden="true" />
+          {crewDisplayName(email)}
+          <span className="sr-only"> (online)</span>
+        </span>
+      ))}
     </div>
   );
 }

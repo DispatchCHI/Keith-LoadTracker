@@ -7,7 +7,7 @@
 
 import { getSupabase } from "./supabase";
 
-/** Keep in sync with Auth users on the live Supabase project. */
+/** Display names only. The header bar lists whoever is in presence, never this list. */
 export const CREW_ROSTER: { email: string; name: string }[] = [
   { email: "klawson@mrbults.com", name: "K Lawson" },
   { email: "treyling@mrbults.com", name: "T Reyling" },
@@ -43,7 +43,10 @@ export function joinCrewPresence(
 
   const emitState = () => {
     const state = channel.presenceState();
-    onChange(new Set(Object.keys(state)));
+    const online = Object.entries(state)
+      .filter(([, metas]) => Array.isArray(metas) && metas.length > 0)
+      .map(([k]) => k.toLowerCase());
+    onChange(new Set(online));
   };
 
   channel
