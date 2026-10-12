@@ -6,6 +6,7 @@ import {
   type FormState,
 } from "../components/LoadForm";
 import { QuantityStepper } from "../components/QuantityStepper";
+import { TruckAssignPrompt } from "../components/TruckAssignPrompt";
 import { TruckEntry } from "../components/TruckEntry";
 import { CUSTOM_ID, resolveStationId } from "../data/stations";
 import { pickupLabel } from "../lib/cascade";
@@ -21,10 +22,12 @@ import {
   type TruckDriverPreview,
 } from "../lib/loadDriver";
 import { newLoadId } from "../lib/storage";
+import { trucksNeedingDriver } from "../lib/truckAssignPrompt";
 import {
   formatTruckList,
   parseTruckList,
 } from "../lib/truck";
+import { useDriverGone } from "../store/DriverGoneContext";
 import { useDriverRoster } from "../store/DriverRosterContext";
 import { useLoads } from "../store/LoadsContext";
 import type { Load } from "../types";
@@ -77,7 +80,15 @@ export function LogLoadScreen({
     ? "screen overlay-screen overlay-not-today log-load-sheet"
     : "screen overlay-screen log-load-sheet";
   const { saveLoad, loads } = useLoads();
-  const { store: rosterStore } = useDriverRoster();
+  const { store: rosterStore, setDriverAssignedTruck } = useDriverRoster();
+  const { store: goneStore } = useDriverGone();
+  const goneEntries = useMemo(() => Object.values(goneStore.entries), [goneStore]);
+  /** Unassigned company units still waiting on Assign / Skip, in entry order. */
+  const [assignQueue, setAssignQueue] = useState<{
+    trucks: string[];
+    total: number;
+    normalized: string;
+  } | null>(null);
   const { opensFor, consumeOpens } = useSpecialty();
   const [duplicate, setDuplicate] = useState<Load | null>(null);
   const [specialtyWarn, setSpecialtyWarn] = useState<{
@@ -132,8 +143,29 @@ export function LogLoadScreen({
     const normalized = formatTruckList(trucks);
     setTruckError(null);
     setTruck(normalized);
+    const pending = trucksNeedingDriver(rosterStore, trucks);
+    if (pending.length) {
+      setAssignQueue({ trucks: pending, total: pending.length, normalized });
+      return;
+    }
+    goToForm(normalized);
+  };
+
+  const goToForm = (normalized: string) => {
+    setAssignQueue(null);
     setForm((prev) => ({ ...prev, truck: normalized }));
     setStep("form");
+  };
+
+  /** Assign or Skip finished for the first truck in the queue. */
+  const advanceAssignQueue = () => {
+    if (!assignQueue) return;
+    const rest = assignQueue.trucks.slice(1);
+    if (rest.length) {
+      setAssignQueue({ ...assignQueue, trucks: rest });
+      return;
+    }
+    goToForm(assignQueue.normalized);
   };
 
   const finishSave = () => {
@@ -263,6 +295,7 @@ export function LogLoadScreen({
           value={truck}
           onChange={(next) => {
             setTruckError(null);
+            setAssignQueue(null);
             setTruck(next);
           }}
           onSubmit={() => truck && commitTruck(truck)}
@@ -275,6 +308,23 @@ export function LogLoadScreen({
             truckError ? undefined : formatTruckDriverPreview(typingPreview)
           }
         />
+        {assignQueue && assignQueue.trucks.length ? (
+          <TruckAssignPrompt
+            truck={assignQueue.trucks[0]}
+            position={assignQueue.total - assignQueue.trucks.length + 1}
+            total={assignQueue.total}
+            store={rosterStore}
+            goneEntries={goneEntries}
+            onAssign={async (entry) => {
+              // Same path as the Drivers page truck field: local store +
+              // Supabase, so every desk sees it until someone changes it.
+              const result = await setDriverAssignedTruck(entry.id, assignQueue.trucks[0]);
+              if (result.ok) advanceAssignQueue();
+              return result;
+            }}
+            onSkip={advanceAssignQueue}
+          />
+        ) : null}
       </div>
     );
   }

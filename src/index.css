@@ -6857,3 +6857,83 @@ body.app-ready .splash {
   cursor: pointer;
   font-weight: 500;
 }
+
+/* Log Load → Truck: assign an unassigned unit to a driver */
+.truck-assign-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.truck-assign-prompt p {
+  margin: 0;
+}
+
+.truck-assign-title {
+  font-weight: 700;
+}
+
+.truck-assign-count {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.truck-assign-input {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: 16px;
+}
+
+.truck-assign-input:focus {
+  outline: 2px solid var(--amber);
+}
+
+.truck-assign-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.truck-assign-opt {
+  width: 100%;
+  text-align: left;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.truck-assign-opt.is-active {
+  border-color: var(--amber);
+  background: var(--surface);
+}
+
+.truck-assign-emp {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.truck-assign-has,
+.truck-assign-replace {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.truck-assign-replace {
+  color: var(--text);
+  font-weight: 600;
+}
