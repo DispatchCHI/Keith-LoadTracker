@@ -270,12 +270,6 @@ button {
   letter-spacing: -0.04em;
 }
 
-.recalc-note {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
 .feed {
   display: flex;
   flex-direction: column;
@@ -465,21 +459,6 @@ button.log-load-top {
   justify-content: center;
   gap: 6px;
   margin: 0;
-}
-
-.log-load-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.log-load-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 0 0 auto;
-  align-self: flex-start;
 }
 
 button.notes-top {
@@ -1279,30 +1258,6 @@ button.day-notes-btn.day-notes-read:focus-visible {
   background: transparent;
 }
 
-.totals-block {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
-}
-
-.totals-block h2,
-.totals-toggle-title {
-  margin: 0 0 10px;
-  font-size: 13px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.totals-toggle-title {
-  margin: 0;
-}
-
-.totals-block-collapsed {
-  padding-bottom: 10px;
-}
-
 .totals-toggle {
   width: 100%;
   display: flex;
@@ -1314,19 +1269,6 @@ button.day-notes-btn.day-notes-read:focus-visible {
   background: transparent;
   text-align: left;
   min-height: 36px;
-}
-
-.totals-toggle-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.totals-toggle-count {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .totals-chevron {
@@ -1378,27 +1320,6 @@ button.day-notes-btn.day-notes-read:focus-visible {
   letter-spacing: -0.04em;
   line-height: 1;
   color: var(--amber);
-}
-
-.eod-block {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.eod-block .section-title {
-  margin: 0;
-}
-
-.eod-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
 }
 
 .tally-block {
@@ -1594,22 +1515,6 @@ button.day-notes-btn.day-notes-read:focus-visible {
   gap: 8px;
 }
 
-.rank-list-grid {
-  display: grid;
-  grid-template-columns: repeat(var(--rank-cols, 2), minmax(0, 1fr));
-  align-items: start;
-}
-
-.rank-list-grid .rank-item-open {
-  grid-column: 1 / -1;
-}
-
-@media (max-width: 480px) {
-  .rank-list-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .rank-row {
   width: 100%;
   text-align: left;
@@ -1623,119 +1528,6 @@ button.day-notes-btn.day-notes-read:focus-visible {
 .rank-row-compact {
   min-height: 0;
   padding: 8px 12px;
-}
-
-.rank-row-compact .rank-row-top {
-  margin-bottom: 0;
-}
-
-.rank-row-active {
-  border-color: var(--amber);
-  box-shadow: inset 0 0 0 1px var(--amber);
-  background: #fae6e7;
-}
-
-.rank-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.rank-item-open {
-  gap: 8px;
-}
-
-.rank-accordion {
-  margin: 0 2px 4px 10px;
-  padding: 8px 0 4px 10px;
-  border-left: 2px solid var(--amber);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.rank-accordion-feed {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.rank-accordion .load-row {
-  background: var(--surface);
-  border-color: var(--line);
-}
-
-.rank-row-static {
-  cursor: default;
-}
-
-.rank-row-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.rank-label {
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.rank-count {
-  font-family: "Barlow Condensed", "IBM Plex Sans", sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
-
-.rank-count-group {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
-  flex-shrink: 0;
-}
-
-.rank-count-caption {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.rank-track {
-  height: 8px;
-  border-radius: 999px;
-  background: #f5f3f0;
-  overflow: hidden;
-}
-
-.rank-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: var(--amber);
-}
-
-.custom-pill {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  border: 1px solid #d4a9a9;
-  color: var(--amber);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 800;
-  padding: 2px 7px;
 }
 
 .matching-head {
@@ -1904,7 +1696,6 @@ button.day-notes-btn.day-notes-read:focus-visible {
   font-size: 13px;
   font-weight: 600;
 }
-
 
 .oot-list {
   list-style: none;
@@ -2408,10 +2199,6 @@ body.app-ready .splash {
   display: none;
 }
 
-.block-btn {
-  align-self: flex-start;
-}
-
 .login-screen {
   align-items: stretch;
   gap: 20px;
@@ -2650,25 +2437,6 @@ body.app-ready .splash {
 .tab-bar-side .tab-active .tab-icon {
   opacity: 1;
   color: #111111;
-}
-.desktop-split {
-  display: grid;
-  grid-template-columns: minmax(340px, 1fr) minmax(340px, 1fr);
-  min-height: 100%;
-}
-
-.desktop-split > .screen {
-  border-right: 1px solid var(--line);
-  min-height: 100%;
-}
-
-.desktop-split > .screen:last-child {
-  border-right: 0;
-  background: #f5f3f0;
-}
-
-.screen-panel {
-  padding-bottom: 28px;
 }
 
 .modal-backdrop {
@@ -2985,21 +2753,6 @@ body.app-ready .splash {
   outline: 2px solid var(--amber);
   outline-offset: -2px;
   background: #fae6e7;
-}
-
-
-.day-loads-block {
-  overflow-anchor: none;
-}
-.day-loads-block .day-loads-feed {
-  margin-top: 10px;
-  overflow-anchor: none;
-}
-.day-loads-block .day-loads-feed .load-row {
-  overflow-anchor: none;
-}
-.day-loads-block.totals-block-collapsed {
-  padding-bottom: 10px;
 }
 
 /* ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â Specialty / walking-floor board ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â */
@@ -4511,7 +4264,6 @@ body.app-ready .splash {
   vertical-align: middle;
 }
 
-
 @media (max-width: 959px) {
   .drv-header-meta {
     align-items: flex-start;
@@ -4565,9 +4317,6 @@ body.app-ready .splash {
 .confirm-overlay-card .drv-gone-field {
   margin-bottom: 10px;
 }
-
-
-
 
 .drv-pay-list {
   display: grid;
@@ -4653,7 +4402,6 @@ body.app-ready .splash {
   min-height: 30px;
   line-height: 1;
 }
-
 
 .drv-notes-overlay {
   background: rgba(0, 0, 0, 0.18);
@@ -5392,15 +5140,6 @@ body.app-ready .splash {
     grid-column: 1 / -1;
   }
 }
-
-
-
-
-
-
-
-
-
 
 .station-calls-add-btn {
   margin-top: 8px;
@@ -6460,30 +6199,6 @@ body.app-ready .splash {
 }
 
 /* Desktop Today totals panel: gray and light blue, no gold. */
-.totals-sheet {
-  background: #f7f8fa;
-  gap: 8px;
-}
-
-.sheet-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.sheet-cal {
-  margin: 0;
-}
-
-.sheet-cal input {
-  background: #fff;
-  border: 1px solid #d0d3d9;
-  border-radius: 8px;
-  padding: 4px 8px;
-  color: #374151;
-  font-size: 12px;
-}
 
 .day-picker-sheet {
   gap: 6px;
@@ -6579,178 +6294,6 @@ body.app-ready .splash {
   font-weight: 600;
   padding: 0;
 }
-
-.totals-sheet .eod-block {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-}
-
-.totals-sheet .eod-stat {
-  background: #f4f5f7;
-  border: 1px solid #d0d3d9;
-  color: #111;
-  border-radius: 10px;
-  padding: 6px 8px;
-}
-
-.totals-sheet .eod-stat-loads {
-  background: #d6e8fb;
-  border-color: #7eb6ff;
-  color: #123152;
-}
-
-.totals-sheet .eod-stat-label {
-  color: #6b7280;
-  letter-spacing: 0.06em;
-}
-
-.totals-sheet .eod-stat-loads .eod-stat-label,
-.totals-sheet .eod-stat-loads .eod-stat-value {
-  color: #123152;
-}
-
-.totals-sheet .eod-stat-value {
-  font-size: 22px;
-}
-
-.totals-sheet .totals-sheet-block {
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-}
-
-.totals-sheet .totals-sheet-block .totals-toggle-title {
-  margin: 0;
-  letter-spacing: 0;
-  text-transform: none;
-  font-size: 12px;
-  font-weight: 800;
-  color: #6b7280;
-}
-
-.totals-sheet .totals-sheet-block .totals-toggle-count {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 600;
-  color: #6b7280;
-}
-
-.totals-sheet .totals-sheet-block .totals-chevron {
-  display: none;
-}
-
-.totals-sheet .totals-block-collapsed .totals-toggle {
-  background: #fff;
-  border: 1px solid #d0d3d9;
-  border-radius: 8px;
-  padding: 8px 10px;
-  min-height: 0;
-}
-
-.totals-sheet .totals-block-collapsed .totals-toggle-title {
-  font-size: 13px;
-  font-weight: 750;
-  color: #111;
-}
-
-.sheet-sites {
-  width: 100%;
-  border-collapse: collapse;
-  background: #fff;
-  border-radius: 10px;
-  overflow: hidden;
-  font-size: 13px;
-}
-
-.sheet-sites th {
-  text-align: left;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #1e3a8a;
-  background: #f4f5f7;
-  padding: 6px 8px;
-  font-weight: 800;
-}
-
-.sheet-sites th.num,
-.sheet-sites td.num {
-  text-align: right;
-  width: 52px;
-}
-
-.sheet-sites td {
-  padding: 0;
-  border-top: 1px solid #eef0f3;
-  vertical-align: middle;
-}
-
-.sheet-sites td.site-cell {
-  cursor: pointer;
-}
-
-.sheet-sites td.num {
-  font-variant-numeric: tabular-nums;
-  font-weight: 750;
-  color: #1e3a8a;
-}
-
-.sheet-sites td.is-on {
-  background: #e8eefc;
-}
-
-.sheet-sites td.num.full,
-.sheet-sites td.num.full.is-on {
-  background: var(--trash-only-bg);
-}
-
-.sheet-sites .site-hit {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 34px;
-  border: 0;
-  background: transparent;
-  padding: 6px 8px;
-  font: inherit;
-  font-weight: 650;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.sheet-sites .num-hit {
-  justify-content: flex-end;
-  font-weight: 750;
-  color: #1e3a8a;
-  text-align: right;
-}
-
-.totals-sheet .custom-pill {
-  margin-left: 6px;
-  background: #e8e8ea;
-  border-color: #e8e8ea;
-  color: #4b5563;
-}
-
-.totals-sheet .sheet-expand td {
-  background: #f7f8fa;
-  padding: 8px;
-}
-
-.totals-sheet .rank-accordion {
-  margin: 0;
-  padding: 4px 0 0;
-  border-left: 2px solid #7eb6ff;
-}
-
-
-
 
 /* Saturday Worklist copy / print */
 .drv-worklist-toolbar {

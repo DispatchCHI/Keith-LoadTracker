@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { dailyCounts } from "../lib/analytics";
@@ -57,7 +57,6 @@ type YardDeskScreenProps = {
   onLog: (date: string, pickup?: string) => void;
   onNotes: (date: string) => void;
   onEdit: (id: string) => void;
-  skinToggle?: ReactNode;
   /** Desktop top bar slot. When set, the band sits in that bar instead of the page. */
   topSlot?: HTMLElement | null;
   /** Keep the band out of the page until the desktop top bar slot is ready. */
@@ -71,7 +70,6 @@ export function YardDeskScreen({
   onLog,
   onNotes,
   onEdit,
-  skinToggle,
   topSlot = null,
   dockBand = false,
 }: YardDeskScreenProps) {
@@ -142,7 +140,6 @@ export function YardDeskScreen({
             <p className="eyebrow">Chicago</p>
             <h1 className="page-title">{formatHeaderDate(date)}</h1>
           </div>
-          {skinToggle}
         </div>
 
         <div className="yard-week" role="group" aria-label="Week">

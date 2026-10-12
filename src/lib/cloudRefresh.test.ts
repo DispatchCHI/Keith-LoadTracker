@@ -142,12 +142,11 @@ describe("crew cloud refresh wiring", () => {
 });
 
 describe("station call single poller", () => {
-  it("TotalsScreen reuses the shared store and does not attachCloudRefresh", () => {
-    const totals = readFileSync(new URL("../screens/TotalsScreen.tsx", import.meta.url), "utf8");
+  it("Yard Desk Today does not run its own station-call poller", () => {
+    const today = readFileSync(new URL("../screens/YardDeskScreen.tsx", import.meta.url), "utf8");
     const card = readFileSync(new URL("../components/StationCallsCard.tsx", import.meta.url), "utf8");
     expect(card).toContain("attachCloudRefresh");
-    expect(totals).not.toContain("attachCloudRefresh");
-    expect(totals).toContain("subscribeStationCallStore");
+    expect(today).not.toContain("attachCloudRefresh");
   });
 
   it("StationCallsCard re-reads local days after the cloud await so in-flight hour edits survive", () => {

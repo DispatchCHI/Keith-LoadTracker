@@ -1,31 +1,4 @@
-.today-skin-toggle {
-  border: 1px solid #7eb6ff;
-  background: #d6e8fb;
-  color: #123152;
-  border-radius: 10px;
-  font-weight: 750;
-  font-size: 13px;
-  line-height: 1;
-  padding: 8px 12px;
-  white-space: nowrap;
-}
 
-.today-skin-toggle:hover,
-.today-skin-toggle:focus-visible {
-  background: #c5ddf8;
-  outline: 2px solid #7eb6ff;
-  outline-offset: 2px;
-}
-
-.desk-topbar .today-skin-toggle {
-  align-self: center;
-}
-
-.today-header-tools {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
 .yard-desk {
   background: #eef1f4;

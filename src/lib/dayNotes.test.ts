@@ -233,7 +233,7 @@ describe("day notes read hash persistence", () => {
 
 describe("Today notes chrome", () => {
   it("wires the button affordance and acks when the popup opens", () => {
-    const today = readFileSync(new URL("../screens/TodayScreen.tsx", import.meta.url), "utf8");
+    const today = readFileSync(new URL("../screens/YardDeskScreen.tsx", import.meta.url), "utf8");
     const popup = readFileSync(new URL("../screens/DayNotesScreen.tsx", import.meta.url), "utf8");
     const css = readFileSync(new URL("../index.css", import.meta.url), "utf8");
     expect(today).toContain("notesAffordance");

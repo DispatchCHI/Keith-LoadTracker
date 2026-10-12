@@ -79,8 +79,6 @@ select {
 .tally-card,
 .load-row,
 .empty,
-.totals-block,
-.eod-block,
 .eod-stat,
 .station-calls-card,
 .change-card,
@@ -97,16 +95,6 @@ select {
   background: #f3e8e9;
   border-color: #e0b4b6;
   color: #111111;
-}
-
-.screen.totals-sheet {
-  background: #f7f8fa !important;
-}
-
-.totals-sheet .eod-stat-loads {
-  background: #d6e8fb !important;
-  border-color: #7eb6ff !important;
-  color: #123152 !important;
 }
 
 .drivers-card {

@@ -90,8 +90,6 @@ html[data-theme="halloween"] .tab-bar-side .tab-active {
 html[data-theme="halloween"] .tally-card,
 html[data-theme="halloween"] .load-row,
 html[data-theme="halloween"] .empty,
-html[data-theme="halloween"] .totals-block,
-html[data-theme="halloween"] .eod-block,
 html[data-theme="halloween"] .eod-stat,
 html[data-theme="halloween"] .station-calls-card,
 html[data-theme="halloween"] .change-card,
@@ -406,29 +404,13 @@ html[data-theme="halloween"] .calloff-kind-fmla.selected {
   color: #ffffff !important;
 }
 
-html[data-theme="halloween"] .rank-row-active {
-  background: rgba(58, 32, 20, 0.95) !important;
-  border-color: var(--amber) !important;
-}
-
-html[data-theme="halloween"] .rank-accordion {
-  border-left-color: var(--amber);
-}
-
-html[data-theme="halloween"] .rank-accordion .load-row {
-  background: rgba(36, 20, 26, 0.76) !important;
-}
-
-html[data-theme="halloween"] .load-row.load-row-checked,
-html[data-theme="halloween"] .rank-accordion .load-row.load-row-checked {
+html[data-theme="halloween"] .load-row.load-row-checked {
   background: #6b7280 !important;
   color: #f8fafc !important;
   border-color: #4b5563 !important;
   box-shadow: none !important;
 }
 
-html[data-theme="halloween"] .sheet-sites td.num.full,
-html[data-theme="halloween"] .sheet-sites td.num.full.is-on,
 html[data-theme="halloween"] .yard-site-num.full {
   color: #d6e8fb;
 }

@@ -18,10 +18,7 @@ import { LoginScreen } from "./screens/LoginScreen";
 import { AnalyticsScreen } from "./screens/AnalyticsScreen";
 import { SearchScreen } from "./screens/SearchScreen";
 import { DispatchScreen } from "./screens/DispatchScreen";
-import { TodaySkinToggle } from "./components/TodaySkinToggle";
-import { readTodaySkin, writeTodaySkin, type TodaySkin } from "./lib/todaySkin";
-import { TodayScreen } from "./screens/TodayScreen";
-import { TotalsScreen } from "./screens/TotalsScreen";
+import { clearRetiredTodaySkin } from "./lib/retiredTodaySkin";
 import { YardDeskScreen } from "./screens/YardDeskScreen";
 import { VacationScreen } from "./screens/VacationScreen";
 import { AuthProvider, useAuth } from "./store/AuthContext";
@@ -85,21 +82,11 @@ function Shell() {
   const [feedDate, setFeedDate] = useState(chicagoToday);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [justEditedId, setJustEditedId] = useState<string | null>(null);
-  const [todaySkin, setTodaySkin] = useState<TodaySkin>(() => readTodaySkin());
   const [yardSlot, setYardSlot] = useState<HTMLDivElement | null>(null);
-  const yardDesk = tab === "today" && todaySkin === "yard";
-
-  function toggleTodaySkin() {
-    setTodaySkin((current) => {
-      const next: TodaySkin = current === "yard" ? "classic" : "yard";
-      writeTodaySkin(next);
-      return next;
-    });
-  }
-
-  const skinToggle = (
-    <TodaySkinToggle skin={todaySkin} onToggle={toggleTodaySkin} />
-  );
+  const yardDesk = tab === "today";
+  useEffect(() => {
+    clearRetiredTodaySkin();
+  }, []);
 
   const editingLoad =
     overlay?.kind === "edit" ? findById(overlay.loadId) : undefined;
@@ -148,7 +135,6 @@ function Shell() {
             </div>
           </div>
           {yardDesk ? <div className="yard-top-slot" ref={setYardSlot} /> : null}
-          {tab === "today" ? skinToggle : null}
         </header>
       ) : null}
 
@@ -162,7 +148,7 @@ function Shell() {
         ) : null}
 
         <div className="phone-body">
-          {tab === "today" && desktop && todaySkin === "yard" ? (
+          {tab === "today" ? (
             <YardDeskScreen
               date={feedDate}
               onDateChange={setFeedDate}
@@ -170,54 +156,8 @@ function Shell() {
               onLog={(date, pickup) => setOverlay({ kind: "log", date, pickup })}
               onNotes={(date) => setOverlay({ kind: "day-notes", date })}
               onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
-              topSlot={yardSlot}
-              dockBand
-            />
-          ) : null}
-
-          {tab === "today" && desktop && todaySkin !== "yard" ? (
-            <div className="desktop-split">
-              <TodayScreen
-                date={feedDate}
-                onDateChange={setFeedDate}
-                justEditedId={justEditedId}
-                onLog={(date) => setOverlay({ kind: "log", date })}
-                onNotes={(date) => setOverlay({ kind: "day-notes", date })}
-                onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
-                showDayPicker={false}
-              />
-              <TotalsScreen
-                embedded
-                date={feedDate}
-                onDateChange={setFeedDate}
-                onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
-                onLog={(date) => setOverlay({ kind: "log", date })}
-              />
-            </div>
-          ) : null}
-
-          {tab === "today" && !desktop && todaySkin === "yard" ? (
-            <YardDeskScreen
-              date={feedDate}
-              onDateChange={setFeedDate}
-              justEditedId={justEditedId}
-              onLog={(date, pickup) => setOverlay({ kind: "log", date, pickup })}
-              onNotes={(date) => setOverlay({ kind: "day-notes", date })}
-              onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
-              skinToggle={skinToggle}
-            />
-          ) : null}
-
-          {tab === "today" && !desktop && todaySkin !== "yard" ? (
-            <TodayScreen
-              date={feedDate}
-              onDateChange={setFeedDate}
-              justEditedId={justEditedId}
-              onLog={(date) => setOverlay({ kind: "log", date })}
-              onNotes={(date) => setOverlay({ kind: "day-notes", date })}
-              onEdit={(loadId) => setOverlay({ kind: "edit", loadId })}
-              showDayPicker
-              skinToggle={skinToggle}
+              topSlot={desktop ? yardSlot : null}
+              dockBand={desktop}
             />
           ) : null}
 

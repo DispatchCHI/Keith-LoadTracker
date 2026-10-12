@@ -26,11 +26,11 @@ describe("weekStartingSunday", () => {
 
   it("DayPicker and Today week bubbles use Sunday start", () => {
     const picker = readFileSync(new URL("../components/DayPicker.tsx", import.meta.url), "utf8");
-    const today = readFileSync(new URL("../screens/TodayScreen.tsx", import.meta.url), "utf8");
+    const today = readFileSync(new URL("../screens/YardDeskScreen.tsx", import.meta.url), "utf8");
     expect(picker).toContain("weekStartingSunday");
     expect(picker).not.toContain("weekStartingMonday");
     expect(today).toContain("weekStartingSunday");
-    expect(today).toContain("sortLoadsNewestFirst");
+    expect(today).not.toContain("weekStartingMonday");
   });
 });
 

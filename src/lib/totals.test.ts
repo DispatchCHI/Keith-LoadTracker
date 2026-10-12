@@ -655,15 +655,11 @@ describe("rank grouping trash / total", () => {
     expect(isTrashOnlyRank({ count: 17, trashCount: 17 })).toBe(true);
     expect(isTrashOnlyRank({ count: 16, trashCount: 15 })).toBe(false);
     expect(isTrashOnlyRank({ count: 0, trashCount: 0 })).toBe(false);
-    const rank = readFileSync(new URL("../components/CollapsibleRank.tsx", import.meta.url), "utf8");
     const yard = readFileSync(new URL("../screens/YardDeskScreen.tsx", import.meta.url), "utf8");
-    expect(rank).toContain("isTrashOnlyRank(row)");
     expect(yard).toContain("isTrashOnlyRank(row)");
     expect(yard).toContain("yard-site-num full");
     const css = readFileSync(new URL("../screens/yard-desk.css", import.meta.url), "utf8");
-    const sheet = readFileSync(new URL("../index.css", import.meta.url), "utf8");
     expect(css).toContain("var(--trash-only-bg");
-    expect(sheet).toContain("var(--trash-only-bg)");
   });
 
   it("does not count Van Drunen MSW as trash (walking-floor lane, same as Today TRASH)", () => {
@@ -687,11 +683,6 @@ describe("rank grouping trash / total", () => {
     });
   });
 
-  it("renders trash / total on CollapsibleRank grouping rows", () => {
-    const src = readFileSync(new URL("../components/CollapsibleRank.tsx", import.meta.url), "utf8");
-    expect(src).toContain("formatRankTrashTotal");
-    expect(src).not.toMatch(/rank-count\}>\{row\.count\}/);
-  });
 });
 
 describe("endOfDaySummary", () => {
@@ -1044,10 +1035,8 @@ describe("rankAccordionLoads", () => {
   });
 
   it("Today RHS Transfer station expands loads under the row, not at the bottom", () => {
-    const src = readFileSync(new URL("../screens/TotalsScreen.tsx", import.meta.url), "utf8");
+    const src = readFileSync(new URL("../screens/YardDeskScreen.tsx", import.meta.url), "utf8");
     expect(src).toContain("rankAccordionLoads");
-    expect(src).toContain("expandedPanel");
-    expect(src).toContain("RankLoadList");
     expect(src).not.toContain("matching-block");
   });
 });

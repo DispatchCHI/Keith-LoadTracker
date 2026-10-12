@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readTodaySkin, TODAY_SKIN_KEY, writeTodaySkin } from "./todaySkin";
+import { clearRetiredTodaySkin, RETIRED_TODAY_SKIN_KEY } from "./retiredTodaySkin";
 
 const memory = new Map<string, string>();
 
@@ -21,34 +21,32 @@ function installStorage() {
   });
 }
 
-describe("today skin on this desk", () => {
-  it("stays on classic Today until this desk chooses Yard Desk", () => {
+describe("Yard Desk is the only Today layout", () => {
+  it("drops the old layout choice a desk saved", () => {
     installStorage();
-    expect(readTodaySkin()).toBe("classic");
+    localStorage.setItem(RETIRED_TODAY_SKIN_KEY, "classic");
+    clearRetiredTodaySkin();
+    expect(localStorage.getItem(RETIRED_TODAY_SKIN_KEY)).toBeNull();
   });
 
-  it("remembers Yard Desk and can flip back", () => {
-    installStorage();
-    writeTodaySkin("yard");
-    expect(localStorage.getItem(TODAY_SKIN_KEY)).toBe("yard");
-    expect(readTodaySkin()).toBe("yard");
-    writeTodaySkin("classic");
-    expect(readTodaySkin()).toBe("classic");
+  it("does not throw when storage is unavailable", () => {
+    vi.stubGlobal("localStorage", {
+      removeItem: () => {
+        throw new Error("blocked");
+      },
+    });
+    expect(() => clearRetiredTodaySkin()).not.toThrow();
   });
 
-  it("ignores a stored value that is not a skin", () => {
-    installStorage();
-    localStorage.setItem(TODAY_SKIN_KEY, "gone");
-    expect(readTodaySkin()).toBe("classic");
-  });
-
-  it("keeps the classic Today split and adds Yard Desk as the other skin", () => {
+  it("App renders Yard Desk for Today with no layout switch", () => {
     const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
-    expect(app).toContain("desktop-split");
     expect(app).toContain("YardDeskScreen");
-    expect(app).toContain("TodaySkinToggle");
-    expect(app).toContain('todaySkin !== "yard"');
-    expect(app).toContain('todaySkin === "yard"');
+    expect(app).toContain("clearRetiredTodaySkin");
+    expect(app).not.toContain("TodaySkinToggle");
+    expect(app).not.toContain("todaySkin");
+    expect(app).not.toContain("TodayScreen");
+    expect(app).not.toContain("TotalsScreen");
+    expect(app).not.toContain("desktop-split");
   });
 
   it("builds Yard Desk as the full page from the screenshot", () => {
