@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useDispatchTallies } from "../store/DispatchTalliesContext";
 
 function TallyStepper({
@@ -78,13 +78,14 @@ function TallyStepper({
   );
 }
 
-function TallyChip({
+export function TallyChip({
   label,
   value,
   sub,
   onSet,
   onStepDown,
   onStepUp,
+  onRemove,
 }: {
   label: string;
   value: number;
@@ -92,10 +93,48 @@ function TallyChip({
   onSet: (n: number) => void;
   onStepDown: () => void;
   onStepUp: () => void;
+  /** Added counters only: small × that asks before removing the card. */
+  onRemove?: () => void;
 }) {
+  const [confirmRemove, setConfirmRemove] = useState(false);
   return (
     <div className="tally-chip">
-      <span className="tally-chip-label">{label}</span>
+      {onRemove ? (
+        <div className="tally-chip-head">
+          <span className="tally-chip-label">{label}</span>
+          <button
+            type="button"
+            className="tally-chip-remove"
+            aria-label={`Remove ${label} counter`}
+            title="Remove counter"
+            onClick={() => setConfirmRemove(true)}
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <span className="tally-chip-label">{label}</span>
+      )}
+      {confirmRemove && onRemove ? (
+        <div className="tally-chip-confirm" role="alert">
+          <span>Remove this counter from Today on all desks?</span>
+          <div className="tally-chip-confirm-btns">
+            <button type="button" className="btn-ghost" onClick={() => setConfirmRemove(false)}>
+              Keep
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                setConfirmRemove(false);
+                onRemove();
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : null}
       <TallyStepper
         label={label}
         value={value}
@@ -164,11 +203,14 @@ export function DispatchTalliesRow({
   bataviaDispatchedToday,
   evanstonDispatchedToday,
   hookerDispatchedToday,
+  children,
 }: {
   date: string;
   bataviaDispatchedToday: number;
   evanstonDispatchedToday: number;
   hookerDispatchedToday: number;
+  /** Extra customer counters + the "Add counter" button, after Hooker Street. */
+  children?: ReactNode;
 }) {
   const {
     talliesOn,
@@ -209,6 +251,7 @@ export function DispatchTalliesRow({
         onStepDown={() => void setHookerAsking(date, Math.max(0, tallies.hookerAsking - 1))}
         onStepUp={() => void setHookerAsking(date, tallies.hookerAsking + 1)}
       />
+      {children}
     </div>
   );
 }

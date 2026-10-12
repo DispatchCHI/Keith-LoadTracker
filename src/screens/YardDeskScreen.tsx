@@ -29,6 +29,7 @@ import {
 import { customerNames } from "../lib/customerLanes";
 import { CommodityTag } from "../components/CommodityTag";
 import { LoadEditedMark } from "../components/LoadRow";
+import { CustomerTallyChips } from "../components/CustomerTallyChips";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
 import { DriversCard } from "../components/DriversCard";
 import { EodReportButton } from "../components/EodReportButton";
@@ -242,7 +243,9 @@ export function YardDeskScreen({
             bataviaDispatchedToday={msWDispatchedToday.batavia}
             evanstonDispatchedToday={msWDispatchedToday.evanston}
             hookerDispatchedToday={msWDispatchedToday.hooker}
-          />
+          >
+            <CustomerTallyChips date={date} dayLoads={dayLoads} />
+          </DispatchTalliesRow>
         </div>
 
         <div className="yard-col">

@@ -6480,3 +6480,129 @@ body.app-ready .splash {
   color: var(--text);
   font-weight: 600;
 }
+
+/* Today: extra customer Asking counters (+ Add counter) */
+.tally-chip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+
+.tally-chip-remove {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 4px;
+  min-height: 0;
+  cursor: pointer;
+}
+
+.tally-chip-remove:hover,
+.tally-chip-remove:focus-visible {
+  color: var(--brand);
+}
+
+.tally-chip-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.tally-chip-confirm-btns {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.tally-chip-confirm-btns button {
+  min-height: 26px;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+.tally-add-btn {
+  align-self: flex-start;
+  min-height: 28px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tally-add-btn:hover,
+.tally-add-btn:focus-visible {
+  border-color: #7eb6ff;
+  color: #1e3a8a;
+}
+
+.tally-add-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.tally-add-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tally-add-filter {
+  min-height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+.tally-add-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.tally-add-option {
+  width: 100%;
+  text-align: left;
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tally-add-option:hover,
+.tally-add-option:focus-visible {
+  border-color: #7eb6ff;
+  background: var(--surface);
+}
+
+.tally-add-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}

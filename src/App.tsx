@@ -27,6 +27,7 @@ import { CustomerLanesProvider } from "./store/CustomerLanesContext";
 import { DailyEodProvider } from "./store/DailyEodContext";
 import { DayNotesProvider } from "./store/DayNotesContext";
 import { SaturdayCrewProvider } from "./store/SaturdayCrewContext";
+import { CustomerTalliesProvider } from "./store/CustomerTalliesContext";
 import { DispatchTalliesProvider } from "./store/DispatchTalliesContext";
 import { DriverGoneProvider } from "./store/DriverGoneContext";
 import { DriverNotesProvider } from "./store/DriverNotesContext";
@@ -251,6 +252,7 @@ export default function App() {
                     <CustomerLanesProvider>
                     <DailyEodProvider>
                     <DispatchTalliesProvider>
+                    <CustomerTalliesProvider>
                     <DayNotesProvider>
                       <SaturdayCrewProvider>
                       <Gate>
@@ -258,6 +260,7 @@ export default function App() {
                       </Gate>
                       </SaturdayCrewProvider>
                     </DayNotesProvider>
+                    </CustomerTalliesProvider>
                     </DispatchTalliesProvider>
                     </DailyEodProvider>
                     </CustomerLanesProvider>
