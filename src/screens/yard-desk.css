@@ -752,6 +752,14 @@ button.yard-specialty-head:focus-visible {
   font-size: 11px;
 }
 
+.yard-specialty-date {
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .yard-specialty-hint {
   display: inline-flex;
   align-items: center;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { ChevronDown, Minus, Plus, X } from "lucide-react";
-import { formatHeaderDate } from "../lib/chicagoDate";
+import { formatHeaderDate, formatShortDate } from "../lib/chicagoDate";
 import { MAX_LOAD_QTY } from "../lib/quantity";
 import {
   CUSTOM_SPECIALTY_LOAD_TYPES,
@@ -127,8 +127,15 @@ export function SpecialtyBoardCard({
     const stationSlots = gridSlots.filter((slot) => slot.kind === "station");
     const openId =
       chipOpen && stationSlots.some((slot) => slot.id === chipOpen) ? chipOpen : null;
-    const openStation = openId
-      ? SPECIALTY_STATIONS.find((station) => station.id === openId)
+    // Odd-ball cards past the original four (custom-5, custom-6, …) are not in
+    // SPECIALTY_STATIONS; build them from the slot so clicking one opens it.
+    const openStation: SpecialtyStation | undefined = openId
+      ? (SPECIALTY_STATIONS.find((station) => station.id === openId) ?? {
+          id: openId,
+          name: isCustomSpecialtyId(openId)
+            ? customSpecialtyDisplayName(openId)
+            : (stationSlots.find((slot) => slot.id === openId)?.name ?? openId),
+        })
       : undefined;
     const locationsWithLoads = specialtyLocationsWithLoads(
       stationSlots.map((slot) => ({
@@ -153,8 +160,11 @@ export function SpecialtyBoardCard({
         >
           <h2>Specialty transfers</h2>
           <span className="yard-specialty-head-gap" />
-          <span className="yard-specialty-date">
-            Odd-ball cards only for {formatHeaderDate(date)}
+          <span
+            className="yard-specialty-date"
+            title={`Odd-ball cards only for ${formatHeaderDate(date)}`}
+          >
+            Odd-balls: {formatShortDate(date)} only
           </span>
           <span className="yard-specialty-hint">
             <ChevronDown
