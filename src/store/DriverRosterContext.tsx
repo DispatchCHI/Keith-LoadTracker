@@ -53,8 +53,7 @@ import {
   preserveHireDates,
 } from "../lib/rosterHireDate";
 import { enforceOneYardPerDriver } from "../lib/rosterYardOwnership";
-import { readDriverGonePersisted } from "../lib/driverGone";
-import { fullRowsOnGone, onlyRowsCloudStillHas } from "../lib/rosterGoneExclusion";
+import { onlyRowsCloudStillHas } from "../lib/rosterGoneExclusion";
 import { chicagoToday } from "../lib/chicagoDate";
 import {
   groupDeletesByTime,
@@ -424,30 +423,11 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     }
   }, [persistLocal, seedEmptySatFromFull]);
 
-  /**
-   * Anyone on the Gone list never stays on the Full Roster: drop the row here,
-   * remember the delete, and delete it in the cloud (through the guarded
-   * delete) so stale desks and seeds can't bring him back.
-   */
-  const dropGoneFromFullRoster = useCallback(async () => {
-    const goneEntries = Object.values(readDriverGonePersisted().entries);
-    const rows = fullRowsOnGone(storeRef.current, goneEntries);
-    if (!rows.length) return;
-    let working = storeRef.current;
-    for (const row of rows) {
-      working = removeRosterEntry(working, row.id).store;
-      markDeleted(row.id);
-    }
-    persistLocal(working);
-    if (cloud) await cloudDeleteEntries(rows.map((row) => row.id));
-  }, [cloud, cloudDeleteEntries, markDeleted, persistLocal]);
-
   const refreshInner = useCallback(async () => {
     if (!cloud) {
       const stamped = applyKnownHireDates(storeRef.current);
       persistLocal(stamped.store);
       await seedIfEmpty();
-      await dropGoneFromFullRoster();
       return;
     }
     const epoch = epochRef.current;
@@ -525,7 +505,6 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
 
     await seedIfEmpty();
     await seedEmptySatFromFull();
-    await dropGoneFromFullRoster();
     const stamped = applyKnownHireDates(storeRef.current);
     if (stamped.updated.length) {
       persistLocal(stamped.store);
@@ -537,7 +516,6 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     cloud,
     cloudDeleteEntries,
     cloudUpsert,
-    dropGoneFromFullRoster,
     persistLocal,
     pullRemote,
     seedEmptySatFromFull,

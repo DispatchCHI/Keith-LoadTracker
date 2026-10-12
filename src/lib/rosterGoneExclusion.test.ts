@@ -3,6 +3,7 @@ import type { DriverGoneEntry } from "./driverGone";
 import type { DriverRosterEntry, DriverRosterStore } from "./driverRoster";
 import {
   fullRowsOnGone,
+  goneEntriesForPerson,
   goneEntryForFullRow,
   onlyRowsCloudStillHas,
   withoutGoneFullRows,
@@ -35,8 +36,8 @@ const buddyGone: DriverGoneEntry = {
   terminationDate: "2026-09-01",
   notes: null,
   yard: "rockford",
-  createdAt: "2026-09-17T12:00:00.000Z",
-  updatedAt: "2026-09-17T12:00:00.000Z",
+  createdAt: "2026-09-25T12:00:00.000Z",
+  updatedAt: "2026-09-25T12:00:00.000Z",
 } as DriverGoneEntry;
 
 function store(...rows: DriverRosterEntry[]): DriverRosterStore {
@@ -62,6 +63,32 @@ describe("Gone list keeps people off the Full Roster", () => {
 
   it("keeps a rehire (hire date after termination)", () => {
     expect(goneEntryForFullRow(row({ hireDate: "2026-10-01" }), [buddyGone])).toBeNull();
+  });
+
+  it("keeps a rehire re-added with the OLD hire date (David Perez case)", () => {
+    const rehire = row({
+      name: "David Perez",
+      truckNumber: "31147",
+      hireDate: "2016-03-09",
+      createdAt: "2026-10-12T11:30:00.000Z",
+      updatedAt: "2026-10-12T11:30:00.000Z",
+    });
+    expect(goneEntryForFullRow(rehire, [buddyGone])).toBeNull();
+    expect(withoutGoneFullRows([rehire], [buddyGone])).toHaveLength(1);
+  });
+
+  it("keeps a row edited after the Gone entry was saved", () => {
+    const edited = row({ createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-10-01T00:00:00.000Z" });
+    expect(goneEntryForFullRow(edited, [buddyGone])).toBeNull();
+  });
+
+  it("keeps rows when timestamps are missing", () => {
+    expect(goneEntryForFullRow(row({ createdAt: "", updatedAt: "" }), [buddyGone])).toBeNull();
+  });
+
+  it("finds the Gone entry for a person being re-added", () => {
+    expect(goneEntriesForPerson({ truckNumber: "31147", name: "Buddy Johnson" }, [buddyGone])).toHaveLength(1);
+    expect(goneEntriesForPerson({ truckNumber: "99999", name: "Buddy Johnson" }, [buddyGone])).toHaveLength(0);
   });
 
   it("keeps a row added after the Gone entry when there is no hire date", () => {
