@@ -11,6 +11,7 @@ import {
   goneYearLabel,
   type DriverGoneEntry,
 } from "../lib/driverGone";
+import { withoutGoneFullRows } from "../lib/rosterGoneExclusion";
 import {
   DRIVER_ROSTER_YARDS,
   DRIVER_TAB_GROUPS,
@@ -347,7 +348,16 @@ export function DriverScreen() {
   const onGone = group === "gone";
   const satCols = useSatRosterColumnCount();
 
-  const entries = useMemo(() => entriesForRoster(store, kind, yard), [store, kind, yard]);
+  const rosterEntries = useMemo(() => entriesForRoster(store, kind, yard), [store, kind, yard]);
+  // Anyone on the Gone list never shows on the Full Roster (stale-desk rows
+  // are also deleted on the next roster sync).
+  const entries = useMemo(
+    () =>
+      kind === "full"
+        ? withoutGoneFullRows(rosterEntries, Object.values(gone.store.entries))
+        : rosterEntries,
+    [rosterEntries, kind, gone.store],
+  );
   const goneYears = useMemo(
     () => goneArchiveYears(gone.store, currentGoneYear),
     [gone.store, currentGoneYear],
@@ -356,7 +366,9 @@ export function DriverScreen() {
     () => entriesForGoneYear(gone.store, goneYear, currentGoneYear),
     [gone.store, goneYear, currentGoneYear],
   );
-  const count = onGone ? goneEntries.length : rosterEntryCount(store, kind, yard);
+  const count = onGone
+    ? goneEntries.length
+    : rosterEntryCount(store, kind, yard) - (rosterEntries.length - entries.length);
   const goneTotal = goneEntryCount(gone.store);
   const vacationNames = useMemo(
     () => (kind === "full" ? vacationNamesOnDate(vacation.store, asOf, yard) : []),

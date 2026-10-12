@@ -53,6 +53,8 @@ import {
   preserveHireDates,
 } from "../lib/rosterHireDate";
 import { enforceOneYardPerDriver } from "../lib/rosterYardOwnership";
+import { readDriverGonePersisted } from "../lib/driverGone";
+import { fullRowsOnGone, onlyRowsCloudStillHas } from "../lib/rosterGoneExclusion";
 import { chicagoToday } from "../lib/chicagoDate";
 import {
   groupDeletesByTime,
@@ -207,6 +209,8 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
   const refreshTailRef = useRef(Promise.resolve());
   const uploadingRef = useRef(false);
   const seedingRef = useRef(false);
+  /** Row ids in the last cloud pull; field patches only go to these. */
+  const lastRemoteIdsRef = useRef<Set<string>>(new Set());
 
   const persistLocal = useCallback((next: DriverRosterStore) => {
     const owned = enforceOneYardPerDriver(next);
@@ -420,11 +424,30 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     }
   }, [persistLocal, seedEmptySatFromFull]);
 
+  /**
+   * Anyone on the Gone list never stays on the Full Roster: drop the row here,
+   * remember the delete, and delete it in the cloud (through the guarded
+   * delete) so stale desks and seeds can't bring him back.
+   */
+  const dropGoneFromFullRoster = useCallback(async () => {
+    const goneEntries = Object.values(readDriverGonePersisted().entries);
+    const rows = fullRowsOnGone(storeRef.current, goneEntries);
+    if (!rows.length) return;
+    let working = storeRef.current;
+    for (const row of rows) {
+      working = removeRosterEntry(working, row.id).store;
+      markDeleted(row.id);
+    }
+    persistLocal(working);
+    if (cloud) await cloudDeleteEntries(rows.map((row) => row.id));
+  }, [cloud, cloudDeleteEntries, markDeleted, persistLocal]);
+
   const refreshInner = useCallback(async () => {
     if (!cloud) {
       const stamped = applyKnownHireDates(storeRef.current);
       persistLocal(stamped.store);
       await seedIfEmpty();
+      await dropGoneFromFullRoster();
       return;
     }
     const epoch = epochRef.current;
@@ -455,15 +478,24 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         prior,
         preserveHireDates(prior, preserveTruckNumbers(prior, truckSync.store)),
       );
-      const uploadIds = new Set(result.toUploadEntries.map((row) => row.id));
-      for (const row of truckSync.toUpload) uploadIds.add(row.id);
+      const newRowIds = new Set(result.toUploadEntries.map((row) => row.id));
+      const uploadIds = new Set(newRowIds);
+      // Field patches (truck / hire date / phone) only for rows the cloud
+      // still has. A row this desk saw that the cloud no longer has was
+      // deleted elsewhere; re-uploading it here is how deleted drivers
+      // (e.g. terminated ones) kept coming back.
+      for (const row of onlyRowsCloudStillHas(truckSync.toUpload, remote, newRowIds)) {
+        uploadIds.add(row.id);
+      }
       const toUpload = [...uploadIds]
         .map((id) => next.entries[id])
         .filter((row): row is DriverRosterEntry => Boolean(row));
-      for (const row of hireDatesNeedingUpload(next, remote)) {
-        if (!toUpload.some((item) => item.id === row.id)) toUpload.push(row);
-      }
-      for (const row of phonesNeedingUpload(next, remote)) {
+      const patches = onlyRowsCloudStillHas(
+        [...hireDatesNeedingUpload(next, remote), ...phonesNeedingUpload(next, remote)],
+        remote,
+        newRowIds,
+      );
+      for (const row of patches) {
         if (!toUpload.some((item) => item.id === row.id)) toUpload.push(row);
       }
       const clearAssignedTruckIds = new Set(truckSync.clearIds);
@@ -488,16 +520,29 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       }
       const removed = persistLocal(next);
       if (removed.length) await cloudDeleteEntries(removed.map((row) => row.id));
+      lastRemoteIdsRef.current = new Set(Object.keys(remote.entries));
     }
 
     await seedIfEmpty();
     await seedEmptySatFromFull();
+    await dropGoneFromFullRoster();
     const stamped = applyKnownHireDates(storeRef.current);
     if (stamped.updated.length) {
       persistLocal(stamped.store);
-      if (cloud) await cloudUpsert(stamped.updated);
+      const known = lastRemoteIdsRef.current;
+      const patch = stamped.updated.filter((row) => known.has(row.id));
+      if (cloud && patch.length) await cloudUpsert(patch);
     }
-  }, [cloud, cloudDeleteEntries, cloudUpsert, persistLocal, pullRemote, seedEmptySatFromFull, seedIfEmpty]);
+  }, [
+    cloud,
+    cloudDeleteEntries,
+    cloudUpsert,
+    dropGoneFromFullRoster,
+    persistLocal,
+    pullRemote,
+    seedEmptySatFromFull,
+    seedIfEmpty,
+  ]);
 
   const refresh = useCallback(() => {
     const run = refreshTailRef.current.then(refreshInner, refreshInner);
