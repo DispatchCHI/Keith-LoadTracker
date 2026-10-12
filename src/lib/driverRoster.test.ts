@@ -570,7 +570,10 @@ describe("sat roster seeds and resets from full", () => {
     const src = readFileSync(new URL("../screens/DriverScreen.tsx", import.meta.url), "utf8");
     expect(src).toMatch(/formatYardWorklist\(\{[\s\S]*?entries,/);
     expect(src).toContain('className="drv-copy-block drv-worklist-preview"');
-    expect(src).toContain("value={copyTextValue}");
+    expect(src).toContain("onCopy(copyTextValue, \"yard\")");
+    // Single-yard preview box removed; only the all-yards preview remains.
+    expect(src).not.toContain("value={copyTextValue}");
+    expect(src).toContain("value={allYardsWorklist.text}");
     expect(src).toContain("drv-sat-grid");
     expect(src).toContain("Reset to full roster");
     expect(src).toContain("Delete selected");

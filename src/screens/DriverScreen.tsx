@@ -828,12 +828,6 @@ export function DriverScreen() {
               }}
             />
           </label>
-          <textarea
-            className="drv-copy-block drv-worklist-preview"
-            readOnly
-            value={copyTextValue}
-            aria-label={`${yardLabel} Saturday Worklist exactly as copied`}
-          />
           {allYardsWorklist ? (
             <details className="drv-worklist-all">
               <summary>Preview all yards (exactly as Copy all yards)</summary>
