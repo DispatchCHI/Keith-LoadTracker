@@ -41,7 +41,7 @@
   place-items: center;
   border-radius: 12px;
   border: 1.5px dashed #57534e;
-  background: #fff;
+  background: var(--surface);
   color: #57534e;
   cursor: pointer;
 }
