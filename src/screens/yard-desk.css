@@ -1,7 +1,8 @@
 
 
 .yard-desk {
-  background: #eef1f4;
+  background: var(--bg);
+  color: var(--text);
   gap: 8px;
   padding: 8px 10px 16px;
 }
@@ -10,8 +11,8 @@
   align-items: center;
   gap: 8px;
   padding: 4px 10px;
-  background: #eef1f4;
-  border-bottom: 1px solid #d5d9e0;
+  background: var(--header);
+  border-bottom: 1px solid var(--line);
 }
 
 .desk-topbar-yard .desk-topbar-brand {
@@ -59,8 +60,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
-  background: #f7f8fa;
-  border: 1px solid #d5d9e0;
+  background: var(--header);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 6px 8px;
 }
@@ -95,7 +96,7 @@
 .yard-day {
   border: 0;
   background: transparent;
-  color: #1f2937;
+  color: var(--text);
   cursor: pointer;
 }
 
@@ -106,7 +107,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #4b5563;
+  color: var(--muted);
 }
 
 .yard-week-nav:hover,
@@ -149,7 +150,7 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .yard-day.on .yard-day-w {
@@ -164,7 +165,7 @@
 .yard-day-c {
   font-size: 10px;
   font-weight: 700;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .yard-actions {
@@ -189,9 +190,9 @@
 }
 
 .yard-desk button.notes-top:not(.day-notes-unread):not(.day-notes-read) {
-  background: #fff;
+  background: var(--field);
   color: #1e3a8a;
-  border: 1px solid #c5c9d1;
+  border: 1px solid var(--line);
 }
 
 .yard-eod {
@@ -200,9 +201,9 @@
 }
 
 .yard-desk .eod-stat {
-  background: #fff;
-  border: 1px solid #d0d3d9;
-  color: #111;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
   border-radius: 10px;
   padding: 3px 8px 4px;
   min-width: 68px;
@@ -215,7 +216,7 @@
 }
 
 .yard-desk .eod-stat-label {
-  color: #6b7280;
+  color: var(--muted);
   font-size: 10px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -242,13 +243,13 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .yard-cal input {
-  border: 1px solid #d0d3d9;
-  background: #fff;
-  color: #111;
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--text);
   border-radius: 8px;
   font: inherit;
   font-size: 13px;
@@ -282,8 +283,8 @@
 }
 
 .yard-panel {
-  background: #fff;
-  border: 1px solid #d5d9e0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 8px 10px 10px;
   min-width: 0;
@@ -316,14 +317,14 @@
   margin: 0;
   font-size: 14px;
   font-weight: 750;
-  color: #111827;
+  color: var(--text);
 }
 
 .yard-hint,
 .yard-empty,
 .yard-driver-summary {
   margin: 0;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -338,7 +339,7 @@
 }
 
 .yard-driver-summary strong {
-  color: #111827;
+  color: var(--text);
   font-size: 13px;
 }
 
@@ -357,7 +358,7 @@
   gap: 6px;
   min-width: 0;
   font-size: 12px;
-  color: #1f2937;
+  color: var(--text);
 }
 
 .yard-driver-names span {
@@ -380,13 +381,13 @@
   width: 100%;
   min-width: 0;
   align-items: stretch;
-  background: #fff;
-  border-color: #d5d9e0;
+  background: var(--surface);
+  border-color: var(--line);
 }
 
 .yard-desk .tally-chip-label {
   text-align: left;
-  color: #111827;
+  color: var(--text);
   font-size: 12px;
   letter-spacing: 0;
   text-transform: none;
@@ -420,8 +421,8 @@
   right: 0;
   top: calc(100% + 6px);
   z-index: 7;
-  background: #fff;
-  border: 1px solid #d0d3d9;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 16px 36px rgba(17, 24, 39, 0.22);
   padding: 8px 10px 10px;
@@ -444,7 +445,7 @@
   margin-left: auto;
   font-size: 12px;
   font-weight: 700;
-  color: #374151;
+  color: var(--text);
   white-space: nowrap;
 }
 
@@ -516,12 +517,12 @@
   align-items: center;
   width: 100%;
   border: 0;
-  border-bottom: 1px solid #e6e8ec;
+  border-bottom: 1px solid var(--line);
   background: transparent;
   text-align: left;
   padding: 4px 2px;
   font-size: 15px;
-  color: #1f2937;
+  color: var(--text);
   cursor: pointer;
 }
 
@@ -541,7 +542,7 @@
 .yard-site-num {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  color: #374151;
+  color: var(--text);
   min-width: 1.2em;
   text-align: right;
 }
@@ -582,7 +583,7 @@
   border-radius: 6px;
   padding: 4px 6px;
   font-size: 13px;
-  color: #1f2937;
+  color: var(--text);
   cursor: pointer;
   text-align: left;
 }
@@ -612,9 +613,9 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid #e1e4e8;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   min-width: 0;
 }
 
@@ -657,7 +658,7 @@
 
 .yard-line-kind {
   flex: 0 1 auto;
-  color: #4b5563;
+  color: var(--muted);
 }
 
 .yard-line .tag-wrap {
@@ -677,12 +678,12 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #1f2937;
+  color: var(--text);
 }
 
 .yard-line-time {
   flex: 0 0 auto;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 650;
   line-height: 1.2;
@@ -705,11 +706,11 @@
 }
 
 .yard-specialty {
-  background: #fff;
-  border: 1px solid #d5d9e0;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 8px 10px 10px;
-  color: #111827;
+  color: var(--text);
 }
 
 button.yard-specialty-head {
@@ -748,7 +749,7 @@ button.yard-specialty-head:focus-visible {
 
 .yard-specialty-date,
 .yard-specialty-hint {
-  color: #6b7280;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -793,9 +794,9 @@ button.yard-specialty-head:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  border: 1px solid #d0d3d9;
-  background: #fff;
-  color: #1f2937;
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--text);
   border-radius: 999px;
   padding: 3px 8px;
   font-size: 11px;
@@ -837,7 +838,7 @@ button.yard-specialty-head:focus-visible {
 .yard-spec-count {
   min-width: 1.1em;
   text-align: center;
-  color: #6b7280;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -921,7 +922,7 @@ button.yard-specialty-head:focus-visible {
 
 .yard-spec-open-lanes {
   min-width: 0;
-  color: #374151;
+  color: var(--text);
 }
 
 .yard-spec-detail {
@@ -946,8 +947,8 @@ button.yard-specialty-head:focus-visible {
 }
 
 .yard-hour {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 10px 12px 8px;
 }
@@ -963,13 +964,13 @@ button.yard-specialty-head:focus-visible {
   margin: 0;
   font-size: 14px;
   font-weight: 750;
-  color: #111827;
+  color: var(--text);
   white-space: nowrap;
 }
 
 .yard-hour-top p {
   margin: 0;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -985,10 +986,10 @@ button.yard-specialty-head:focus-visible {
 }
 
 .yard-hour-table {
-  --hour-row: #ffffff;
-  --hour-stripe: #f3f4f6;
-  --hour-start: #f3f7fb;
-  --hour-start-stripe: #e4ebf3;
+  --hour-row: var(--surface);
+  --hour-stripe: var(--surface-2);
+  --hour-start: #d5e4f2;
+  --hour-start-stripe: #c9d8e6;
   width: 100%;
   border-collapse: collapse;
   background: var(--hour-row);
@@ -999,8 +1000,8 @@ button.yard-specialty-head:focus-visible {
 .yard-hour-table td {
   background: var(--hour-row);
   border: 0;
-  border-bottom: 1px solid #eef0f3;
-  color: #111827;
+  border-bottom: 1px solid #c5d2de;
+  color: var(--text);
   font-size: 12px;
   font-weight: 650;
   text-align: center;
@@ -1010,12 +1011,12 @@ button.yard-specialty-head:focus-visible {
 
 .yard-hour-table thead th {
   height: 22px;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--line);
 }
 
 .yard-hour-table th:first-child,
@@ -1052,7 +1053,7 @@ button.yard-specialty-head:focus-visible {
 }
 
 .yard-hour-name {
-  color: #111827;
+  color: var(--text);
 }
 
 .yard-hour-table tr.has-note .yard-hour-name::after {
@@ -1070,7 +1071,7 @@ button.yard-specialty-head:focus-visible {
   margin-left: 4px;
   border: 0;
   background: transparent;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 14px;
   line-height: 1;
   padding: 0;
@@ -1088,13 +1089,13 @@ button.yard-specialty-head:focus-visible {
   height: 24px;
   font-size: 13px;
   font-weight: 650;
-  color: #111827;
+  color: var(--text);
   background: transparent;
 }
 
 .yard-hour .station-call-start.is-zero,
 .yard-hour .station-call-input.is-zero {
-  color: #111827;
+  color: var(--text);
 }
 
 .yard-hour .station-call-input:focus {
@@ -1120,11 +1121,11 @@ button.yard-specialty-head:focus-visible {
   width: max-content;
   max-width: min(420px, calc(100vw - 16px));
   padding: 8px 10px;
-  background: #fff;
-  border: 1px solid #d0d3d9;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 16px 36px rgba(17, 24, 39, 0.22);
-  color: #111827;
+  color: var(--text);
 }
 
 .yard-hour-note-pop.is-edit {
@@ -1156,8 +1157,8 @@ button.yard-specialty-head:focus-visible {
   resize: vertical;
   border: 1px solid #7eb6ff;
   border-radius: 8px;
-  background: #fff;
-  color: #111827;
+  background: var(--field);
+  color: var(--text);
   font: inherit;
   font-size: 13px;
   line-height: 1.35;

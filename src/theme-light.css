@@ -1,25 +1,31 @@
-/* Light theme overlay. Loaded after index.css. */
+/* Cool slate overlay. Loaded after index.css. */
 :root {
   color-scheme: light;
-  --bg: #ffffff;
-  --phone: #ffffff;
-  --surface: #f4f5f7;
-  --surface-2: #eceef2;
-  --line: #d0d3d9;
-  --text: #111111;
-  --muted: #4a4a4a;
-  --panel: #ffffff;
+  --bg: #d0dae4;
+  --phone: #d0dae4;
+  --header: #e2ebf3;
+  --surface: #e8f0f6;
+  --surface-2: #dce6ef;
+  --field: #f4f8fb;
+  --line: #b4c4d2;
+  --text: #1a2833;
+  --muted: #3e5160;
+  --panel: #e8f0f6;
+  --rail: #243444;
+  --rail-ink: #e7eef5;
+  --rail-active: #9eb0c2;
+  --rail-active-ink: #1a2833;
 }
 
 html,
 body,
 #root {
-  background: #ffffff !important;
-  color: #111111 !important;
+  background: var(--bg) !important;
+  color: var(--text) !important;
 }
 
 body {
-  background: #ffffff !important;
+  background: var(--bg) !important;
 }
 
 .app-shell,
@@ -28,39 +34,43 @@ body {
 .phone-body,
 .phone-stack,
 .desk-main,
-.desk-topbar,
-.tab-bar,
-.session-bar,
 .screen,
 .splash {
-  background: #ffffff !important;
-  color: #111111;
+  background: var(--bg) !important;
+  color: var(--text);
 }
 
-/* Desktop left rail stays solid blue; do not wash it white with the light theme. */
+.desk-topbar,
+.session-bar,
+.tab-bar:not(.tab-bar-side) {
+  background: var(--header) !important;
+  color: var(--text);
+}
+
+/* Desktop left rail is dark slate, with a cool gray active pill. */
 .tab-bar-side {
-  background: #1e3a8a !important;
-  color: #ffffff !important;
-  border-right-color: rgba(255, 255, 255, 0.18) !important;
+  background: var(--rail) !important;
+  color: var(--rail-ink) !important;
+  border-right-color: rgba(255, 255, 255, 0.14) !important;
 }
 
 .tab-bar-side .tab {
-  color: rgba(255, 255, 255, 0.92) !important;
+  color: var(--rail-ink) !important;
   background: transparent !important;
 }
 
 .tab-bar-side .tab:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
   color: #ffffff !important;
 }
 
 .tab-bar-side .tab-active {
-  background: #9ca3af !important;
-  color: #111111 !important;
+  background: var(--rail-active) !important;
+  color: var(--rail-active-ink) !important;
 }
 
 .tab-bar-side .tab-active .tab-icon {
-  color: #111111 !important;
+  color: var(--rail-active-ink) !important;
 }
 
 input,
@@ -70,9 +80,9 @@ select {
 }
 
 .load-row.load-row-checked {
-  background: #b8bec6;
-  color: #111111;
-  border-color: #8e949e;
+  background: #9aa3ad;
+  color: var(--text);
+  border-color: #6f7782;
   box-shadow: none;
 }
 
@@ -84,9 +94,9 @@ select {
 .change-card,
 .truck-display,
 .truck-summary {
-  background: #f4f5f7;
-  color: #111111;
-  border-color: #d0d3d9;
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
 }
 
 .tally-loads,
@@ -94,13 +104,13 @@ select {
 .grand-total {
   background: #f3e8e9;
   border-color: #e0b4b6;
-  color: #111111;
+  color: var(--text);
 }
 
 .drivers-card {
-  background: #eeeeee !important;
-  border-color: #d0d3d9 !important;
-  color: #111111 !important;
+  background: var(--surface) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
 }
 
 .oot-label {
@@ -109,20 +119,20 @@ select {
 
 .oot-chip,
 .calloff-add-btn {
-  background: #f3f4f6 !important;
-  border-color: #c8ccd3 !important;
-  color: #111111 !important;
+  background: var(--surface-2) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
 }
 
 .calloff-add-form {
-  background: #f7f7f8 !important;
-  border-color: #d0d3d9 !important;
+  background: var(--surface) !important;
+  border-color: var(--line) !important;
 }
 
 .calloff-name-input {
-  background: #ffffff !important;
-  color: #111111 !important;
-  border-color: #d0d3d9 !important;
+  background: var(--field) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
 }
 
 .calloff-kind-btn {
