@@ -1,53 +1,39 @@
 ﻿/**
- * Today "Transfer stations" card order: locked so sites don't move around day to day.
- * Taken from Fri Oct 9, 2026 (busiest first that day; ties A-Z). Edit freely.
- * Sites not listed go after these, A-Z.
+ * Today "Transfer stations" card: locked positions (Keith's layout), never by load count.
+ * Edit these three columns (top to bottom). Listed sites always show (0 / 0 when idle)
+ * so nothing shifts; any other site goes after them, A-Z.
  */
-export const TRANSFER_STATION_ORDER: readonly string[] = [
-  "Northlake",
-  "Melrose",
-  "Tri-State",
-  "Arc",
-  "Wheeling",
-  "Batavia",
-  "Schererville",
-  "Hooker Street",
-  "Apollo",
-  "Calumet",
-  "Roscoe",
-  "Evanston",
-  "GraysLake",
-  "Medill",
-  "Chicago Heights",
-  "Liberty",
-  "DeKalb",
-  "LRS",
-  "Elgin",
-  "Rockdale",
-  "Laraway",
-  "Hodgkins",
-  "Citiwaste",
-  "WoodLand RDF",
-  "Ford",
-  "Kankakee RDF",
-  "Midway LF",
+export const TRANSFER_STATION_COLUMNS: readonly (readonly string[])[] = [
+  ["Melrose", "Arc", "Medill", "GraysLake", "Hodgkins", "LRS", "Evanston", "Calumet", "Ford"],
+  ["Wheeling", "Hooker Street", "Schererville", "Apollo", "Liberty", "Chicago Heights", "Laraway", "Midway LF", "National Container"],
+  ["Northlake", "Tri-State", "Batavia", "Elgin", "DeKalb", "Rockdale", "Roscoe", "Wheatland RDF", "WoodLand RDF"],
 ];
+
+/** The 3-column grid fills left-to-right, so interleave columns into row order. */
+export const TRANSFER_STATION_ORDER: readonly string[] = (() => {
+  const out: string[] = [];
+  const rows = Math.max(...TRANSFER_STATION_COLUMNS.map((c) => c.length));
+  for (let r = 0; r < rows; r++) {
+    for (const col of TRANSFER_STATION_COLUMNS) if (col[r]) out.push(col[r]);
+  }
+  return out;
+})();
 
 function stationOrderKey(label: string): string {
   return label.trim().toLowerCase().replace(/[\s.'-]+/g, "");
 }
 
-const TRANSFER_STATION_RANK = new Map(
-  TRANSFER_STATION_ORDER.map((name, index) => [stationOrderKey(name), index]),
-);
+type Row = { key: string; label: string; count: number; trashCount: number; custom?: boolean };
 
-/** Fixed Today-card order (see TRANSFER_STATION_ORDER); unknown sites A-Z at the end. */
-export function sortPickupsFixedOrder<T extends { label: string }>(rows: readonly T[]): T[] {
-  const rank = (row: T) => TRANSFER_STATION_RANK.get(stationOrderKey(row.label)) ?? Infinity;
-  return [...rows].sort((a, b) => {
-    const ra = rank(a);
-    const rb = rank(b);
-    if (ra !== rb) return ra - rb;
-    return a.label.localeCompare(b.label);
-  });
+/** Fixed slots first (zero rows for idle listed sites), then unlisted sites A-Z. */
+export function sortPickupsFixedOrder<T extends Row>(rows: readonly T[]): T[] {
+  const byKey = new Map(rows.map((row) => [stationOrderKey(row.label), row]));
+  const out: T[] = [];
+  for (const name of TRANSFER_STATION_ORDER) {
+    const k = stationOrderKey(name);
+    const hit = byKey.get(k);
+    out.push(hit ?? ({ key: name, label: name, count: 0, trashCount: 0 } as T));
+    byKey.delete(k);
+  }
+  return out.concat([...byKey.values()].sort((a, b) => a.label.localeCompare(b.label)));
 }
