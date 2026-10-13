@@ -1276,6 +1276,9 @@ export type DriverRosterCloudReconcileResult = {
  * - Sheet import and Vacation auto-VAC may add or update marks; they never
  *   remove rows.
  */
+/** Full Roster tombstones older than this yield to a cloud row (see reconcile). */
+export const FULL_TOMBSTONE_CUTOFF = "2026-10-13T04:00:00.000Z";
+
 export function reconcileDriverRosterCloud(
   input: DriverRosterCloudReconcileInput,
 ): DriverRosterCloudReconcileResult {
@@ -1301,6 +1304,14 @@ export function reconcileDriverRosterCloud(
     // Full rows too: a stale tombstone (e.g. one left by the old Gone prune)
     // must never delete or hide a rehire that is on the cloud list now.
     if (remote && !(at && isIsoAfter(at, remote.updatedAt))) {
+      continue;
+    }
+    // Full rows: tombstones made before 1.1.14 may come from the old Gone
+    // auto-prune (1.1.7-1.1.12), stamped after the cloud row's last edit, so
+    // the check above let them keep hiding a rehire (David Perez) on this desk
+    // while every other desk showed him. Any real x delete from back then has
+    // already reached the cloud, so a cloud row still present wins.
+    if (remote && remote.kind !== "sat" && !(at && isIsoAfter(at, FULL_TOMBSTONE_CUTOFF))) {
       continue;
     }
     deleted.add(id);
