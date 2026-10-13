@@ -7,12 +7,11 @@
 
 import { destinationsFor } from "../data/stations";
 import { tallyLabel } from "./commodity";
-import { isValidISODate } from "./chicagoDate";
+import { addDays, isValidISODate } from "./chicagoDate";
 import { batchCreatedAt } from "./quantity";
 import {
   CUSTOM_SPECIALTY_DEFAULT_NAMES,
   customSpecialtyLaneChips,
-  isCustomSpecialtyCommodity,
   isCustomSpecialtyId,
   lookupCustomSpecialtyIdByName,
 } from "./customSpecialty";
@@ -670,10 +669,43 @@ export function countSpecialtyOpensAny(
   stationId: string,
   chips: readonly string[],
 ): number {
+  if (isCustomSpecialtyId(specialtyResolvedId(stationId))) {
+    // Odd-ball: any open on the card counts (dest typed differently, commodity
+    // differs), on the load day or — when that day has none — the next day.
+    const day = oddballConsumeDay(store, date, stationId);
+    return day ? oddballSlotIds(store, day, stationId).length : 0;
+  }
   return uniqueSpecialtyChipLabels(chips).reduce(
     (n, chip) => n + countSpecialtyOpens(store, date, stationId, chip),
     0,
   );
+}
+
+function specialtyResolvedId(stationId: string): string {
+  return resolveSpecialtyStationId(stationId, stationId) ?? stationId;
+}
+
+/** Odd-ball rows stored on exactly this day for this card, newest last. */
+function oddballSlotIds(store: SpecialtyStore, date: string, stationId: string): string[] {
+  return slotsOnDate(store, date)
+    .filter((s) => sameSpecialtyStation(s.stationId, stationId))
+    .map((s) => s.id);
+}
+
+/**
+ * Day whose Odd-ball opens a load should burn: the load's own day, else the
+ * next calendar day (lane set up for tomorrow, truck logged today).
+ */
+export function oddballConsumeDay(
+  store: SpecialtyStore,
+  date: string,
+  stationId: string,
+): string | null {
+  const day = specialtyDateKey(date);
+  if (oddballSlotIds(store, day, stationId).length) return day;
+  if (!isValidISODate(day)) return null;
+  const next = addDays(day, 1);
+  return oddballSlotIds(store, next, stationId).length ? next : null;
 }
 
 /**
@@ -736,6 +768,29 @@ export function consumeSpecialtyOpensTracked(
     }
     remaining -= burn;
     burned += burn;
+  }
+
+  // Odd-ball fallback: burn any remaining open on that card (exact chip
+  // first above), on the load day or the next day.
+  if (remaining > 0 && isCustomSpecialtyId(specialtyResolvedId(stationId))) {
+    const day = oddballConsumeDay(next, date, stationId);
+    if (day) {
+      const ids = oddballSlotIds(next, day, stationId).reverse().slice(0, remaining);
+      const victims = ids;
+      const chipsBurned = new Set<string>();
+      for (const id of victims) {
+        const slot = slotsOnDate(next, day).find((row) => row.id === id);
+        if (slot) chipsBurned.add(slot.destination);
+      }
+      next = omitSpecialtyIds(next, victims);
+      burnedIds.push(...victims);
+      for (const chip of chipsBurned) {
+        keeps = upsertSpecialtyDestKeep(keeps, destKeepAfterChange(next, day, stationId, chip));
+        touches.push({ date: day, stationId, destination: chip });
+      }
+      remaining -= victims.length;
+      burned += victims.length;
+    }
   }
 
   return { store: next, burnedIds, destKeeps: keeps, burned, touches };
@@ -844,7 +899,8 @@ function isSpecialtyBoardCommodity(
   pickup: string,
 ): boolean {
   if (isCustomSpecialtyId(specialtyId)) {
-    return isCustomSpecialtyCommodity(commodity, destination);
+    // Odd-ball lanes are keyed by pickup name; any commodity (incl. Trash) counts.
+    return Boolean(commodity.trim() || destination.trim());
   }
   const key = tallyLabel(commodity);
   // Ordinary trash/MSW never specialty-tallies. C&D / tires EOD-roll into TRASH
