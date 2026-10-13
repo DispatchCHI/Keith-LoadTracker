@@ -39,6 +39,9 @@ type RemoteRow = {
   reason: string | null;
   created_at: string;
   updated_at: string;
+  /** Present once Load-Tracker-calloff-added-by.sql has run. */
+  created_by_email?: string | null;
+  updated_by_email?: string | null;
 };
 
 type CallOffLogContextValue = {
@@ -80,6 +83,8 @@ function remoteToEntry(row: RemoteRow): CallOffLogEntry | null {
       reason: row.reason ?? "",
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      createdBy: row.created_by_email ?? null,
+      updatedBy: row.updated_by_email ?? null,
     },
   ]);
   return cleaned[0] ?? null;
@@ -165,7 +170,7 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
     const page = await fetchAllPaged<RemoteRow>(async (from, to) => {
       const result = await supabase
         .from("call_off_log")
-        .select("id, name, start_date, end_date, reason, created_at, updated_at")
+        .select("*")
         .order("start_date", { ascending: true })
         .range(from, to);
       return { data: result.data as RemoteRow[] | null, error: result.error };
@@ -292,13 +297,16 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
   const addRow = useCallback(
     async (input: { name: string; start: string; end?: string | null; reason: string }) => {
       epochRef.current += 1;
-      const { rows: next, entry } = addCallOffLogEntry(rowsRef.current, input);
+      const { rows: next, entry } = addCallOffLogEntry(rowsRef.current, {
+        ...input,
+        by: user?.email ?? null,
+      });
       if (!entry) return null;
       persistLocal(next);
       if (cloud && (await cloudUpsert([entry]))) rememberSeen([entry.id]);
       return entry;
     },
-    [cloud, cloudUpsert, persistLocal, rememberSeen],
+    [cloud, cloudUpsert, persistLocal, rememberSeen, user?.email],
   );
 
   const editRow = useCallback(
@@ -307,12 +315,18 @@ export function CallOffLogProvider({ children }: { children: ReactNode }) {
       patch: Partial<Pick<CallOffLogEntry, "name" | "start" | "end" | "reason">>,
     ) => {
       epochRef.current += 1;
-      const next = updateCallOffLogEntry(rowsRef.current, id, patch);
+      const next = updateCallOffLogEntry(
+        rowsRef.current,
+        id,
+        patch,
+        new Date().toISOString(),
+        user?.email ?? null,
+      );
       const entry = next.find((row) => row.id === id);
       persistLocal(next);
       if (cloud && entry && (await cloudUpsert([entry]))) rememberSeen([entry.id]);
     },
-    [cloud, cloudUpsert, persistLocal, rememberSeen],
+    [cloud, cloudUpsert, persistLocal, rememberSeen, user?.email],
   );
 
   const removeRow = useCallback(

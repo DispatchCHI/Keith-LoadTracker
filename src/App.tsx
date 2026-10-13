@@ -139,7 +139,7 @@ function Shell() {
         </header>
       ) : null}
 
-      <SessionBar />
+      <SessionBar tickerDate={tab === "today" ? feedDate : null} />
 
       {!desktop ? <TabBar tab={tab} onChange={onTabChange} /> : null}
 

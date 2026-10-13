@@ -11,6 +11,7 @@ import {
 } from "../lib/callOffLog";
 import { cleanDriverName } from "../lib/driverRoster";
 import type { CallOffKind } from "../lib/driverAvailability";
+import { crewDisplayName } from "../lib/presence";
 import { useCallOffLog } from "../store/CallOffLogContext";
 import { useDriverGone } from "../store/DriverGoneContext";
 import { useDriverRoster } from "../store/DriverRosterContext";
@@ -112,7 +113,7 @@ function pillClass(row: CallOffLogEntry): string {
 export function CallOffsScreen() {
   const today = chicagoToday();
   const yesterday = previousWorkingDay(today);
-  const { rows, cloud, error, addRow, removeRow } = useCallOffLog();
+  const { rows, cloud, error, addRow, editRow, removeRow } = useCallOffLog();
   const { store: roster } = useDriverRoster();
   const gone = useDriverGone();
   const [filter, setFilter] = useState<FilterId>("all");
@@ -344,6 +345,7 @@ export function CallOffsScreen() {
                   <th>Call Off</th>
                   <th>Through Date</th>
                   <th>Reason</th>
+                  <th className="calloffs-by">Added by</th>
                   <th />
                 </tr>
               </thead>
@@ -355,11 +357,12 @@ export function CallOffsScreen() {
                     emp={empFor(row)}
                     today={today}
                     onRemove={() => void removeRow(row.id)}
+                    onSave={(patch) => editRow(row.id, patch)}
                   />
                 ))}
                 {!visible.length ? (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <p className="oot-empty">No rows yet. Add a driver above to start the log.</p>
                     </td>
                   </tr>
@@ -373,31 +376,120 @@ export function CallOffsScreen() {
   );
 }
 
+type SheetPatch = { name: string; start: string; end: string | null; reason: string };
+
 function SheetRow({
   row,
   emp,
   today,
   onRemove,
+  onSave,
 }: {
   row: CallOffLogEntry;
   emp: string;
   today: string;
   onRemove: () => void;
+  onSave: (patch: SheetPatch) => Promise<void>;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(row.name);
+  const [start, setStart] = useState(row.start);
+  const [end, setEnd] = useState(row.end ?? "");
+  const [reason, setReason] = useState(row.reason);
+  const [err, setErr] = useState<string | null>(null);
   const last = row.end ?? row.start;
   const current = row.start <= today && last >= today;
   const past = last < today;
+  const by = row.createdBy ? crewDisplayName(row.createdBy) : "";
+  const editedBy =
+    row.updatedBy && row.updatedBy !== row.createdBy ? crewDisplayName(row.updatedBy) : "";
+
+  function begin() {
+    setName(row.name);
+    setStart(row.start);
+    setEnd(row.end ?? "");
+    setReason(row.reason);
+    setErr(null);
+    setEditing(true);
+  }
+
+  async function save() {
+    if (!cleanDriverName(name)) return setErr("Enter a name.");
+    if (!start) return setErr("Pick a date.");
+    await onSave({ name: name.trim(), start, end: end || null, reason: reason.trim() });
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <>
+        <tr className="calloffs-editing">
+          <td className="calloffs-emp">{emp || "\u2014"}</td>
+          <td>
+            <DriverNameInput value={name} onChange={setName} placeholder="Driver name" aria-label="Edit driver name" />
+          </td>
+          <td>
+            <input className="text-input" type="date" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Edit call off date" />
+          </td>
+          <td>
+            <input className="text-input" type="date" value={end} onChange={(e) => setEnd(e.target.value)} aria-label="Edit through date" />
+          </td>
+          <td>
+            <input
+              className="text-input calloffs-reason-input"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void save();
+                if (e.key === "Escape") setEditing(false);
+              }}
+              aria-label="Edit reason"
+            />
+          </td>
+          <td className="calloffs-by">{by || "\u2014"}</td>
+          <td className="calloffs-actions">
+            <button type="button" className="calloff-save" onClick={() => void save()}>Save</button>
+            <button type="button" className="calloff-cancel" onClick={() => setEditing(false)} aria-label="Cancel edit">×</button>
+          </td>
+        </tr>
+        <tr className="calloffs-editing calloffs-edit-chips">
+          <td />
+          <td colSpan={6}>
+            <div className="calloffs-reason-row" role="group" aria-label="Reason presets">
+              {CALL_OFF_REASON_PRESETS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`calloff-kind-btn ${presetClass(item)}${reason === item ? " selected" : ""}`}
+                  aria-pressed={reason === item}
+                  onClick={() => setReason(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+            {err ? <p className="form-error">{err}</p> : null}
+          </td>
+        </tr>
+      </>
+    );
+  }
 
   return (
     <tr className={current ? "is-today" : past ? "is-past" : undefined}>
-      <td className="calloffs-emp">{emp || "—"}</td>
+      <td className="calloffs-emp">{emp || "\u2014"}</td>
       <td>{row.name}</td>
       <td>{formatSheetStyleDate(row.start)}</td>
       <td>{row.end ? formatSheetStyleDate(row.end) : ""}</td>
       <td>
         <span className={pillClass(row)}>{row.reason}</span>
       </td>
+      <td className="calloffs-by" title={editedBy ? `Edited by ${editedBy}` : undefined}>
+        {by || "\u2014"}
+        {editedBy ? <span className="calloffs-edited"> · ed. {editedBy}</span> : null}
+      </td>
       <td className="calloffs-actions">
+        <button type="button" className="calloff-edit" onClick={begin} aria-label={`Edit ${row.name}`} title="Edit">✎</button>
         <button type="button" className="calloff-remove" onClick={onRemove} aria-label={`Remove ${row.name}`}>×</button>
       </td>
     </tr>

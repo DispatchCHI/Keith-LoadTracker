@@ -1,9 +1,10 @@
 import { useAuth } from "../store/AuthContext";
 import { useLoads } from "../store/LoadsContext";
 import { HUGE_QUEUE_THRESHOLD, hugeQueueMessage } from "../lib/syncControl";
+import { CallOffNotesTicker } from "./CallOffNotesTicker";
 import { CrewPresenceList } from "./CrewPresenceList";
 
-export function SessionBar() {
+export function SessionBar({ tickerDate = null }: { tickerDate?: string | null } = {}) {
   const { configured, user, displayName, signOut } = useAuth();
   const {
     syncStatus,
@@ -59,6 +60,7 @@ export function SessionBar() {
         </span>
         <CrewPresenceList />
       </div>
+      {tickerDate ? <CallOffNotesTicker date={tickerDate} /> : null}
       <span className="session-actions">
         {localPendingCount > 0 && !hugeQueue ? (
           <button

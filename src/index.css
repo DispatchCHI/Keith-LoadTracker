@@ -6606,3 +6606,73 @@ body.app-ready .splash {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* Today header: scrolling Notes-only Call-Off ticker. */
+.notes-ticker {
+  flex: 1 1 240px;
+  min-width: 0;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px;
+  padding: 3px 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 999px;
+  color: #78350f;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.notes-ticker-tag {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #1f2937;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.notes-ticker-window {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+}
+
+.notes-ticker-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: notes-ticker-scroll linear infinite;
+  will-change: transform;
+}
+
+.notes-ticker:hover .notes-ticker-track {
+  animation-play-state: paused;
+}
+
+.notes-ticker-strip {
+  display: inline-flex;
+}
+
+.notes-ticker-item {
+  padding-right: 48px;
+}
+
+.notes-ticker-item::before {
+  content: "\2022";
+  margin-right: 10px;
+  color: #d97706;
+}
+
+@keyframes notes-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notes-ticker-track { animation-duration: 120s !important; }
+}

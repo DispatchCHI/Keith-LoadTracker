@@ -20,7 +20,15 @@ export type CallOffLogEntry = {
   reason: string;
   createdAt: string;
   updatedAt: string;
+  /** Login email that added the row (cloud `created_by_email`, set by trigger). */
+  createdBy?: string | null;
+  /** Login email of the last edit (cloud `updated_by_email`). */
+  updatedBy?: string | null;
 };
+
+function cleanEmail(raw: unknown): string | null {
+  return typeof raw === "string" && raw.trim() ? raw.trim().toLowerCase() : null;
+}
 
 export type CallOffLogPersisted = {
   version: 1;
@@ -85,6 +93,8 @@ export function cleanCallOffLogEntry(raw: unknown): CallOffLogEntry | null {
     reason,
     createdAt,
     updatedAt,
+    createdBy: cleanEmail(rec.createdBy),
+    updatedBy: cleanEmail(rec.updatedBy),
   };
 }
 
@@ -204,7 +214,7 @@ export function formatSheetStyleDate(iso: string): string {
 
 export function addCallOffLogEntry(
   rows: readonly CallOffLogEntry[],
-  input: { name: string; start: string; end?: string | null; reason: string },
+  input: { name: string; start: string; end?: string | null; reason: string; by?: string | null },
   now = new Date().toISOString(),
 ): { rows: CallOffLogEntry[]; entry: CallOffLogEntry | null } {
   const name = input.name.trim();
@@ -220,6 +230,8 @@ export function addCallOffLogEntry(
     reason,
     createdAt: now,
     updatedAt: now,
+    createdBy: cleanEmail(input.by),
+    updatedBy: cleanEmail(input.by),
   };
   return { rows: sortCallOffLog([...rows, entry]), entry };
 }
@@ -229,6 +241,7 @@ export function updateCallOffLogEntry(
   id: string,
   patch: Partial<Pick<CallOffLogEntry, "name" | "start" | "end" | "reason">>,
   now = new Date().toISOString(),
+  by: string | null = null,
 ): CallOffLogEntry[] {
   return sortCallOffLog(
     rows.map((row) => {
@@ -245,7 +258,15 @@ export function updateCallOffLogEntry(
       }
       const reason = patch.reason !== undefined ? patch.reason.trim() : row.reason;
       if (!name || !isValidISODate(start)) return row;
-      return { ...row, name, start, end, reason, updatedAt: now };
+      return {
+        ...row,
+        name,
+        start,
+        end,
+        reason,
+        updatedAt: now,
+        updatedBy: cleanEmail(by) ?? row.updatedBy ?? null,
+      };
     }),
   );
 }
@@ -288,7 +309,16 @@ export function mergeCallOffLog(
     // Strictly later local edits win. Same instant keeps remote (+00:00) so
     // localStorage heals and string >= cannot keep a forever-Z echo.
     if (!current) byId.set(row.id, row);
-    else byId.set(row.id, pickNewerByUpdatedAt(row, current));
+    else {
+      const picked = pickNewerByUpdatedAt(row, current);
+      const other = picked === row ? current : row;
+      byId.set(row.id, {
+        ...picked,
+        // Cloud trigger owns created_by; keep whichever copy knows it.
+        createdBy: current.createdBy ?? row.createdBy ?? null,
+        updatedBy: picked.updatedBy ?? other.updatedBy ?? null,
+      });
+    }
   }
   return sortCallOffLog([...byId.values()]);
 }

@@ -192,7 +192,7 @@ describe("custom reasons are Notes only", () => {
     });
     expect(old).not.toBeNull();
     expect(Object.keys(old!).sort()).toEqual(
-      ["createdAt", "end", "id", "name", "reason", "start", "updatedAt"].sort(),
+      ["createdAt", "createdBy", "end", "id", "name", "reason", "start", "updatedAt", "updatedBy"].sort(),
     );
     expect(kindForLogEntry(old!)).toBe("note");
     expect(logEntrySubtracts(old!)).toBe(false);

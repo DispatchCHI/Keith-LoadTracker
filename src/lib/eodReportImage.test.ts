@@ -41,8 +41,8 @@ describe("EOD_IMAGE_LAYOUT", () => {
       hourCell: 26,
       statLabel: 16,
       statValue: 32,
-      tableHeader: 18,
-      tableCell: 26,
+      tableHeader: 16,
+      tableCell: 22,
       landfill: 20,
       landfillCaption: 13,
       footer: 18,
@@ -80,7 +80,7 @@ describe("EOD_IMAGE_LAYOUT", () => {
     expect(EOD_IMAGE_LAYOUT.tableNameW).toBeLessThanOrEqual(180);
     expect(EOD_IMAGE_LAYOUT.tableNumW).toBeLessThanOrEqual(90);
     expect(tableW).toBe(
-      EOD_IMAGE_LAYOUT.tableNameW + EOD_IMAGE_LAYOUT.tableNumW * 3,
+      EOD_IMAGE_LAYOUT.tableNameW + EOD_IMAGE_LAYOUT.tableNumW * 2,
     );
   });
 
@@ -89,9 +89,9 @@ describe("EOD_IMAGE_LAYOUT", () => {
     expect(EOD_IMAGE_LAYOUT.lfCardW).toBeGreaterThanOrEqual(220);
     const lfColW = landfillColumnWidth();
     const cols = landfillColumnCount(lfColW);
-    // Two-up stacks destinations under Newton / Prairie View (no sparse third column).
-    expect(cols).toBe(2);
-    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(2);
+    // Full-width band under the hour grid: up to four across.
+    expect(cols).toBe(4);
+    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(4);
     const used =
       cols * EOD_IMAGE_LAYOUT.lfCardW + (cols - 1) * EOD_IMAGE_LAYOUT.lfGap;
     expect(used).toBeLessThanOrEqual(lfColW);
@@ -104,8 +104,8 @@ describe("EOD_IMAGE_LAYOUT", () => {
     // Reclaim space from the right band; keep large type, widen hour cells.
     expect(EOD_IMAGE_LAYOUT.width).toBe(1600);
     expect(EOD_IMAGE_LAYOUT.hourColW).toBeGreaterThanOrEqual(72);
-    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(2);
-    expect(landfillColumnCount()).toBe(2);
+    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(4);
+    expect(landfillColumnCount()).toBe(4);
     // Stats chips stay content-width; band still usable beside the wider grid.
     expect(statsColumnWidth()).toBeGreaterThanOrEqual(280);
   });
@@ -150,12 +150,10 @@ describe("EOD_IMAGE_LAYOUT", () => {
     expect(chipW).toBeGreaterThan(100);
   });
 
-  it("places station totals and landfills in side-by-side columns", () => {
+  it("fits station totals under the chips and spans landfills full width", () => {
     const tableW = stationTableCardWidth();
-    const lfW = landfillColumnWidth();
-    expect(tableW + EOD_IMAGE_LAYOUT.colGap + lfW).toBe(eodContentWidth());
-    expect(lfW).toBeGreaterThan(tableW);
-    expect(landfillColumnCount(lfW)).toBe(2);
+    expect(tableW).toBeLessThanOrEqual(statsColumnWidth());
+    expect(landfillColumnWidth()).toBe(eodContentWidth());
   });
 });
 
@@ -180,15 +178,13 @@ describe("measureEodReportLayout", () => {
     // Top band is hour-grid vs stacked cards (not stacked sections).
     expect(layout.topBandH).toBe(
       EOD_IMAGE_LAYOUT.sectionTitleH +
-        Math.max(layout.gridH + EOD_IMAGE_LAYOUT.gridCardPad, layout.cardsBlockH),
+        Math.max(
+          layout.gridH + EOD_IMAGE_LAYOUT.gridCardPad,
+          layout.cardsBlockH + EOD_IMAGE_LAYOUT.sectionGap + layout.tableH + EOD_IMAGE_LAYOUT.tableCardPad,
+        ),
     );
-    // Bottom band is stations vs landfills side-by-side.
-    expect(layout.bottomBandH).toBe(
-      Math.max(
-        layout.tableH + EOD_IMAGE_LAYOUT.tableCardPad,
-        EOD_IMAGE_LAYOUT.sectionTitleH + layout.lfH,
-      ),
-    );
+    // Bottom band is landfills only (full width).
+    expect(layout.bottomBandH).toBe(EOD_IMAGE_LAYOUT.sectionTitleH + layout.lfH);
     // Footer band is small — no tall blank bottom reserved beyond footerH + pad.
     expect(EOD_IMAGE_LAYOUT.footerH + EOD_IMAGE_LAYOUT.pad).toBeLessThanOrEqual(48);
   });

@@ -42,8 +42,8 @@ export const EOD_IMAGE_TYPE = {
   hourCell: 26,
   statLabel: 16,
   statValue: 32,
-  tableHeader: 18,
-  tableCell: 26,
+  tableHeader: 16,
+  tableCell: 22,
   landfill: 20,
   landfillCaption: 13,
   footer: 18,
@@ -76,8 +76,8 @@ export const EOD_IMAGE_LAYOUT = {
    * Taller only enough for the larger figure; still content-width chips
    * stacked in a tight column (not stretched across the stats band).
    */
-  cardsH: 48,
-  cardGap: 5,
+  cardsH: 44,
+  cardGap: 4,
   /** Inner horizontal pad inside each EOD stat chip. */
   statCardPadX: 12,
   /** Gap between label and count inside a chip (not stretched). */
@@ -89,8 +89,9 @@ export const EOD_IMAGE_LAYOUT = {
   statCardMaxW: 248,
   /** How many EOD stat cards are drawn (TRASH/LEACHATE/WALKING-FLOOR/LOADS/SUBS). */
   cardCount: 5,
-  tableHeaderH: 34,
-  tableRowH: 40,
+  tableHeaderH: 30,
+  /** Compact rows: the station table now stacks under the End-of-day chips. */
+  tableRowH: 34,
   tableCardPad: 10,
   /** Station totals: fixed dense cols (not % of full canvas). */
   tableNameW: 176,
@@ -103,8 +104,8 @@ export const EOD_IMAGE_LAYOUT = {
    * instead of leaving empty vertical space beside a sparse third column.
    */
   lfCardW: 328,
-  /** Hard cap — never open a third landfill column even if the band is wide. */
-  lfColsMax: 2,
+  /** Landfills span the full width under the hour grid. */
+  lfColsMax: 4,
   /** Trailing band for "12 / 34" and the MSW / TOTAL caption. */
   lfCountBand: 104,
   lfRowH: 50,
@@ -124,10 +125,10 @@ export function hourGridCardWidth(): number {
   return hourGridContentWidth() + L.gridInnerPad * 2;
 }
 
-/** Content width of the station totals table (name + 3 numeric cols). */
+/** Content width of the station totals table (name + TOTALS + MSW). */
 export function stationTableContentWidth(): number {
   const L = EOD_IMAGE_LAYOUT;
-  return L.tableNameW + L.tableNumW * 3;
+  return L.tableNameW + L.tableNumW * 2;
 }
 
 /** Station totals card width. */
@@ -148,10 +149,10 @@ export function statsColumnWidth(): number {
   return Math.max(160, eodContentWidth() - hourGridCardWidth() - L.colGap);
 }
 
-/** Right-column width beside the station totals (landfill cards). */
+/** Landfill band width: full content width under the hour grid / right column. */
 export function landfillColumnWidth(): number {
   const L = EOD_IMAGE_LAYOUT;
-  return Math.max(L.lfCardW, eodContentWidth() - stationTableCardWidth() - L.colGap);
+  return Math.max(L.lfCardW, eodContentWidth());
 }
 
 /** How many fixed-width landfill cards fit in the given (or default landfill) column (capped at lfColsMax). */
@@ -201,9 +202,11 @@ export function measureEodReportLayout(opts: {
   const lfH = lfRows * L.lfRowH;
   const cardsBlockH = eodCardsBlockHeight();
   const statsColW = statsColumnWidth();
+  // Right column: End-of-day chips, then the station totals table beneath them.
+  const rightColH = cardsBlockH + L.sectionGap + tableH + L.tableCardPad;
   const topBandH =
-    L.sectionTitleH + Math.max(gridH + L.gridCardPad, cardsBlockH);
-  const bottomBandH = Math.max(tableH + L.tableCardPad, L.sectionTitleH + lfH);
+    L.sectionTitleH + Math.max(gridH + L.gridCardPad, rightColH);
+  const bottomBandH = L.sectionTitleH + lfH;
   const height =
     L.pad +
     L.titleH +
@@ -321,13 +324,15 @@ export function buildEodReportPng(opts: {
     L.gridHeaderH,
   );
   drawStatCards(ctx, statsX, topBodyY, statsColW, cardsH, eod);
-  y = topBodyY + Math.max(gridH + L.gridCardPad, cardsBlockH) + L.sectionGap;
+  // Station totals sit under the chips, beside the hour grid.
+  const tableY = topBodyY + cardsBlockH + L.sectionGap;
+  const tableCardW = Math.min(stationTableCardWidth(), statsColW);
+  card(statsX, tableY, tableCardW, tableH + L.tableCardPad);
+  drawStationTable(ctx, statsX + L.tableInnerPad, tableY + 6, eod, L.tableHeaderH, L.tableRowH);
+  y = topBodyY + Math.max(gridH + L.gridCardPad, cardsBlockH + L.sectionGap + tableH + L.tableCardPad) + L.sectionGap;
 
-  // Bottom band: station totals (left) + landfills (right).
-  const tableCardW = stationTableCardWidth();
-  const lfX = L.pad + tableCardW + L.colGap;
-  card(L.pad, y, tableCardW, tableH + L.tableCardPad);
-  drawStationTable(ctx, L.pad + L.tableInnerPad, y + 6, eod, L.tableHeaderH, L.tableRowH);
+  // Bottom band: landfills span the full width.
+  const lfX = L.pad;
   ctx.fillStyle = "#111827";
   ctx.font = canvasFont(700, EOD_IMAGE_TYPE.section);
   ctx.fillText(`Landfill  ·  ${landfills.length} groups`, lfX, y + 24);
@@ -466,7 +471,6 @@ function drawStationTable(
     { label: "STATION", align: "left" as const, width: L.tableNameW },
     { label: "TOTALS", align: "right" as const, width: L.tableNumW },
     { label: "MSW", align: "right" as const, width: L.tableNumW },
-    { label: "CLOSED", align: "right" as const, width: L.tableNumW },
   ];
   ctx.font = canvasFont(700, EOD_IMAGE_TYPE.tableHeader);
   ctx.fillStyle = "#6b7280";
@@ -482,7 +486,7 @@ function drawStationTable(
     ctx.fillStyle = "#111827";
     ctx.font = canvasFont(600, EOD_IMAGE_TYPE.tableCell);
     let px = x;
-    const values = [row.label, String(row.pickedUp), String(row.msw), row.left ?? "\u2014"];
+    const values = [row.label, String(row.pickedUp), String(row.msw)];
     cols.forEach((col, ci) => {
       ctx.textAlign = col.align;
       ctx.fillText(values[ci], col.align === "left" ? px : px + col.width, ry);

@@ -380,8 +380,42 @@
 }
 
 .calloffs-actions {
-  width: 36px;
+  width: 72px;
   text-align: right;
+  white-space: nowrap;
+}
+
+.calloffs-by {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.calloffs-edited {
+  font-size: 11px;
+}
+
+.calloffs-table .calloff-edit,
+.calloffs-table .calloff-cancel {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  margin-right: 6px;
+}
+
+.calloffs-table .calloff-save {
+  font-size: 12px;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.calloffs-table tr.calloffs-editing td {
+  background: #fffbeb;
+}
+
+.calloffs-table tr.calloffs-editing .text-input {
+  min-width: 0;
+  width: 100%;
 }
 
 .calloffs-table .calloff-remove {
