@@ -52,3 +52,19 @@ describe("Odd-ball lanes consume on dispatch", () => {
     expect(boardForDate(out.store, "2026-10-14")).toEqual([]);
   });
 });
+
+describe("Odd-ball name reused on another card", () => {
+  it("finds Oct 14 Hearthside opens even when an older card also holds that name", () => {
+    writeCustomSpecialtyName("custom-1", "Hearthside"); // older card, other day
+    writeCustomSpecialtyName("custom-5", "Hearthside"); // tomorrow's card
+    const chip = formatCustomSpecialtyChip("Trash (MSW)", "Newton");
+    let store = addSpecialtySlot({}, "2026-10-14", "custom-5", chip);
+    store = addSpecialtySlot(store, "2026-10-14", "custom-5", chip);
+    const lane = resolveSpecialtyBoardMatch("custom", "Hearthside", "Newton", "Trash (MSW)");
+    expect(lane).not.toBeNull();
+    expect(countSpecialtyOpensAny(store, "2026-10-14", lane!.specialtyId, lane!.chips)).toBe(2);
+    const out = consumeSpecialtyOpensTracked(store, "2026-10-14", lane!.specialtyId, lane!.chips, 1);
+    expect(out.burned).toBe(1);
+    expect(boardForDate(out.store, "2026-10-14")).toHaveLength(1);
+  });
+});

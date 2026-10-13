@@ -11,8 +11,10 @@ import { addDays, isValidISODate } from "./chicagoDate";
 import { batchCreatedAt } from "./quantity";
 import {
   CUSTOM_SPECIALTY_DEFAULT_NAMES,
+  customSpecialtyDisplayName,
   customSpecialtyLaneChips,
   isCustomSpecialtyId,
+  isCustomSpecialtyRenamed,
   lookupCustomSpecialtyIdByName,
 } from "./customSpecialty";
 import {
@@ -688,8 +690,23 @@ function specialtyResolvedId(stationId: string): string {
 /** Odd-ball rows stored on exactly this day for this card, newest last. */
 function oddballSlotIds(store: SpecialtyStore, date: string, stationId: string): string[] {
   return slotsOnDate(store, date)
-    .filter((s) => sameSpecialtyStation(s.stationId, stationId))
+    .filter((s) => sameOddballCard(s.stationId, stationId))
     .map((s) => s.id);
+}
+
+/**
+ * Odd-ball cards are new ids per day (custom-5, custom-6…) but names repeat
+ * ("Hearthside" again tomorrow). Name lookup returns the first id holding that
+ * name, so match by id OR same display name.
+ */
+function sameOddballCard(a: string, b: string): boolean {
+  if (sameSpecialtyStation(a, b)) return true;
+  const left = specialtyResolvedId(a);
+  const right = specialtyResolvedId(b);
+  if (!isCustomSpecialtyId(left) || !isCustomSpecialtyId(right)) return false;
+  const name = customSpecialtyDisplayName(left).trim().toLowerCase();
+  if (!isCustomSpecialtyRenamed(left)) return false;
+  return Boolean(name) && name === customSpecialtyDisplayName(right).trim().toLowerCase();
 }
 
 /**
