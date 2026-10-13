@@ -172,7 +172,7 @@ describe("stale Sat tombstones never delete names put back on the cloud list", (
     expect(result.deletedEntryAt[row.id]).toBe("2026-10-09T22:30:00.000Z");
   });
 
-  it("Full Roster tombstones keep their old behavior", () => {
+  it("Full Roster: an untimed stale tombstone yields to the cloud row (rehires stick)", () => {
     const remote = cloudSnapshot();
     const full = Object.values(remote.entries).find((entry) => entry.kind === "full")!;
     const result = reconcileDriverRosterCloud({
@@ -181,6 +181,7 @@ describe("stale Sat tombstones never delete names put back on the cloud list", (
       deletedEntryIds: [full.id],
       seenRemoteEntryIds: [full.id],
     });
-    expect(result.toDeleteRemoteEntries).toEqual([full.id]);
+    expect(result.toDeleteRemoteEntries).toEqual([]);
+    expect(result.next.entries[full.id]).toBeTruthy();
   });
 });

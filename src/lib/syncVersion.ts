@@ -8,5 +8,5 @@
  * break (e.g. replaying deletes the new rules reject). A running client whose
  * SYNC_VERSION is below the deployed MIN_SYNC_VERSION pauses every cloud write.
  */
-export const SYNC_VERSION = 1;
-export const MIN_SYNC_VERSION = 1;
+export const SYNC_VERSION = 2;
+export const MIN_SYNC_VERSION = 2;

@@ -5,6 +5,8 @@
  * desk (old tombstone, old build) can no longer wipe a name that was put back.
  */
 export const ROSTER_DELETE_RPC = "delete_roster_rows";
+/** Preferred: same guard plus p_sync_version; the server rejects builds below its minimum. */
+export const ROSTER_DELETE_RPC_V2 = "delete_roster_rows_v2";
 /** After a "function missing" answer, use the direct delete for this long, then re-try the RPC. */
 export const ROSTER_RPC_MISSING_RETRY_MS = 5 * 60 * 1000;
 
@@ -39,7 +41,7 @@ export function groupDeletesByTime(
 export function isMissingRpcError(error: { code?: string | null; message?: string | null } | null): boolean {
   if (!error) return false;
   if (error.code === "PGRST202" || error.code === "42883") return true;
-  return /could not find the function|function .*delete_roster_rows.* does not exist/i.test(
+  return /could not find the function|function .*delete_roster_rows(_v2)?.* does not exist/i.test(
     error.message ?? "",
   );
 }

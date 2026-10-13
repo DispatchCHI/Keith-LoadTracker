@@ -2,7 +2,7 @@
  *
  * Only plain unit numbers prompt; broker / sub codes (letters, per
  * isBrokerTruck) never do. Driver search covers the Full Roster (name and
- * EMP #) and leaves out anyone on the Gone list.
+ * EMP #). Being on the Gone list never hides a Full Roster driver (rehires).
  */
 
 import type { DriverGoneEntry } from "./driverGone";
@@ -12,7 +12,6 @@ import {
   type DriverRosterEntry,
   type DriverRosterStore,
 } from "./driverRoster";
-import { withoutGoneFullRows } from "./rosterGoneExclusion";
 import { isBrokerTruck } from "./truck";
 
 /** Trucks (in entry order) that are company units with no Full Roster driver. */
@@ -41,10 +40,10 @@ function rank(entry: DriverRosterEntry, q: string, words: string[]): number {
   return -1;
 }
 
-/** Type-ahead over Full Roster drivers by name or EMP #, Gone excluded. */
+/** Type-ahead over Full Roster drivers by name or EMP #. Gone is ignored. */
 export function searchAssignableDrivers(
   store: DriverRosterStore,
-  goneEntries: readonly DriverGoneEntry[],
+  _goneEntries: readonly DriverGoneEntry[],
   query: string,
   limit = 8,
 ): DriverRosterEntry[] {
@@ -53,7 +52,7 @@ export function searchAssignableDrivers(
   const words = q.split(" ");
   const full = Object.values(store.entries).filter((entry) => entry.kind === "full");
   const scored: { entry: DriverRosterEntry; score: number }[] = [];
-  for (const entry of withoutGoneFullRows(full, goneEntries)) {
+  for (const entry of full) {
     if (!cleanDriverName(entry.name)) continue;
     const score = rank(entry, q, words);
     if (score >= 0) scored.push({ entry, score });

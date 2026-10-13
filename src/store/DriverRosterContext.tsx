@@ -53,15 +53,17 @@ import {
   preserveHireDates,
 } from "../lib/rosterHireDate";
 import { enforceOneYardPerDriver } from "../lib/rosterYardOwnership";
-import { onlyRowsCloudStillHas } from "../lib/rosterGoneExclusion";
+import { onlyRowsCloudStillHas } from "../lib/rosterCloudPatch";
 import { chicagoToday } from "../lib/chicagoDate";
 import {
   groupDeletesByTime,
   isMissingRpcError,
   ROSTER_DELETE_RPC,
+  ROSTER_DELETE_RPC_V2,
   ROSTER_RPC_MISSING_RETRY_MS,
 } from "../lib/rosterDeleteGuard";
 import { getSupabase } from "../lib/supabase";
+import { SYNC_VERSION } from "../lib/syncVersion";
 import { useAuth } from "./AuthContext";
 
 type EntryRow = {
@@ -302,10 +304,19 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       );
       for (const batch of batches) {
         if (Date.now() >= rpcMissingUntilRef.current) {
-          const { error } = await supabase.rpc(ROSTER_DELETE_RPC, {
+          // v2 carries this build's sync version; the server refuses deletes
+          // from older builds (e.g. ones that still ran the Gone prune).
+          let { error } = await supabase.rpc(ROSTER_DELETE_RPC_V2, {
             p_ids: batch.ids,
             p_deleted_at: batch.at,
+            p_sync_version: SYNC_VERSION,
           });
+          if (error && isMissingRpcError(error)) {
+            ({ error } = await supabase.rpc(ROSTER_DELETE_RPC, {
+              p_ids: batch.ids,
+              p_deleted_at: batch.at,
+            }));
+          }
           if (!error) continue;
           if (!isMissingRpcError(error)) {
             // Paused build, permission, or network: keep the tombstone; the

@@ -1298,7 +1298,9 @@ export function reconcileDriverRosterCloud(
     // stale tombstone (old desk, old desktop install) would delete a name that
     // was put back on the cloud list after it. The cloud row wins unless this
     // delete is newer than it (a delete still waiting to reach the cloud).
-    if (remote && remote.kind === "sat" && !(at && isIsoAfter(at, remote.updatedAt))) {
+    // Full rows too: a stale tombstone (e.g. one left by the old Gone prune)
+    // must never delete or hide a rehire that is on the cloud list now.
+    if (remote && !(at && isIsoAfter(at, remote.updatedAt))) {
       continue;
     }
     deleted.add(id);

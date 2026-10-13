@@ -75,8 +75,8 @@ describe("searchAssignableDrivers", () => {
     ]);
   });
 
-  it("leaves out Gone drivers and Sat rows", () => {
-    expect(searchAssignableDrivers(roster, gone, "buddy")).toEqual([]);
+  it("never hides a Full Roster driver who is also on Gone (rehire); skips Sat rows", () => {
+    expect(searchAssignableDrivers(roster, gone, "buddy").map((r) => r.name)).toEqual(["Buddy Johnson"]);
     expect(searchAssignableDrivers(roster, [], "buddy").map((r) => r.name)).toEqual([
       "Buddy Johnson",
     ]);
