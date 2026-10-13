@@ -194,10 +194,10 @@ function AddRosterForm({
   );
 }
 
-function tabGroupLabel(group: DriverTabGroup, goneYear: number): string {
+function tabGroupLabel(group: DriverTabGroup): string {
   if (group === "full") return "Full Roster";
   if (group === "sat") return "Sat Roster";
-  return goneYearLabel(goneYear);
+  return "Gone";
 }
 
 function AddGoneForm({
@@ -568,7 +568,7 @@ export function DriverScreen() {
                 setSelectedIds([]);
               }}
             >
-              {tabGroupLabel(item, item === "gone" ? goneYear : currentGoneYear)}
+              {tabGroupLabel(item)}
             </button>
           );
         })}
