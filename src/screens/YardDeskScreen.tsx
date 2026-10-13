@@ -32,6 +32,7 @@ import { LoadEditedMark } from "../components/LoadRow";
 import { CustomerTallyChips } from "../components/CustomerTallyChips";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
 import { DriversCard } from "../components/DriversCard";
+import { RecentLoadsLog } from "../components/RecentLoadsLog";
 import { EodReportButton } from "../components/EodReportButton";
 import { SpecialtyBoardCard } from "../components/SpecialtyBoardCard";
 import { StationCallsCard } from "../components/StationCallsCard";
@@ -246,6 +247,7 @@ export function YardDeskScreen({
           >
             <CustomerTallyChips date={date} dayLoads={dayLoads} />
           </DispatchTalliesRow>
+          <RecentLoadsLog loads={dayLoads} onEdit={onEdit} />
         </div>
 
         <div className="yard-col">
