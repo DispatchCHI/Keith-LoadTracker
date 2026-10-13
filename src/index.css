@@ -391,8 +391,8 @@ button {
   margin-left: auto;
   padding: 2px 7px;
   border-radius: 999px;
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--surface-2);
+  color: var(--text);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.01em;
@@ -3309,8 +3309,8 @@ body.app-ready .splash {
 }
 
 .vac-month-row th {
-  background: #d3d7df;
-  color: #374151;
+  background: var(--surface-2);
+  color: var(--text);
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -3520,10 +3520,10 @@ body.app-ready .splash {
   height: 24px;
   min-height: 24px;
   padding: 0 8px;
-  border: 1px dashed #b7bdc8;
+  border: 1px dashed var(--line);
   border-radius: 999px;
   background: transparent;
-  color: #4b5563;
+  color: var(--muted);
   font-size: 12px;
   font-weight: 750;
 }
@@ -4792,8 +4792,8 @@ body.app-ready .splash {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: #d3d7df;
-  border: 1px solid #b7bdc8;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
 }
 
@@ -5069,8 +5069,8 @@ body.app-ready .splash {
 .cust-lane-form {
   grid-template-columns: minmax(120px, 1.3fr) minmax(120px, 1fr) 132px repeat(5, minmax(64px, 0.7fr)) auto;
   align-items: end;
-  background: #d3d7df;
-  border-top: 1px solid #b7bdc8;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
 }
 
 .cust-lane-form .cust-form-title {
@@ -5698,7 +5698,7 @@ body.app-ready .splash {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #6b7280;
+  color: var(--muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -6223,7 +6223,7 @@ body.app-ready .splash {
   height: 34px;
   border: 0;
   background: transparent;
-  color: #4b5563;
+  color: var(--muted);
   display: grid;
   place-items: center;
   padding: 0;
@@ -6252,7 +6252,7 @@ body.app-ready .splash {
 .sheet-day .w {
   font-size: 8px;
   font-weight: 700;
-  color: #9ca3af;
+  color: var(--muted);
   margin-top: 1px;
 }
 
@@ -6297,7 +6297,7 @@ body.app-ready .splash {
 .sheet-other {
   border: 0;
   background: transparent;
-  color: #6b7280;
+  color: var(--muted);
   font-size: 12px;
   font-weight: 600;
   padding: 0;

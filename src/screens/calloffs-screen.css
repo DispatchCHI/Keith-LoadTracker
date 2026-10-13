@@ -9,8 +9,8 @@
 
 .calloffs-add,
 .calloffs-board {
-  background: #d3d7df;
-  border: 1px solid #b7bdc8;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 12px;
 }
 
