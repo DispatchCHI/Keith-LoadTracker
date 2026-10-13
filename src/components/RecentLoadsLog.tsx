@@ -1,5 +1,15 @@
 ﻿import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Load } from "../types";
+
+const COLLAPSE_KEY = "chitrader.load-tracker.recent-loads-collapsed";
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 const COLLAPSED = 8;
 const timeFmt = new Intl.DateTimeFormat("en-US", {
@@ -21,6 +31,17 @@ export function RecentLoadsLog({
   onEdit: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const toggleCollapsed = () =>
+    setCollapsed((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
   const sorted = useMemo(
     () => [...loads].sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")),
     [loads],
@@ -29,14 +50,25 @@ export function RecentLoadsLog({
   return (
     <section className="yard-panel recent-loads" aria-label="Recent loads">
       <div className="yard-panel-head">
-        <h2>Load log</h2>
-        {sorted.length > COLLAPSED ? (
+        <button
+          type="button"
+          className="recent-loads-toggle"
+          aria-expanded={!collapsed}
+          onClick={toggleCollapsed}
+          style={{ all: "unset", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}
+        >
+          {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+          <h2>
+            Load log{collapsed ? ` (${sorted.length})` : ""}
+          </h2>
+        </button>
+        {!collapsed && sorted.length > COLLAPSED ? (
           <button type="button" className="yard-expand" onClick={() => setExpanded((v) => !v)}>
             {expanded ? "Show less" : `Show more (${sorted.length})`}
           </button>
         ) : null}
       </div>
-      {sorted.length === 0 ? (
+      {collapsed ? null : sorted.length === 0 ? (
         <p className="recent-loads-empty">No loads yet.</p>
       ) : (
         <ol className={expanded ? "recent-loads-list recent-loads-scroll" : "recent-loads-list"}>

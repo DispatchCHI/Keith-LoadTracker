@@ -17,6 +17,8 @@ export const CUSTOM_SPECIALTY_DEFAULT_NAMES: Record<CustomSpecialtyId, string> =
 };
 
 export const CUSTOM_SPECIALTY_LOAD_TYPES = [
+  // Same commodity string as normal trash loads, so it counts toward TRASH / MSW / EOD.
+  "Trash (MSW)",
   "Leachate",
   "C&D",
   "Recycle",
@@ -236,7 +238,7 @@ export function commodityLoadType(commodity: string): CustomSpecialtyLoadType | 
   const key = commodity.replace(/\s+/g, " ").trim().toLowerCase();
   if (!key) return null;
   if (key.includes("leach")) return "Leachate";
-  if (key.includes("trash") || key.includes("msw")) return null;
+  if (key.includes("trash") || key.includes("msw")) return "Trash (MSW)";
   if (key.includes("c&d") || key.includes("c and d")) return "C&D";
   if (key.includes("recycle")) return "Recycle";
   if (key.includes("yard")) return "Yard Waste";
