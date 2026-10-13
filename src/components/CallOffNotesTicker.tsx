@@ -2,9 +2,29 @@ import { useMemo } from "react";
 import { logEntrySubtracts } from "../lib/callOffLog";
 import { useCallOffLog } from "../store/CallOffLogContext";
 
-/** "Notes, parked by 10am" → "parked by 10am"; custom text stays as typed. */
-export function tickerNoteText(reason: string): string {
-  return reason.replace(/^\s*notes?\b[\s,:;.\-–—]*/i, "").trim();
+const SEP = "[\\s,:;.\\-\u2013\u2014]*";
+const LATE_CHIP = new RegExp(`^\\s*(late\\s*[/-]?\\s*early|late|early)\\b${SEP}`, "i");
+const NOTES_CHIP = new RegExp(`^\\s*notes?\\b${SEP}`, "i");
+/** Only a time / "at 7" / "til 2pm" left after the chip: routine, not a note. */
+const TIME_ONLY =
+  /^(?:(?:at|by|til|till|until|from|to|in|out|around|@|-)\s*)*\d{1,2}(?::\d{2})?\s*(?:a|p|am|pm|a\.m\.|p\.m\.)?\.?$/i;
+
+/**
+ * Ticker text for a Notes-only Call-Off, or null to skip it.
+ * - Late/Early (or Late / Early) chip: skipped unless it carries real custom
+ *   text beyond a time; then only the custom text shows.
+ * - Notes chip: "Notes, parked by 10am" shows "parked by 10am".
+ * - Custom typed reasons show as typed.
+ */
+export function tickerNoteText(reason: string): string | null {
+  const raw = reason.trim();
+  if (!raw) return null;
+  if (LATE_CHIP.test(raw)) {
+    const rest = raw.replace(LATE_CHIP, "").trim();
+    if (!rest || TIME_ONLY.test(rest)) return null;
+    return rest;
+  }
+  return raw.replace(NOTES_CHIP, "").trim();
 }
 
 /** Scrolling strip of the day's Notes-only Call-Off entries (Today page header). */
@@ -15,9 +35,10 @@ export function CallOffNotesTicker({ date }: { date: string }) {
       rows
         .filter((row) => row.start <= date && (row.end ?? row.start) >= date)
         .filter((row) => !logEntrySubtracts(row))
-        .map((row) => {
+        .flatMap((row) => {
           const text = tickerNoteText(row.reason);
-          return { id: row.id, label: text ? `${row.name}: ${text}` : row.name };
+          if (text === null) return [];
+          return [{ id: row.id, label: text ? `${row.name}: ${text}` : row.name }];
         })
         .sort((a, b) => a.label.localeCompare(b.label)),
     [rows, date],
