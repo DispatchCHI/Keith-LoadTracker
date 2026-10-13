@@ -222,10 +222,12 @@ export function writeDriverGonePersisted(next: DriverGonePersisted): void {
 export function gonePersonKey(
   entry: Pick<DriverGoneEntry, "employeeNumber" | "name" | "terminationDate">,
 ): string {
+  // Term date is part of the key: a rehire who left again in another year
+  // is a separate Gone row (e.g. Gone 2023 + Gone 2026), never a duplicate.
   const emp = cleanEmployeeNumber(entry.employeeNumber ?? null);
-  if (emp) return `emp:${emp}`;
-  const name = cleanDriverName(entry.name).toLowerCase();
   const term = entry.terminationDate ?? "";
+  if (emp) return `emp:${emp}|term:${term}`;
+  const name = cleanDriverName(entry.name).toLowerCase();
   return `name:${name}|term:${term}`;
 }
 

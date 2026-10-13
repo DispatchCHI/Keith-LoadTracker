@@ -420,7 +420,7 @@ describe("Gone duplicate people", () => {
         name: "David Garkey",
       },
     );
-    expect(gonePersonKey(first.entry!)).toBe("emp:40690");
+    expect(gonePersonKey(first.entry!)).toBe("emp:40690|term:2026-09-08");
     const collapsed = collapseDuplicateGoneEntries(second.store);
     expect(collapsed.droppedIds).toEqual([first.entry!.id]);
     expect(collapsed.store.entries.extra?.notes).toContain("postal contractor");
