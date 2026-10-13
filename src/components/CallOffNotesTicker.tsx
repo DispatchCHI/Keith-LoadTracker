@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { logEntrySubtracts } from "../lib/callOffLog";
 import { useCallOffLog } from "../store/CallOffLogContext";
 
@@ -43,11 +43,38 @@ export function CallOffNotesTicker({ date }: { date: string }) {
         .sort((a, b) => a.label.localeCompare(b.label)),
     [rows, date],
   );
+  const windowRef = useRef<HTMLDivElement>(null);
+  const unitRef = useRef<HTMLSpanElement>(null);
+  const [copies, setCopies] = useState(2);
+  const [unitW, setUnitW] = useState(0);
+  const key = items.map((item) => item.label).join("|");
+
+  // Repeat the strip until one "half" is at least as wide as the window, so
+  // the loop always moves (even one short note) at a steady px/sec.
+  useLayoutEffect(() => {
+    const win = windowRef.current;
+    const unit = unitRef.current;
+    if (!win || !unit) return;
+    const measure = () => {
+      const w = unit.offsetWidth;
+      const ww = win.clientWidth;
+      if (!w) return;
+      setUnitW(w);
+      setCopies(Math.max(1, Math.ceil(ww / w)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(win);
+    ro.observe(unit);
+    return () => ro.disconnect();
+  }, [key, items.length]);
+
   if (!items.length) return null;
-  // ~6s per item keeps the speed readable however many notes there are.
-  const seconds = Math.max(18, items.length * 7);
-  const strip = (hidden: boolean) => (
-    <span className="notes-ticker-strip" aria-hidden={hidden || undefined}>
+  const PX_PER_SEC = 60;
+  const half = unitW * copies;
+  const seconds = half > 0 ? half / PX_PER_SEC : 20;
+  const strip = (k: number, ref?: React.Ref<HTMLSpanElement>) => (
+    <span key={k} ref={ref} className="notes-ticker-strip" aria-hidden={k > 0 || undefined}>
       {items.map((item) => (
         <span key={item.id} className="notes-ticker-item">
           {item.label}
@@ -55,13 +82,17 @@ export function CallOffNotesTicker({ date }: { date: string }) {
       ))}
     </span>
   );
+  const strips = Array.from({ length: copies * 2 }, (_, k) => strip(k, k === 0 ? unitRef : undefined));
   return (
     <div className="notes-ticker" role="marquee" aria-label="Today's notes">
       <span className="notes-ticker-tag">Notes</span>
-      <div className="notes-ticker-window">
-        <div className="notes-ticker-track" style={{ animationDuration: `${seconds}s` }}>
-          {strip(false)}
-          {strip(true)}
+      <div className="notes-ticker-window" ref={windowRef}>
+        <div
+          key={`${key}-${copies}`}
+          className="notes-ticker-track"
+          style={{ animationDuration: `${seconds}s` }}
+        >
+          {strips}
         </div>
       </div>
     </div>
