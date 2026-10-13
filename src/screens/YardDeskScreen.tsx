@@ -27,6 +27,7 @@ import {
   type RankRow,
 } from "../lib/totals";
 import { customerNames } from "../lib/customerLanes";
+import { sortPickupsFixedOrder } from "../lib/transferStationOrder";
 import { CommodityTag } from "../components/CommodityTag";
 import { LoadEditedMark } from "../components/LoadRow";
 import { CustomerTallyChips } from "../components/CustomerTallyChips";
@@ -105,7 +106,7 @@ export function YardDeskScreen({
   }, [loads, date, totalsOn]);
 
   const byPickup = useMemo(
-    () => rankPickups(dayLoads, knownCustomers),
+    () => sortPickupsFixedOrder(rankPickups(dayLoads, knownCustomers)),
     [dayLoads, knownCustomers],
   );
   const byDestination = useMemo(() => rankDestinations(dayLoads), [dayLoads]);
