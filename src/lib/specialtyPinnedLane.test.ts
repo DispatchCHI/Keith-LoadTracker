@@ -21,7 +21,10 @@ describe("Wheeling destination-pinned lanes", () => {
   it("offers Recycle · Groot in the + picker", () => {
     const chips = specialtyPinnedLaneChips("wheeling", ["Recycle", "Yard waste"]);
     expect(chips).toContain("Recycle \u00b7 Groot");
-    expect(chips).toContain("Yard waste \u00b7 Thelens");
+    expect(chips).toEqual(["Recycle \u00b7 Groot"]);
+    expect(
+      specialtyPinnedLaneChips("wheeling", ["Recycle", "Yard waste - Thelens", "Recycle - Groot"]),
+    ).toEqual([]);
   });
 
   it("Recycle → Groot burns the Groot lane before the generic Recycle lane", () => {
@@ -46,6 +49,14 @@ describe("Wheeling destination-pinned lanes", () => {
     expect(countSpecialtyOpensAny(store, date, "wheeling", lane.chips)).toBe(1);
     store = log(store, "Wheeling", "Groot", "Recycle");
     expect(countSpecialtyOpens(store, date, "wheeling", "Walking Floor Recycling")).toBe(0);
+  });
+
+  it("existing Yard waste - Thelens lane burns only on a Thelens yard load", () => {
+    let store = addSpecialtySlot({}, date, "wheeling", "Yard waste - Thelens");
+    store = log(store, "Wheeling", "Willow Ranch", "Yard Waste");
+    expect(countSpecialtyOpens(store, date, "wheeling", "Yard waste - Thelens")).toBe(1);
+    store = log(store, "Wheeling", "Thelens", "Yard Waste");
+    expect(countSpecialtyOpens(store, date, "wheeling", "Yard waste - Thelens")).toBe(0);
   });
 
   it("Yard waste log does not burn a Recycle lane", () => {

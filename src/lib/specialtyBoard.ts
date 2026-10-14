@@ -5,7 +5,7 @@
  * consumes them — nothing drops them just because the calendar rolled.
  */
 
-import { destinationsFor, getStation } from "../data/stations";
+import { destinationsFor } from "../data/stations";
 import { tallyLabel } from "./commodity";
 import { addDays, isValidISODate } from "./chicagoDate";
 import { batchCreatedAt } from "./quantity";
@@ -168,10 +168,11 @@ export function specialtyCommodityFamily(raw: string): string {
 /** Split "Recycle · Groot" → family RECYCLE + dest Groot; "Recycle" → family only. */
 export function parseSpecialtyLaneChip(raw: string): { family: string; destination: string } {
   const text = raw.trim();
-  const sep = text.indexOf("\u00b7");
-  if (sep > 0) {
-    const left = text.slice(0, sep).trim();
-    const right = text.slice(sep + 1).trim();
+  // "Recycle · Groot" or an existing Customers-book label like "Yard waste - Thelens".
+  const m = /^(.+?)\s*(?:\u00b7|\s-\s)\s*(.+)$/.exec(text);
+  if (m) {
+    const left = m[1]!.trim();
+    const right = m[2]!.trim();
     const family = specialtyCommodityFamily(left);
     if (family) return { family, destination: right };
   }
@@ -199,27 +200,27 @@ export function sameSpecialtyLaneChip(a: string, b: string): boolean {
  * Destination-pinned lanes for a commodity card's + picker
  * (Wheeling: "Recycle · Groot", "Recycle · Hodgkins", …) from the pickup catalog.
  */
+/** Extra destination-pinned + chips per card. Edit to add more (e.g. Recycle → Hodgkins). */
+export const SPECIALTY_PINNED_LANES: Record<string, { commodity: string; destination: string }[]> = {
+  wheeling: [{ commodity: "Recycle", destination: "Groot" }],
+};
+
 export function specialtyPinnedLaneChips(
   stationId: string,
-  commodityChips: readonly string[],
+  existingChips: readonly string[],
 ): string[] {
   if (specialtyChipMode(stationId) !== "commodity") return [];
-  const byCommodity = getStation(stationId)?.destinationsByCommodity ?? {};
   const out: string[] = [];
-  const seen = new Set<string>();
-  for (const chip of commodityChips) {
-    const family = specialtyCommodityFamily(chip);
-    if (!family || chip.includes("\u00b7")) continue;
-    for (const [commodity, dests] of Object.entries(byCommodity)) {
-      if (specialtyCommodityFamily(commodity) !== family) continue;
-      for (const dest of dests) {
-        const label = `${chip.trim()}${SPECIALTY_LANE_SEP}${dest}`;
-        const key = specialtyDestKey(label);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(label);
-      }
-    }
+  for (const lane of SPECIALTY_PINNED_LANES[stationId] ?? []) {
+    const family = specialtyCommodityFamily(lane.commodity);
+    // Reuse the card's own commodity wording ("Recycle") when it has one.
+    const base =
+      existingChips.find(
+        (c) => specialtyCommodityFamily(c) === family && parseSpecialtyLaneChip(c).destination === "",
+      ) ?? lane.commodity;
+    const label = `${base.trim()}${SPECIALTY_LANE_SEP}${lane.destination}`;
+    if ([...existingChips, ...out].some((c) => sameSpecialtyLaneChip(c, label))) continue;
+    out.push(label);
   }
   return out;
 }
