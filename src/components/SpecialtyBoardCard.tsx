@@ -34,7 +34,7 @@ import {
 } from "../lib/specialtyBoard";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useSpecialty } from "../store/SpecialtyContext";
-import { specialtyPillTone } from "../lib/specialtyPillTone";
+import { specialtyOwnerInk, specialtyPillTone } from "../lib/specialtyPillTone";
 import {
   readSpecialtyLoadsOpen,
   specialtyLocationsWithLoads,
@@ -367,6 +367,7 @@ function StationRow({
       ]
         .filter(Boolean)
         .join(" ")}
+      style={{ "--specialty-tone": specialtyOwnerInk(label) } as CSSProperties}
     >
       <div className="specialty-head">
         {custom ? (

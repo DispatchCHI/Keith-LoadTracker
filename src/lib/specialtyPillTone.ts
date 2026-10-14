@@ -43,7 +43,7 @@ export const OWNER_INK: Record<Exclude<SpecialtyOwner, "unknown">, string> = {
   republic: "#1d4ed8",
   wm: "#15803d",
 };
-const UNKNOWN_INK = "#64748b";
+export const UNKNOWN_INK = "#64748b";
 
 function squeeze(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -84,4 +84,10 @@ export function pillToneFromInk(ink: string): SpecialtyPillTone {
 export function specialtyPillTone(name: string): SpecialtyPillTone {
   const owner = specialtyOwner(name);
   return pillToneFromInk(owner === "unknown" ? UNKNOWN_INK : OWNER_INK[owner]);
+}
+
+/** Solid header-bar color for an expanded Specialty card, by owner. */
+export function specialtyOwnerInk(name: string): string {
+  const owner = specialtyOwner(name);
+  return owner === "unknown" ? UNKNOWN_INK : OWNER_INK[owner];
 }
