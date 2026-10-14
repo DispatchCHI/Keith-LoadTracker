@@ -1,7 +1,4 @@
-import {
-  brandCompanyIdForCustomer,
-  type BrandCompanyId,
-} from "./customerBrands";
+import { brandCompanyIdForCustomer } from "./customerBrands";
 
 /** Soft fill, darker border, and readable text for one Specialty transfer pill. */
 export type SpecialtyPillTone = {
@@ -10,91 +7,68 @@ export type SpecialtyPillTone = {
   color: string;
 };
 
+export type SpecialtyOwner = "republic" | "wm" | "unknown";
+
 /**
- * Inks already used for these yards on the specialty board (`tone-*` in index.css).
- * Keyed by a squeezed location name so "Citi Waste" and "GraysLake" stay stable.
+ * Who owns each Specialty transfer yard. EDIT HERE to correct a yard.
+ * Keys are the yard name lowercased with spaces/punctuation removed.
+ * Names not listed fall back to the Customers-page brand (Republic / WM)
+ * and otherwise show a neutral slate tab.
+ *
+ * Republic / WM entries mirror the app's customer brand list; the others
+ * marked "guess" are best knowledge and should be confirmed by Keith.
  */
-const YARD_INK: Record<string, string> = {
-  elgin: "#1e3a8a",
-  apollo: "#0f766e",
-  melrose: "#1d4ed8",
-  batavia: "#0369a1",
-  northlake: "#166534",
-  arc: "#b45309",
-  citiwaste: "#4338ca",
-  schererville: "#9f1239",
-  mccook: "#3f6212",
-  dekalbreload: "#9a3412",
-  wheeling: "#6d28d9",
-  rockdale: "#0e7490",
-  dekalb: "#14532d",
-  roscoe: "#7c2d12",
-  ford: "#1e40af",
-  prairiehillrfd: "#4d7c0f",
-  hodgkins: "#c2410c",
-  grayslake: "#6b21a8",
-  liberty: "#115e59",
+export const SPECIALTY_OWNER: Record<string, SpecialtyOwner> = {
+  // Republic Services (from customer brand list)
+  apollo: "republic",
+  melrose: "republic",
+  arc: "republic",
+  citiwaste: "republic",
+  schererville: "republic",
+  // Waste Management (from customer brand list)
+  elgin: "wm",
+  batavia: "wm",
+  northlake: "wm",
+  rockdale: "wm",
+  roscoe: "wm",
+  liberty: "wm",
+  // Waste Management (guess: WM Prairie Hill RDF and DeKalb County landfill)
+  prairiehillrfd: "wm",
+  dekalb: "wm",
+  dekalbreload: "wm",
+  // Not set yet (owner unconfirmed): wheeling, mccook, hodgkins, grayslake, ford
 };
 
-/** Recognizable company hues. Used when a name has a customer brand and no yard ink. */
-const BRAND_INK: Record<Exclude<BrandCompanyId, "none">, string> = {
-  "waste-management": "#15803d",
+export const OWNER_INK: Record<Exclude<SpecialtyOwner, "unknown">, string> = {
   republic: "#1d4ed8",
-  lrs: "#0f766e",
-  "tri-state": "#c2410c",
-  krma: "#0369a1",
-  ford: "#1e3a8a",
+  wm: "#15803d",
 };
-
-/** Fixed palette for names with neither a yard tone nor a customer brand. */
-const HASH_INKS = [
-  "#0e7490",
-  "#7c3aed",
-  "#c2410c",
-  "#be123c",
-  "#15803d",
-  "#a16207",
-  "#6d28d9",
-  "#b45309",
-  "#9d174d",
-  "#365314",
-  "#0369a1",
-  "#86198f",
-  "#3f6212",
-  "#9a3412",
-  "#115e59",
-  "#1e40af",
-] as const;
-
-function norm(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
-}
+const UNKNOWN_INK = "#64748b";
 
 function squeeze(name: string): string {
-  return norm(name).replace(/ /g, "");
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+export function specialtyOwner(name: string): SpecialtyOwner {
+  const fixed = SPECIALTY_OWNER[squeeze(name)];
+  if (fixed) return fixed;
+  const brand = brandCompanyIdForCustomer(name);
+  if (brand === "republic") return "republic";
+  if (brand === "waste-management") return "wm";
+  return "unknown";
 }
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
-  return [
-    Number.parseInt(h.slice(0, 2), 16),
-    Number.parseInt(h.slice(2, 4), 16),
-    Number.parseInt(h.slice(4, 6), 16),
-  ];
+  return [0, 2, 4].map((i) => Number.parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
 }
 
-function rgbToHex(r: number, g: number, b: number): string {
-  return `#${[r, g, b].map((n) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0")).join("")}`;
-}
-
-function mix(hex: string, toward: string, towardAmount: number): string {
+function mix(hex: string, toward: string, amount: number): string {
   const a = hexToRgb(hex);
   const b = hexToRgb(toward);
-  return rgbToHex(
-    Math.round(a[0] + (b[0] - a[0]) * towardAmount),
-    Math.round(a[1] + (b[1] - a[1]) * towardAmount),
-    Math.round(a[2] + (b[2] - a[2]) * towardAmount),
-  );
+  return `#${a
+    .map((v, i) => Math.round(v + (b[i]! - v) * amount).toString(16).padStart(2, "0"))
+    .join("")}`;
 }
 
 /** Soft tint from a dark ink: light fill, the ink as the border, darker text. */
@@ -106,27 +80,8 @@ export function pillToneFromInk(ink: string): SpecialtyPillTone {
   };
 }
 
-/** djb2, unsigned. Same name always lands on the same palette slot. */
-export function stableNameHash(name: string): number {
-  let h = 5381;
-  const key = norm(name);
-  for (let i = 0; i < key.length; i++) {
-    h = ((h << 5) + h + key.charCodeAt(i)) >>> 0;
-  }
-  return h;
-}
-
-/**
- * Color for a Specialty transfer pill.
- * A yard that already has a specialty-board tone keeps that color, so each
- * location on the card stays distinct. Otherwise a customer brand color is
- * reused when this name has one. Every other name, including odd-ball cards
- * added with +, picks a fixed palette entry from a hash of the name.
- */
+/** Pill color by owner: Republic blue, WM green, unknown slate. */
 export function specialtyPillTone(name: string): SpecialtyPillTone {
-  const yard = YARD_INK[squeeze(name)];
-  if (yard) return pillToneFromInk(yard);
-  const brand = brandCompanyIdForCustomer(name);
-  if (brand !== "none") return pillToneFromInk(BRAND_INK[brand]);
-  return pillToneFromInk(HASH_INKS[stableNameHash(name) % HASH_INKS.length]!);
+  const owner = specialtyOwner(name);
+  return pillToneFromInk(owner === "unknown" ? UNKNOWN_INK : OWNER_INK[owner]);
 }

@@ -2961,16 +2961,16 @@ body.app-ready .splash {
   cursor: pointer;
 }
 .specialty-dest-chip.is-recycle {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #dcfce7;
+  color: #166534;
 }
 .specialty-dest-chip.is-yard {
   background: #fef3c7;
   color: #92400e;
 }
 .specialty-dest-chip.is-cardboard {
-  background: #ffedd5;
-  color: #9a3412;
+  background: #e8d5bf;
+  color: #5b3a1e;
 }
 .specialty-dest-chip.is-wood {
   background: #ecfccb;
