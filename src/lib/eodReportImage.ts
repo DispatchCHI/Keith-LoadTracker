@@ -68,8 +68,8 @@ export const EOD_IMAGE_LAYOUT = {
   nameColW: 176,
   /** Day total per station, after Close. */
   totalColW: 88,
-  /** Small gray MSW count beside Total. */
-  mswColW: 64,
+  /** MSW column removed (kept at 0 width). */
+  mswColW: 0,
   gridHeaderH: 34,
   gridRowH: 40,
   gridCardPad: 12,
@@ -359,7 +359,6 @@ function drawHourGrid(
 ) {
   const L = EOD_IMAGE_LAYOUT;
   const totalX = x + nameColW + COLS.length * hourColW;
-  const mswX = totalX + L.totalColW;
   const rowW = nameColW + COLS.length * hourColW + L.totalColW + L.mswColW;
   const byId = new Map(eod.stations.map((row) => [row.id, row]));
   ctx.font = canvasFont(600, EOD_IMAGE_TYPE.hourHeader);
@@ -372,9 +371,6 @@ function drawHourGrid(
   ctx.fillStyle = "#111827";
   ctx.font = canvasFont(700, EOD_IMAGE_TYPE.hourHeader);
   ctx.fillText("Total", totalX + L.totalColW / 2, y + headerH / 2);
-  ctx.fillStyle = "#9ca3af";
-  ctx.font = canvasFont(600, EOD_IMAGE_TYPE.tableHeader);
-  ctx.fillText("MSW", mswX + L.mswColW / 2, y + headerH / 2);
   ctx.textAlign = "left";
   yards.forEach((yard, r) => {
     const ry = y + headerH + r * rowH;
@@ -412,9 +408,6 @@ function drawHourGrid(
     ctx.fillStyle = "#111827";
     ctx.font = canvasFont(700, EOD_IMAGE_TYPE.hourCell);
     ctx.fillText(totals ? String(totals.pickedUp) : "", totalX + L.totalColW / 2, ry + rowH / 2);
-    ctx.fillStyle = "#6b7280";
-    ctx.font = canvasFont(600, EOD_IMAGE_TYPE.tableHeader + 2);
-    ctx.fillText(totals ? String(totals.msw) : "", mswX + L.mswColW / 2, ry + rowH / 2);
     ctx.textAlign = "left";
   });
 }
