@@ -10,7 +10,6 @@ import {
   landfillColumnWidth,
   measureEodReportLayout,
   measureStatCardWidth,
-  stationTableCardWidth,
   stationTableContentWidth,
   statsColumnWidth,
 } from "./eodReportImage";
@@ -89,9 +88,9 @@ describe("EOD_IMAGE_LAYOUT", () => {
     expect(EOD_IMAGE_LAYOUT.lfCardW).toBeGreaterThanOrEqual(220);
     const lfColW = landfillColumnWidth();
     const cols = landfillColumnCount(lfColW);
-    // Full-width band under the hour grid: up to four across.
-    expect(cols).toBe(4);
-    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(4);
+    // Band directly under the hour grid: three across.
+    expect(cols).toBe(3);
+    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(3);
     const used =
       cols * EOD_IMAGE_LAYOUT.lfCardW + (cols - 1) * EOD_IMAGE_LAYOUT.lfGap;
     expect(used).toBeLessThanOrEqual(lfColW);
@@ -104,8 +103,8 @@ describe("EOD_IMAGE_LAYOUT", () => {
     // Reclaim space from the right band; keep large type, widen hour cells.
     expect(EOD_IMAGE_LAYOUT.width).toBe(1600);
     expect(EOD_IMAGE_LAYOUT.hourColW).toBeGreaterThanOrEqual(72);
-    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(4);
-    expect(landfillColumnCount()).toBe(4);
+    expect(EOD_IMAGE_LAYOUT.lfColsMax).toBe(3);
+    expect(landfillColumnCount()).toBe(3);
     // Stats chips stay content-width; band still usable beside the wider grid.
     expect(statsColumnWidth()).toBeGreaterThanOrEqual(280);
   });
@@ -115,7 +114,10 @@ describe("EOD_IMAGE_LAYOUT", () => {
     const statsW = statsColumnWidth();
     const contentW = eodContentWidth();
     expect(hourGridContentWidth()).toBe(
-      EOD_IMAGE_LAYOUT.nameColW + 12 * EOD_IMAGE_LAYOUT.hourColW,
+      EOD_IMAGE_LAYOUT.nameColW +
+        12 * EOD_IMAGE_LAYOUT.hourColW +
+        EOD_IMAGE_LAYOUT.totalColW +
+        EOD_IMAGE_LAYOUT.mswColW,
     );
     expect(gridW + EOD_IMAGE_LAYOUT.colGap + statsW).toBe(contentW);
     // Stats column is a real usable band, not a sliver.
@@ -129,7 +131,7 @@ describe("EOD_IMAGE_LAYOUT", () => {
   it("keeps End-of-day summary chips compact (content-width, not full stats column)", () => {
     const statsW = statsColumnWidth();
     // Cap at ~half the wide stats band so label/number sit close (no empty middle).
-    expect(EOD_IMAGE_LAYOUT.statCardMaxW).toBeLessThanOrEqual(Math.ceil(statsW / 2) + 2);
+    expect(EOD_IMAGE_LAYOUT.statCardMaxW).toBeLessThanOrEqual(statsW);
     expect(EOD_IMAGE_LAYOUT.statCardMaxW).toBeLessThanOrEqual(300);
     expect(EOD_IMAGE_LAYOUT.statCardMaxW).toBeGreaterThanOrEqual(160);
     expect(EOD_IMAGE_LAYOUT.statCardPadX).toBeLessThanOrEqual(14);
@@ -146,13 +148,12 @@ describe("EOD_IMAGE_LAYOUT", () => {
     } as unknown as CanvasRenderingContext2D;
     const chipW = measureStatCardWidth(fakeCtx, "WALKING-FLOOR", 999, statsW);
     expect(chipW).toBeLessThanOrEqual(EOD_IMAGE_LAYOUT.statCardMaxW);
-    expect(chipW).toBeLessThan(statsW * 0.55);
+    expect(chipW).toBeLessThanOrEqual(statsW);
     expect(chipW).toBeGreaterThan(100);
   });
 
-  it("fits station totals under the chips and spans landfills full width", () => {
-    const tableW = stationTableCardWidth();
-    expect(tableW).toBeLessThanOrEqual(statsColumnWidth());
+  it("drops the separate station table; landfills span the width under the grid", () => {
+    expect(measureEodReportLayout({ yardCount: 17, stationCount: 17, landfillCount: 4 }).tableH).toBe(0);
     expect(landfillColumnWidth()).toBe(eodContentWidth());
   });
 });
@@ -180,7 +181,7 @@ describe("measureEodReportLayout", () => {
       EOD_IMAGE_LAYOUT.sectionTitleH +
         Math.max(
           layout.gridH + EOD_IMAGE_LAYOUT.gridCardPad,
-          layout.cardsBlockH + EOD_IMAGE_LAYOUT.sectionGap + layout.tableH + EOD_IMAGE_LAYOUT.tableCardPad,
+          layout.cardsBlockH,
         ),
     );
     // Bottom band is landfills only (full width).

@@ -66,6 +66,10 @@ export const EOD_IMAGE_LAYOUT = {
   /** Wider than the post-font-bump 62px so 26px hour figures aren't cramped. */
   hourColW: 72,
   nameColW: 176,
+  /** Day total per station, after Close. */
+  totalColW: 88,
+  /** Small gray MSW count beside Total. */
+  mswColW: 64,
   gridHeaderH: 34,
   gridRowH: 40,
   gridCardPad: 12,
@@ -105,7 +109,7 @@ export const EOD_IMAGE_LAYOUT = {
    */
   lfCardW: 328,
   /** Landfills span the full width under the hour grid. */
-  lfColsMax: 4,
+  lfColsMax: 3,
   /** Trailing band for "12 / 34" and the MSW / TOTAL caption. */
   lfCountBand: 104,
   lfRowH: 50,
@@ -116,7 +120,7 @@ export const EOD_IMAGE_LAYOUT = {
 /** Intrinsic content width of the hour grid (name + Start/hours/Close). */
 export function hourGridContentWidth(): number {
   const L = EOD_IMAGE_LAYOUT;
-  return L.nameColW + COLS.length * L.hourColW;
+  return L.nameColW + COLS.length * L.hourColW + L.totalColW + L.mswColW;
 }
 
 /** Hour-grid card width (content + inner pad). */
@@ -195,7 +199,9 @@ export function measureEodReportLayout(opts: {
   const stations = Math.max(0, opts.stationCount);
   const landfills = Math.max(opts.landfillCount, 1);
   const gridH = L.gridHeaderH + yards * L.gridRowH;
-  const tableH = L.tableHeaderH + stations * L.tableRowH;
+  // Station totals now live in the hour grid's Total / MSW columns.
+  void stations;
+  const tableH = 0;
   const lfColW = landfillColumnWidth();
   const lfCols = landfillColumnCount(lfColW);
   const lfRows = Math.ceil(landfills / lfCols);
@@ -203,7 +209,7 @@ export function measureEodReportLayout(opts: {
   const cardsBlockH = eodCardsBlockHeight();
   const statsColW = statsColumnWidth();
   // Right column: End-of-day chips, then the station totals table beneath them.
-  const rightColH = cardsBlockH + L.sectionGap + tableH + L.tableCardPad;
+  const rightColH = cardsBlockH;
   const topBandH =
     L.sectionTitleH + Math.max(gridH + L.gridCardPad, rightColH);
   const bottomBandH = L.sectionTitleH + lfH;
@@ -270,7 +276,7 @@ export function buildEodReportPng(opts: {
   });
 
   const dpr = Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 2);
-  const { width, height, gridH, tableH, cardsH, cardsBlockH, statsColW, lfColW } = layout;
+  const { width, height, gridH, cardsH, cardsBlockH, statsColW, lfColW } = layout;
 
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(width * dpr);
@@ -322,14 +328,10 @@ export function buildEodReportPng(opts: {
     L.hourColW,
     L.gridRowH,
     L.gridHeaderH,
+    eod,
   );
   drawStatCards(ctx, statsX, topBodyY, statsColW, cardsH, eod);
-  // Station totals sit under the chips, beside the hour grid.
-  const tableY = topBodyY + cardsBlockH + L.sectionGap;
-  const tableCardW = Math.min(stationTableCardWidth(), statsColW);
-  card(statsX, tableY, tableCardW, tableH + L.tableCardPad);
-  drawStationTable(ctx, statsX + L.tableInnerPad, tableY + 6, eod, L.tableHeaderH, L.tableRowH);
-  y = topBodyY + Math.max(gridH + L.gridCardPad, cardsBlockH + L.sectionGap + tableH + L.tableCardPad) + L.sectionGap;
+  y = topBodyY + Math.max(gridH + L.gridCardPad, cardsBlockH) + L.sectionGap;
 
   // Bottom band: landfills span the full width.
   const lfX = L.pad;
@@ -353,7 +355,13 @@ function drawHourGrid(
   hourColW: number,
   rowH: number,
   headerH: number,
+  eod: EndOfDaySummary,
 ) {
+  const L = EOD_IMAGE_LAYOUT;
+  const totalX = x + nameColW + COLS.length * hourColW;
+  const mswX = totalX + L.totalColW;
+  const rowW = nameColW + COLS.length * hourColW + L.totalColW + L.mswColW;
+  const byId = new Map(eod.stations.map((row) => [row.id, row]));
   ctx.font = canvasFont(600, EOD_IMAGE_TYPE.hourHeader);
   ctx.fillStyle = "#6b7280";
   ctx.textAlign = "center";
@@ -361,14 +369,23 @@ function drawHourGrid(
   COLS.forEach((col, i) => {
     ctx.fillText(col.label, x + nameColW + i * hourColW + hourColW / 2, y + headerH / 2);
   });
+  ctx.fillStyle = "#111827";
+  ctx.font = canvasFont(700, EOD_IMAGE_TYPE.hourHeader);
+  ctx.fillText("Total", totalX + L.totalColW / 2, y + headerH / 2);
+  ctx.fillStyle = "#9ca3af";
+  ctx.font = canvasFont(600, EOD_IMAGE_TYPE.tableHeader);
+  ctx.fillText("MSW", mswX + L.mswColW / 2, y + headerH / 2);
   ctx.textAlign = "left";
   yards.forEach((yard, r) => {
     const ry = y + headerH + r * rowH;
     const striped = r % 2 === 1;
     if (striped) {
       ctx.fillStyle = "#f3f4f6";
-      ctx.fillRect(x, ry, nameColW + COLS.length * hourColW, rowH);
+      ctx.fillRect(x, ry, rowW, rowH);
     }
+    // Total column: faint tint so the day total reads as its own column.
+    ctx.fillStyle = striped ? "#e5e7eb" : "#f9fafb";
+    ctx.fillRect(totalX, ry, L.totalColW, rowH);
     // Start stays a touch bluer than the row, including on the gray stripe.
     ctx.fillStyle = striped ? "#e4ebf3" : "#f3f7fb";
     ctx.fillRect(x + nameColW, ry, hourColW, rowH);
@@ -390,6 +407,15 @@ function drawHourGrid(
       ctx.fillText(value, cx, ry + rowH / 2);
       ctx.textAlign = "left";
     });
+    const totals = byId.get(yard.id);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#111827";
+    ctx.font = canvasFont(700, EOD_IMAGE_TYPE.hourCell);
+    ctx.fillText(totals ? String(totals.pickedUp) : "", totalX + L.totalColW / 2, ry + rowH / 2);
+    ctx.fillStyle = "#6b7280";
+    ctx.font = canvasFont(600, EOD_IMAGE_TYPE.tableHeader + 2);
+    ctx.fillText(totals ? String(totals.msw) : "", mswX + L.mswColW / 2, ry + rowH / 2);
+    ctx.textAlign = "left";
   });
 }
 
@@ -456,45 +482,6 @@ function drawStatCards(
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   });
-}
-
-function drawStationTable(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  eod: EndOfDaySummary,
-  headerH: number,
-  rowH: number,
-) {
-  const L = EOD_IMAGE_LAYOUT;
-  const cols = [
-    { label: "STATION", align: "left" as const, width: L.tableNameW },
-    { label: "TOTALS", align: "right" as const, width: L.tableNumW },
-    { label: "MSW", align: "right" as const, width: L.tableNumW },
-  ];
-  ctx.font = canvasFont(700, EOD_IMAGE_TYPE.tableHeader);
-  ctx.fillStyle = "#6b7280";
-  ctx.textBaseline = "middle";
-  let cx = x;
-  cols.forEach((col) => {
-    ctx.textAlign = col.align;
-    ctx.fillText(col.label, col.align === "left" ? cx : cx + col.width, y + headerH / 2);
-    cx += col.width;
-  });
-  eod.stations.forEach((row, i) => {
-    const ry = y + headerH + i * rowH + rowH / 2;
-    ctx.fillStyle = "#111827";
-    ctx.font = canvasFont(600, EOD_IMAGE_TYPE.tableCell);
-    let px = x;
-    const values = [row.label, String(row.pickedUp), String(row.msw)];
-    cols.forEach((col, ci) => {
-      ctx.textAlign = col.align;
-      ctx.fillText(values[ci], col.align === "left" ? px : px + col.width, ry);
-      px += col.width;
-    });
-  });
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
 }
 
 function drawLandfills(
