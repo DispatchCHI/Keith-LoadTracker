@@ -33,6 +33,7 @@ import {
   type SpecialtyStation,
 } from "../lib/specialtyBoard";
 import { useCustomerLanes } from "../store/CustomerLanesContext";
+import { specialtyChipFamily, specialtyChipToneClass } from "../lib/specialtyChipCommodity";
 import { useSpecialty } from "../store/SpecialtyContext";
 import { specialtyOwnerInk, specialtyPillTone } from "../lib/specialtyPillTone";
 import {
@@ -122,6 +123,16 @@ export function SpecialtyBoardCard({
             : undefined
         }
         laneDestinations={laneDestinations}
+        chipTone={(dest) =>
+          specialtyChipToneClass(
+            specialtyChipFamily(
+              station.id,
+              custom ? customSpecialtyDisplayName(station.id) : station.name,
+              dest,
+              customerLanes,
+            ),
+          )
+        }
       />
     );
   }
@@ -334,6 +345,7 @@ function StationRow({
   onRemoveDest,
   onDismiss,
   laneDestinations,
+  chipTone = destChipTone,
 }: {
   station: SpecialtyStation;
   board: SpecialtyDayBoard;
@@ -346,6 +358,7 @@ function StationRow({
   onRemoveDest: (dest: string) => void;
   onDismiss?: () => void;
   laneDestinations?: string[];
+  chipTone?: (dest: string) => string;
 }) {
   const slots = slotsForStation(board, station.id);
   const summary = destSummary(slots);
@@ -395,7 +408,7 @@ function StationRow({
               <button
                 key={row.destination}
                 type="button"
-                className={`specialty-dest-chip${destChipTone(row.destination)}`}
+                className={`specialty-dest-chip${chipTone(row.destination)}`}
                 title={`Remove one ${row.destination}`}
                 onClick={() => onRemoveDest(row.destination)}
               >
@@ -415,6 +428,7 @@ function StationRow({
       ) : picking ? (
         <SpecialtyDestQueue
           destChips={destChips}
+          chipTone={chipTone}
           onCancel={onCancelPicker}
           onAdd={onAdd}
         />
@@ -518,8 +532,10 @@ function SpecialtyDestQueue({
   destChips,
   onCancel,
   onAdd,
+  chipTone = destChipTone,
 }: {
   destChips: readonly string[];
+  chipTone?: (dest: string) => string;
   onCancel: () => void;
   onAdd: (destinations: readonly string[]) => void;
 }) {
@@ -568,7 +584,7 @@ function SpecialtyDestQueue({
               <button
                 key={row.dest}
                 type="button"
-                className={`specialty-dest-chip${destChipTone(row.dest)}`}
+                className={`specialty-dest-chip${chipTone(row.dest)}`}
                 title={`Remove one queued ${row.dest}`}
                 onClick={() => drop(row.dest)}
               >
