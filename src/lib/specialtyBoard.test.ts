@@ -591,14 +591,14 @@ describe("No Available Loads warn is only for specialty-board lanes", () => {
     ).toEqual({
       specialtyId: "wheeling",
       chip: "Recycle",
-      chips: ["Recycle", "Groot"],
+      chips: ["Recycle \u00b7 Groot", "Recycle", "Groot"],
     });
     expect(
       resolveSpecialtyBoardMatch("wheeling", "Wheeling", "GraysLake", "Recycle"),
     ).toEqual({
       specialtyId: "wheeling",
       chip: "Recycle",
-      chips: ["Recycle", "GraysLake"],
+      chips: ["Recycle \u00b7 GraysLake", "Recycle", "GraysLake"],
     });
     expect(
       resolveSpecialtyBoardLane("wheeling", "Wheeling", "Hodgkins", "Recycle"),

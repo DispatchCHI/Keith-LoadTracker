@@ -28,6 +28,7 @@ import {
   slotsForStation,
   specialtyChipsFromCustomerLanes,
   specialtyDestinationsFor,
+  specialtyPinnedLaneChips,
   type SpecialtyDayBoard,
   type SpecialtyStation,
 } from "../lib/specialtyBoard";
@@ -87,7 +88,9 @@ export function SpecialtyBoardCard({
             station.name,
             station.id,
           );
-          return fromLanes.length ? fromLanes : [...specialtyDestinationsFor(station.id)];
+          const base = fromLanes.length ? fromLanes : [...specialtyDestinationsFor(station.id)];
+          // Commodity cards also offer destination-pinned lanes (Recycle · Groot).
+          return [...base, ...specialtyPinnedLaneChips(station.id, base)];
         })();
     return (
       <StationRow

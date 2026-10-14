@@ -5,7 +5,7 @@
  * consumes them — nothing drops them just because the calendar rolled.
  */
 
-import { destinationsFor } from "../data/stations";
+import { destinationsFor, getStation } from "../data/stations";
 import { tallyLabel } from "./commodity";
 import { addDays, isValidISODate } from "./chicagoDate";
 import { batchCreatedAt } from "./quantity";
@@ -135,6 +135,122 @@ export function specialtyChipMode(
   stationId: string,
 ): "commodity" | "destination" {
   return SPECIALTY_COMMODITY_CHIP_IDS.has(stationId) ? "commodity" : "destination";
+}
+
+/** Separator for a commodity lane pinned to one destination ("Recycle · Groot"). */
+export const SPECIALTY_LANE_SEP = " \u00b7 ";
+
+/**
+ * Commodity family of a chip / load commodity label, or "" for plain
+ * destinations. Customers-book labels ("Walking Floor Recycling", "Yard waste")
+ * and the log form's "Recycle" land in the same family.
+ */
+export function specialtyCommodityFamily(raw: string): string {
+  const c = raw.trim().toLowerCase();
+  if (!c) return "";
+  if (/recycl/.test(c)) return "RECYCLE";
+  const label = tallyLabel(raw);
+  return [
+    "LEACHATE",
+    "RESIDUAL",
+    "GLASS",
+    "C&D",
+    "YARD",
+    "RECYCLE",
+    "WOOD",
+    "CARDBOARD",
+    "TIRES",
+  ].includes(label)
+    ? label
+    : "";
+}
+
+/** Split "Recycle · Groot" → family RECYCLE + dest Groot; "Recycle" → family only. */
+export function parseSpecialtyLaneChip(raw: string): { family: string; destination: string } {
+  const text = raw.trim();
+  const sep = text.indexOf("\u00b7");
+  if (sep > 0) {
+    const left = text.slice(0, sep).trim();
+    const right = text.slice(sep + 1).trim();
+    const family = specialtyCommodityFamily(left);
+    if (family) return { family, destination: right };
+  }
+  const family = specialtyCommodityFamily(text);
+  return family ? { family, destination: "" } : { family: "", destination: text };
+}
+
+/** Same lane: same family + same pinned dest, or same plain dest. */
+export function sameSpecialtyLaneChip(a: string, b: string): boolean {
+  if (sameSpecialtyDest(a, b)) return true;
+  const left = parseSpecialtyLaneChip(a);
+  const right = parseSpecialtyLaneChip(b);
+  if (left.family || right.family) {
+    if (left.family !== right.family) return false;
+    if (!left.destination && !right.destination) return true;
+    return (
+      Boolean(left.destination && right.destination) &&
+      sameSpecialtyDest(left.destination, right.destination)
+    );
+  }
+  return false;
+}
+
+/**
+ * Destination-pinned lanes for a commodity card's + picker
+ * (Wheeling: "Recycle · Groot", "Recycle · Hodgkins", …) from the pickup catalog.
+ */
+export function specialtyPinnedLaneChips(
+  stationId: string,
+  commodityChips: readonly string[],
+): string[] {
+  if (specialtyChipMode(stationId) !== "commodity") return [];
+  const byCommodity = getStation(stationId)?.destinationsByCommodity ?? {};
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const chip of commodityChips) {
+    const family = specialtyCommodityFamily(chip);
+    if (!family || chip.includes("\u00b7")) continue;
+    for (const [commodity, dests] of Object.entries(byCommodity)) {
+      if (specialtyCommodityFamily(commodity) !== family) continue;
+      for (const dest of dests) {
+        const label = `${chip.trim()}${SPECIALTY_LANE_SEP}${dest}`;
+        const key = specialtyDestKey(label);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(label);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Commodity cards: map each consume chip onto the labels actually stored on
+ * the board (Customers-book "Recycling" vs logged "Recycle"), keeping order.
+ */
+function expandCommodityLaneLabels(
+  store: SpecialtyStore,
+  date: string,
+  stationId: string,
+  chips: readonly string[],
+): string[] {
+  const id = resolveSpecialtyStationId(stationId, stationId) ?? stationId;
+  if (isCustomSpecialtyId(id) || specialtyChipMode(id) !== "commodity") {
+    return uniqueSpecialtyChipLabels(chips);
+  }
+  const stored = uniqueSpecialtyChipLabels(
+    boardForDate(store, date)
+      .filter((s) => sameSpecialtyStation(s.stationId, stationId))
+      .map((s) => s.destination),
+  );
+  const out: string[] = [];
+  for (const chip of chips) {
+    out.push(chip);
+    for (const label of stored) {
+      if (sameSpecialtyLaneChip(label, chip)) out.push(label);
+    }
+  }
+  return uniqueSpecialtyChipLabels(out);
 }
 
 /** Per-station dest chips; restricted yards match (or subset) log-load dests. */
@@ -677,7 +793,7 @@ export function countSpecialtyOpensAny(
     const day = oddballConsumeDay(store, date, stationId);
     return day ? oddballSlotIds(store, day, stationId).length : 0;
   }
-  return uniqueSpecialtyChipLabels(chips).reduce(
+  return expandCommodityLaneLabels(store, date, stationId, chips).reduce(
     (n, chip) => n + countSpecialtyOpens(store, date, stationId, chip),
     0,
   );
@@ -752,7 +868,7 @@ export function consumeSpecialtyOpensTracked(
   count: number,
   destKeeps: SpecialtyDestKeep[] = [],
 ): SpecialtyConsumeResult {
-  const labels = uniqueSpecialtyChipLabels(chips);
+  const labels = expandCommodityLaneLabels(store, date, stationId, chips);
   let remaining = Math.max(0, Math.floor(count));
   if (!remaining || !labels.length) {
     return { store, burnedIds: [], destKeeps, burned: 0, touches: [] };
@@ -886,7 +1002,12 @@ function lookupSpecialtyIdByName(raw: string): string | null {
       normalizeSpecialtyLabel(s.name) === name ||
       normalizeSpecialtyLabel(s.id) === name,
   );
-  return hit?.id ?? null;
+  if (hit) return hit.id;
+  // "Wheeling - Recycle" / "Wheeling Recycle" typed as the pickup.
+  const prefixed = SPECIALTY_STATIONS.filter((s) => !isCustomSpecialtyId(s.id))
+    .sort((a, b) => b.name.length - a.name.length)
+    .find((s) => name.startsWith(`${normalizeSpecialtyLabel(s.name)} `));
+  return prefixed?.id ?? null;
 }
 
 /**
@@ -930,8 +1051,11 @@ function isSpecialtyBoardCommodity(
   // FRWRD or Dekalb Sanitation, not the chip label.
   if (isDekalbLeachateLoad(specialtyId, destination, commodity)) return true;
   if (specialtyChipMode(specialtyId) === "commodity") {
-    return specialtyDestinationsFor(specialtyId).some((chip) =>
-      sameSpecialtyDest(chip, commodity),
+    const family = specialtyCommodityFamily(commodity);
+    return specialtyDestinationsFor(specialtyId).some(
+      (chip) =>
+        sameSpecialtyDest(chip, commodity) ||
+        (Boolean(family) && specialtyCommodityFamily(chip) === family),
     );
   }
   if (specialtyId === "liberty-tank" || specialtyId === "grayslake") {
@@ -961,7 +1085,13 @@ export function specialtyLaneChipLabel(
   const needle =
     specialtyChipMode(specialtyId) === "commodity" ? commodity : destination;
   if (!needle || !String(needle).trim()) return null;
-  return chips.find((chip) => sameSpecialtyDest(chip, needle)) ?? null;
+  const exact = chips.find((chip) => sameSpecialtyDest(chip, needle));
+  if (exact) return exact;
+  if (specialtyChipMode(specialtyId) !== "commodity") return null;
+  const family = specialtyCommodityFamily(needle);
+  return family
+    ? (chips.find((chip) => specialtyCommodityFamily(chip) === family) ?? null)
+    : null;
 }
 
 /** Deduped chip labels in consume order (first occurrence wins). */
@@ -998,6 +1128,11 @@ export function specialtyLaneChips(
   }
   const chips: string[] = [];
   const allowed = specialtyLaneChipLabel(specialtyId, destination, commodity);
+  // Destination-pinned lane ("Recycle · Groot") burns first; the generic
+  // commodity lane ("Recycle") only when no pinned open matches.
+  if (allowed && specialtyChipMode(specialtyId) === "commodity" && destination.trim()) {
+    chips.push(`${allowed}${SPECIALTY_LANE_SEP}${destination.trim()}`);
+  }
   if (allowed) chips.push(allowed);
   if (specialtyChipMode(specialtyId) === "commodity" && destination.trim()) {
     chips.push(destination.trim());
@@ -1032,7 +1167,8 @@ export function resolveSpecialtyBoardMatch(
   if (!isSpecialtyBoardCommodity(specialtyId, commodity, destination, pickup)) {
     return null;
   }
-  return { specialtyId, chip: chips[0], chips };
+  const chip = chips.find((c) => !c.includes("\u00b7")) ?? chips[0];
+  return { specialtyId, chip, chips };
 }
 
 export function resolveSpecialtyBoardLane(
