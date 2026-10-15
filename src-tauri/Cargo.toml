@@ -1,6 +1,6 @@
 [package]
 name = "load-tracker"
-version = "1.1.31"
+version = "1.1.32"
 description = "CHItrader Load Tracker desktop shell"
 authors = ["CHItrader"]
 edition = "2021"

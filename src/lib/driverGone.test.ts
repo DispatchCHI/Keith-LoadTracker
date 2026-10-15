@@ -244,11 +244,11 @@ describe("Full Roster × dialog paths", () => {
     expect(src).not.toContain("Import empty lists");
     expect(src).not.toContain("Import Gone 2026");
     expect(src).not.toContain("importFromSheet");
-    expect(src).toContain("FullRosterDriverCard");
-    expect(src).toContain("drv-pay-list");
+    expect(src).toContain("FullRosterTable");
+    expect(src).not.toContain("drv-pay-list");
     expect(src).toContain("Truck #");
     const card = readFileSync(
-      new URL("../components/FullRosterDriverCard.tsx", import.meta.url),
+      new URL("../components/FullRosterTable.tsx", import.meta.url),
       "utf8",
     );
     expect(card).toContain("drv-yos-tag");
