@@ -114,7 +114,11 @@ async function tauriCloudFetch(
       body: parts.body,
     },
   });
-  return new Response(base64ToBytes(result.body), {
+  // 204/205/304 (e.g. PostgREST upsert with Prefer: return=minimal) must have a
+  // null body, or WebView2 throws "Response with null body status cannot have body"
+  // and the queue treats a write that already landed as failed.
+  const nullBody = result.status === 101 || result.status === 103 || result.status === 204 || result.status === 205 || result.status === 304;
+  return new Response(nullBody || !result.body ? null : base64ToBytes(result.body), {
     status: result.status,
     headers: result.headers,
   });
