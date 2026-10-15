@@ -1,4 +1,4 @@
-import { addDays, formatHeaderDate } from "./chicagoDate";
+import { formatHeaderDate } from "./chicagoDate";
 import { applyDailyEodToSummary, type DailyEodTotals } from "./dailyEod";
 import {
   STATION_CALL_HOURS,
@@ -7,6 +7,7 @@ import {
   readStationCallStore,
   stationCallYards,
   stationCellFilled,
+  startForStation,
   type StationCallStore,
   type StationDayBoard,
   type StationHourKey,
@@ -237,10 +238,9 @@ export function measureEodReportLayout(opts: {
   };
 }
 
+/** Start = same value the app grid shows (prior Close, else last hour that day, else 0). */
 function priorClose(store: StationCallStore, date: string, stationId: string): string {
-  const prev = store[addDays(date, -1)]?.[stationId]?.close;
-  if (!stationCellFilled(prev)) return "";
-  return parseNumericCell(prev) == null ? "" : String(prev).trim();
+  return String(startForStation(store, date, stationId));
 }
 
 function hourCell(board: StationDayBoard, stationId: string, key: StationHourKey): string {

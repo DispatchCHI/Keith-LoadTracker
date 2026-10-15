@@ -198,3 +198,11 @@ describe("measureEodReportLayout", () => {
     expect(big.lfRows).toBe(Math.ceil(9 / landfillColumnCount(big.lfColW)));
   });
 });
+
+describe("EOD Start column", () => {
+  it("uses the same Start as the app grid (renderer imports startForStation)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("src/lib/eodReportImage.ts", "utf8");
+    expect(src).toContain("String(startForStation(store, date, stationId))");
+  });
+});
