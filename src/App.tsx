@@ -128,7 +128,7 @@ function Shell() {
   const main = (
     <>
       {desktop ? (
-        <header className={yardDesk ? "desk-topbar desk-topbar-yard" : "desk-topbar"}>
+        <header className="desk-topbar desk-topbar-yard">
           <div className="desk-topbar-brand">
             <BrandMark size="lg" />
             <div>
