@@ -120,10 +120,30 @@ export function rosterNamesMatch(a: string, b: string): boolean {
   return result;
 }
 
+/** Generational suffixes are part of who someone is: Bob Jones != Bob Jones Jr. */
+const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv"]);
+
+export function splitNameSuffix(key: string): { base: string; suffix: string } {
+  const tokens = key.split(" ").filter(Boolean);
+  const last = tokens[tokens.length - 1];
+  if (tokens.length >= 3 && last && NAME_SUFFIXES.has(last)) {
+    return { base: tokens.slice(0, -1).join(" "), suffix: last };
+  }
+  return { base: key, suffix: "" };
+}
+
 function rosterNamesMatchUncached(a: string, b: string): boolean {
-  const ka = rosterNameKey(a);
-  const kb = rosterNameKey(b);
-  if (!ka || !kb) return false;
+  const fa = rosterNameKey(a);
+  const fb = rosterNameKey(b);
+  if (!fa || !fb) return false;
+  if (fa === fb) return true;
+  // Different (or missing vs present) suffix = different person, even though
+  // "bob jones jr" starts with "bob jones".
+  const sa = splitNameSuffix(fa);
+  const sb = splitNameSuffix(fb);
+  if (sa.suffix !== sb.suffix) return false;
+  const ka = sa.base;
+  const kb = sb.base;
   if (ka === kb) return true;
 
   const ta = ka.split(" ").filter(Boolean);
@@ -251,4 +271,46 @@ function editDistance(a: string, b: string): number {
     }
   }
   return dp[m][n];
+}
+
+/**
+ * One logged name -> at most one roster driver. An exact name (same key) always
+ * wins; otherwise a fuzzy match counts only if it fits exactly one driver.
+ * Ambiguous names resolve to null so nobody is double counted.
+ */
+export function makeRosterNameResolver(candidates: readonly string[]): (name: string) => string | null {
+  const byKey = new Map<string, string>();
+  for (const candidate of candidates) {
+    const key = rosterNameKey(candidate);
+    if (key && !byKey.has(key)) byKey.set(key, candidate);
+  }
+  const unique = [...byKey.values()];
+  const cache = new Map<string, string | null>();
+  return (name: string) => {
+    const hit = cache.get(name);
+    if (hit !== undefined) return hit;
+    const key = rosterNameKey(name);
+    let result: string | null = null;
+    if (key) {
+      result = byKey.get(key) ?? null;
+      if (!result) {
+        const fuzzy = unique.filter((candidate) => rosterNamesMatch(name, candidate));
+        result = fuzzy.length === 1 ? fuzzy[0] : null;
+      }
+    }
+    cache.set(name, result);
+    return result;
+  };
+}
+
+/** True when `logged` belongs to `driverName` (and to no better-matching driver). */
+export function nameBelongsToDriver(
+  logged: string,
+  driverName: string,
+  resolve?: (name: string) => string | null,
+): boolean {
+  if (!rosterNamesMatch(logged, driverName)) return false;
+  if (!resolve) return true;
+  const owner = resolve(logged);
+  return owner !== null && rosterNameKey(owner) === rosterNameKey(driverName);
 }

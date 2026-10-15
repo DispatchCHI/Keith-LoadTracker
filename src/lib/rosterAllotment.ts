@@ -1,7 +1,7 @@
 import { addDays, isValidISODate, yearOfISO } from "./chicagoDate";
 import type { CallOffLogEntry } from "./callOffLog";
 import type { ManualOffsStore } from "./manualCallOffs";
-import { rosterNameKey, rosterNamesMatch } from "./rosterVacation";
+import { nameBelongsToDriver, rosterNameKey } from "./rosterVacation";
 
 export const P_DAY_ALLOTMENT = 5;
 export const CALL_OFF_ALLOTMENT = 6;
@@ -118,11 +118,13 @@ function emptyAllotment(): DriverAllotment {
 export function allotmentForName(
   name: string,
   uses: readonly AllotmentUse[],
+  /** Roster-wide resolver so Bob Jones never gets Bob Jones Jr's days. */
+  resolveName?: (name: string) => string | null,
 ): DriverAllotment {
   const next = emptyAllotment();
   if (!name.trim()) return next;
   for (const use of uses) {
-    if (!rosterNamesMatch(name, use.name)) continue;
+    if (!nameBelongsToDriver(use.name, name, resolveName)) continue;
     if (use.kind === "p-day") next.pDayUsed += 1;
     else if (use.kind === "call-off") next.callOffUsed += 1;
     else next.okdOffUsed += 1;

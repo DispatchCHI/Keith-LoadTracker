@@ -33,6 +33,7 @@ import {
   vacationNamesOnDate,
 } from "../lib/rosterVacation";
 import { allotmentForName, yearlyAllotmentUses } from "../lib/rosterAllotment";
+import { makeRosterNameResolver } from "../lib/rosterVacation";
 import { weekPayForDriver } from "../lib/loadPay";
 import { sundayOnOrBefore } from "../lib/vacationBoard";
 import { useCallOffLog } from "../store/CallOffLogContext";
@@ -421,6 +422,16 @@ export function DriverScreen() {
   const fullCount = rosterEntryCount(store, "full", yard);
   const satMatchesFull = kind === "sat" && satRosterMatchesFull(store, yard);
   const satRows = satRosterRowCount(entries.length, satCols);
+  // Every Full Roster name (all yards): one logged name -> one driver.
+  const resolveRosterName = useMemo(
+    () =>
+      makeRosterNameResolver(
+        Object.values(store.entries)
+          .filter((entry) => entry.kind === "full")
+          .map((entry) => entry.name),
+      ),
+    [store],
+  );
   const weekPayById = useMemo(() => {
     if (kind !== "full") return new Map<string, ReturnType<typeof weekPayForDriver>>();
     const map = new Map<string, ReturnType<typeof weekPayForDriver>>();
@@ -433,11 +444,12 @@ export function DriverScreen() {
           driverName: entry.name,
           hireDate: entry.hireDate,
           asOf,
+          resolveName: resolveRosterName,
         }),
       );
     }
     return map;
-  }, [kind, entries, loads, customerLanes, asOf]);
+  }, [kind, entries, loads, customerLanes, asOf, resolveRosterName]);
   // Built once per data change, not on every render (search typing, dialogs, etc.).
   const fullRows = useMemo(
     () =>
@@ -452,7 +464,7 @@ export function DriverScreen() {
                 Boolean(effective.onVacation),
               storedOut: rosterStatusRemovesFromAvailable(entry.status),
               onVacation: Boolean(effective.onVacation),
-              allot: allotmentForName(entry.name, allotmentUses),
+              allot: allotmentForName(entry.name, allotmentUses, resolveRosterName),
               week:
                 weekPayById.get(entry.id) ??
                 weekPayForDriver({
@@ -464,7 +476,7 @@ export function DriverScreen() {
                 }),
             };
           }),
-    [kind, entries, vacationNames, allotmentUses, weekPayById, customerLanes, asOf],
+    [kind, entries, vacationNames, allotmentUses, weekPayById, customerLanes, asOf, resolveRosterName],
   );
   // Keep the open pop-out on the live roster row so a rename/EMP # edit shows up.
   const notesDriver = useMemo(

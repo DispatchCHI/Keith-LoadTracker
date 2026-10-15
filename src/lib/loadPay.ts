@@ -1,5 +1,6 @@
 /** Per-load driver pay from customer lanes + anniversary tier. */
 
+import { nameBelongsToDriver } from "./rosterVacation";
 import { weekStartingSunday } from "./chicagoDate";
 import {
   centsToDollars,
@@ -80,6 +81,8 @@ export function weekPayForDriver(opts: {
   driverName: string;
   hireDate: string | null;
   asOf: string;
+  /** Roster-wide resolver: a load counts only for the one driver it belongs to. */
+  resolveName?: (name: string) => string | null;
 }): WeekPay {
   const week = weekStartingSunday(opts.asOf);
   const days: DayPay[] = week.map((date, i) => ({
@@ -98,6 +101,12 @@ export function weekPayForDriver(opts: {
   for (const load of loadsForDriver(weekLoads, opts.driverName)) {
     const day = byDate.get(load.date);
     if (!day) continue;
+    if (
+      opts.resolveName &&
+      !nameBelongsToDriver(load.driverName ?? "", opts.driverName, opts.resolveName)
+    ) {
+      continue;
+    }
     const hit = payForLoad(load, opts.lanes, opts.hireDate);
     day.loads += 1;
     if (hit) day.cents += hit.cents;
