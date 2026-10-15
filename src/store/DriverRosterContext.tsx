@@ -60,6 +60,10 @@ import {
   isMissingRpcError,
   ROSTER_DELETE_RPC,
   ROSTER_DELETE_RPC_V2,
+  ROSTER_REMOVE_FULL_RPC,
+  readExplicitFullRemovals,
+  splitExplicitFullDeletes,
+  writeExplicitFullRemovals,
   ROSTER_RPC_MISSING_RETRY_MS,
 } from "../lib/rosterDeleteGuard";
 import { getSupabase } from "../lib/supabase";
@@ -287,6 +291,12 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   const rpcMissingUntilRef = useRef(0);
+  const explicitFullRef = useRef<Set<string>>(readExplicitFullRemovals());
+  const markExplicitFull = useCallback((ids: string[]) => {
+    if (!ids.length) return;
+    for (const id of ids) explicitFullRef.current.add(id);
+    writeExplicitFullRemovals(explicitFullRef.current);
+  }, []);
   const cloudDeleteEntries = useCallback(
     async (ids: string[], fallbackAt?: (id: string) => string | undefined) => {
       if (!ids.length) return;
@@ -302,7 +312,25 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         (id) => fallbackAt?.(id),
         new Date().toISOString(),
       );
-      for (const batch of batches) {
+      for (const whole of batches) {
+        // Full rows Keith removed with x go through the v3 RPC; the server
+        // refuses Full deletes from any other path (see roster-full-guard SQL).
+        const split = splitExplicitFullDeletes(whole.ids, explicitFullRef.current);
+        let fullHandled = false;
+        if (split.explicitFull.length) {
+          const { error } = await supabase.rpc(ROSTER_REMOVE_FULL_RPC, {
+            p_ids: split.explicitFull,
+            p_deleted_at: whole.at,
+            p_sync_version: SYNC_VERSION,
+          });
+          if (!error || !isMissingRpcError(error)) {
+            if (error) console.warn("driver roster full remove failed", error.message);
+            fullHandled = true;
+          }
+        }
+        // Guard SQL not installed yet: fall back to the old path for everything.
+        const batch = fullHandled ? { ...whole, ids: split.other } : whole;
+        if (!batch.ids.length) continue;
         if (Date.now() >= rpcMissingUntilRef.current) {
           // v2 carries this build's sync version; the server refuses deletes
           // from older builds (e.g. ones that still ran the Gone prune).
@@ -626,13 +654,14 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       const result = removeRosterEntry(storeRef.current, id);
       if (!result.removed) return;
       markDeleted(id);
+      if (result.removed.kind === "full") markExplicitFull([id]);
       if (result.removed.kind === "sat") {
         satInitializedRef.current.add(result.removed.yard);
       }
       persistLocal(result.store);
       if (cloud) await cloudDeleteEntries([id]);
     },
-    [cloud, cloudDeleteEntries, persistLocal],
+    [cloud, cloudDeleteEntries, markExplicitFull, persistLocal],
   );
 
   const removeHiredAndSat = useCallback(
@@ -644,10 +673,11 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         markDeleted(entry.id);
         if (entry.kind === "sat") satInitializedRef.current.add(entry.yard);
       }
+      markExplicitFull(result.removed.filter((entry) => entry.kind === "full").map((entry) => entry.id));
       persistLocal(result.store);
       if (cloud) await cloudDeleteEntries(result.removed.map((entry) => entry.id));
     },
-    [cloud, cloudDeleteEntries, persistLocal],
+    [cloud, cloudDeleteEntries, markExplicitFull, persistLocal],
   );
 
   const moveDriver = useCallback(

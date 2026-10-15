@@ -7,6 +7,43 @@
 export const ROSTER_DELETE_RPC = "delete_roster_rows";
 /** Preferred: same guard plus p_sync_version; the server rejects builds below its minimum. */
 export const ROSTER_DELETE_RPC_V2 = "delete_roster_rows_v2";
+/**
+ * Full Roster rows: the server only deletes them through this RPC (sync
+ * version 3+), and the client only calls it for rows Keith removed with ×
+ * (Termination / Edit remove). Every other path is refused by the
+ * driver_roster_full_delete_guard trigger, so no stale desk, old build, Gone
+ * match or duplicate cleanup can drop a hired driver from the cloud.
+ */
+export const ROSTER_REMOVE_FULL_RPC = "remove_full_roster_rows";
+export const EXPLICIT_FULL_REMOVALS_KEY = "chitrader.load-tracker.roster-explicit-full-removals.v1";
+
+export function readExplicitFullRemovals(): Set<string> {
+  try {
+    const raw = localStorage.getItem(EXPLICIT_FULL_REMOVALS_KEY);
+    const list = raw ? (JSON.parse(raw) as unknown) : [];
+    return new Set(Array.isArray(list) ? list.filter((id): id is string => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeExplicitFullRemovals(ids: Iterable<string>): void {
+  try {
+    localStorage.setItem(EXPLICIT_FULL_REMOVALS_KEY, JSON.stringify([...ids].slice(-500)));
+  } catch {
+    /* storage full: the server guard still refuses non-explicit deletes */
+  }
+}
+
+/** Split delete ids: explicit Full removals (RPC v3) vs everything else (v2). */
+export function splitExplicitFullDeletes(
+  ids: readonly string[],
+  explicitFull: ReadonlySet<string>,
+): { explicitFull: string[]; other: string[] } {
+  const out = { explicitFull: [] as string[], other: [] as string[] };
+  for (const id of ids) (explicitFull.has(id) ? out.explicitFull : out.other).push(id);
+  return out;
+}
 /** After a "function missing" answer, use the direct delete for this long, then re-try the RPC. */
 export const ROSTER_RPC_MISSING_RETRY_MS = 5 * 60 * 1000;
 
