@@ -92,7 +92,10 @@ export function weekPayForDriver(opts: {
   const byDate = new Map(days.map((day) => [day.date, day]));
   const trucks = new Map<string, Map<string, number>>();
 
-  for (const load of loadsForDriver(opts.loads, opts.driverName)) {
+  // Cheap date filter first: name matching is the slow part, so only run it
+  // on this week's loads instead of every load ever logged.
+  const weekLoads = opts.loads.filter((load) => byDate.has(load.date));
+  for (const load of loadsForDriver(weekLoads, opts.driverName)) {
     const day = byDate.get(load.date);
     if (!day) continue;
     const hit = payForLoad(load, opts.lanes, opts.hireDate);

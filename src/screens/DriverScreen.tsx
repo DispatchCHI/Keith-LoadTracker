@@ -438,6 +438,34 @@ export function DriverScreen() {
     }
     return map;
   }, [kind, entries, loads, customerLanes, asOf]);
+  // Built once per data change, not on every render (search typing, dialogs, etc.).
+  const fullRows = useMemo(
+    () =>
+      kind !== "full"
+        ? []
+        : entries.map((entry) => {
+            const effective = effectiveRosterStatus(entry, vacationNames);
+            return {
+              entry,
+              out:
+                rosterStatusRemovesFromAvailable(effective.status) ||
+                Boolean(effective.onVacation),
+              storedOut: rosterStatusRemovesFromAvailable(entry.status),
+              onVacation: Boolean(effective.onVacation),
+              allot: allotmentForName(entry.name, allotmentUses),
+              week:
+                weekPayById.get(entry.id) ??
+                weekPayForDriver({
+                  loads: [],
+                  lanes: customerLanes,
+                  driverName: entry.name,
+                  hireDate: entry.hireDate,
+                  asOf,
+                }),
+            };
+          }),
+    [kind, entries, vacationNames, allotmentUses, weekPayById, customerLanes, asOf],
+  );
   // Keep the open pop-out on the live roster row so a rename/EMP # edit shows up.
   const notesDriver = useMemo(
     () => (notesFor ? entries.find((entry) => entry.id === notesFor.id) ?? null : null),
@@ -1042,27 +1070,7 @@ export function DriverScreen() {
           today={today}
           asOf={asOf}
           onAdd={() => setAdding(true)}
-          rows={entries.map((entry) => {
-            const effective = effectiveRosterStatus(entry, vacationNames);
-            return {
-              entry,
-              out:
-                rosterStatusRemovesFromAvailable(effective.status) ||
-                Boolean(effective.onVacation),
-              storedOut: rosterStatusRemovesFromAvailable(entry.status),
-              onVacation: Boolean(effective.onVacation),
-              allot: allotmentForName(entry.name, allotmentUses),
-              week:
-                weekPayById.get(entry.id) ??
-                weekPayForDriver({
-                  loads: [],
-                  lanes: customerLanes,
-                  driverName: entry.name,
-                  hireDate: entry.hireDate,
-                  asOf,
-                }),
-            };
-          })}
+          rows={fullRows}
           onMove={(id, delta) => void moveDriver(id, delta)}
           onRemove={(entry) => setRemoveDialog({ step: "choose", entry })}
           onStatus={(id, status) => void setDriverStatus(id, status)}

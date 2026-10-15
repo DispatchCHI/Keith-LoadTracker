@@ -85,6 +85,11 @@ export function FullRosterTable({ rows, today, asOf, yardLabel, onAdd, ...handle
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "order", dir: 1 });
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
   const { store } = useDriverNotes();
+  const latestNotes = useMemo(() => {
+    const map = new Map<string, { noteDate: string; note: string } | null>();
+    for (const row of rows) map.set(row.entry.id, notesForDriver(store, row.entry)[0] ?? null);
+    return map;
+  }, [rows, store]);
 
   const shown = useMemo(() => {
     const indexed = rows.map((row, index) => ({ row, index }));
@@ -198,7 +203,7 @@ export function FullRosterTable({ rows, today, asOf, yardLabel, onAdd, ...handle
               open={openIds.has(row.entry.id)}
               onToggle={() => toggle(row.entry.id)}
               onOpen={() => setOpenIds((prev) => new Set(prev).add(row.entry.id))}
-              latestNote={notesForDriver(store, row.entry)[0] ?? null}
+              latestNote={latestNotes.get(row.entry.id) ?? null}
               {...handlers}
             />
           ))}

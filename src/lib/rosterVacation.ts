@@ -87,7 +87,21 @@ export function vacationYardsForRosterYard(yard: DriverRosterYard): VacationYard
 }
 
 /** Lowercase, collapse space, drop nicknames / trainer `-T` suffixes. */
+// Pure string -> string; cached because Drivers pages call it per driver x per load.
+const ROSTER_KEY_CACHE = new Map<string, string>();
+const ROSTER_MATCH_CACHE = new Map<string, boolean>();
+const ROSTER_CACHE_MAX = 50000;
+
 export function rosterNameKey(name: string): string {
+  const hit = ROSTER_KEY_CACHE.get(name);
+  if (hit !== undefined) return hit;
+  if (ROSTER_KEY_CACHE.size > ROSTER_CACHE_MAX) ROSTER_KEY_CACHE.clear();
+  const key = rosterNameKeyUncached(name);
+  ROSTER_KEY_CACHE.set(name, key);
+  return key;
+}
+
+function rosterNameKeyUncached(name: string): string {
   return vacationNameKey(name)
     .replace(/\([^)]*\)/g, " ")
     .replace(/[.,'/]/g, " ")
@@ -97,6 +111,16 @@ export function rosterNameKey(name: string): string {
 }
 
 export function rosterNamesMatch(a: string, b: string): boolean {
+  const pair = a + "\u0000" + b;
+  const hit = ROSTER_MATCH_CACHE.get(pair);
+  if (hit !== undefined) return hit;
+  if (ROSTER_MATCH_CACHE.size > ROSTER_CACHE_MAX) ROSTER_MATCH_CACHE.clear();
+  const result = rosterNamesMatchUncached(a, b);
+  ROSTER_MATCH_CACHE.set(pair, result);
+  return result;
+}
+
+function rosterNamesMatchUncached(a: string, b: string): boolean {
   const ka = rosterNameKey(a);
   const kb = rosterNameKey(b);
   if (!ka || !kb) return false;
