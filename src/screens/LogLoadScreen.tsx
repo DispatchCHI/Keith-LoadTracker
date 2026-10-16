@@ -31,6 +31,8 @@ import { useDriverGone } from "../store/DriverGoneContext";
 import { useDriverRoster } from "../store/DriverRosterContext";
 import { useLoads } from "../store/LoadsContext";
 import type { Load } from "../types";
+import { suggestLanesForDriver } from "../lib/laneSuggestions";
+import { makeRosterNameResolver } from "../lib/rosterVacation";
 
 type LogLoadScreenProps = {
   initialTruck?: string;
@@ -125,6 +127,35 @@ export function LogLoadScreen({
     formTrucks.length === 1
       ? snapshotDriverNameForTruck(rosterStore, formTrucks[0])
       : null;
+  const resolveRosterName = useMemo(
+    () =>
+      makeRosterNameResolver(
+        Object.values(rosterStore.entries)
+          .filter((entry) => entry.kind === "full")
+          .map((entry) => entry.name),
+      ),
+    [rosterStore],
+  );
+  // Client-side only: this driver's recent lanes from loads already in memory.
+  const laneSuggestions = useMemo(
+    () =>
+      suggestLanesForDriver({
+        loads,
+        driverName: loggingDriverName,
+        today: targetDate,
+        resolveName: resolveRosterName,
+        isClosed: (lane) => {
+          const hit = resolveSpecialtyBoardMatch(
+            lane.stationId,
+            lane.pickup,
+            lane.destination,
+            lane.commodity,
+          );
+          return hit ? opensFor(targetDate, hit.specialtyId, hit.chips) <= 0 : false;
+        },
+      }),
+    [loads, loggingDriverName, targetDate, resolveRosterName, opensFor],
+  );
   const typingPreview = useMemo(
     () => previewForTruckListInput(rosterStore, truck),
     [rosterStore, truck],
@@ -361,6 +392,30 @@ export function LogLoadScreen({
           Change truck
         </button>
       </header>
+
+      {laneSuggestions.length ? (
+        <div className="chip-row log-load-suggest" aria-label="Recent lanes for this driver">
+          {laneSuggestions.map((lane) => (
+            <button
+              key={lane.key}
+              type="button"
+              className={lane.closed ? "chip chip-muted log-load-suggest-chip" : "chip log-load-suggest-chip"}
+              title={`${lane.pickup} → ${lane.destination} · ${lane.commodity} · ${lane.count} load${lane.count === 1 ? "" : "s"} in 45 days${lane.closed ? " · nothing open today" : ""}`}
+              onClick={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  stationId: lane.stationId,
+                  pickup: lane.stationId === CUSTOM_ID ? lane.pickup : "",
+                  commodity: lane.commodity,
+                  destination: lane.destination,
+                }))
+              }
+            >
+              {lane.pickup} → {lane.destination}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <LoadForm
         value={form}

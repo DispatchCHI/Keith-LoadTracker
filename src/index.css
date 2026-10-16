@@ -6684,3 +6684,7 @@ body.app-ready .splash {
 @media (prefers-reduced-motion: reduce) {
   .notes-ticker-track { animation-duration: 120s !important; }
 }
+
+/* Log New Load: one slim row of recent-lane chips under the truck/driver header. */
+.log-load-suggest { gap: 4px; margin: 2px 0 4px; flex-wrap: nowrap; overflow: hidden; }
+.log-load-suggest-chip { font-size: 11px; padding: 2px 8px; min-height: 0; line-height: 1.4; max-width: 33%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
