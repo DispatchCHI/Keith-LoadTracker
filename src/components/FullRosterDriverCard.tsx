@@ -9,6 +9,7 @@ import { payTierFromHireDate, payTierLabel } from "../lib/driverPay";
 import { formatPayCents, type WeekPay } from "../lib/loadPay";
 import { yearsOfService, yearsOfServiceLabel } from "../lib/rosterHireDate";
 import type { DriverAllotment } from "../lib/rosterAllotment";
+import { telHref } from "../lib/telHref";
 
 type FullRosterDriverCardProps = {
   entry: DriverRosterEntry;
@@ -75,6 +76,7 @@ export function FullRosterDriverCard({
 
   const yos = yearsOfService(entry.hireDate, today);
   const tier = payTierFromHireDate(entry.hireDate, asOf);
+  const phoneHref = entry.phone ? telHref(entry.phone) : null;
 
   const saveTruck = async (raw = truck) => {
     const next = raw.trim();
@@ -123,7 +125,15 @@ export function FullRosterDriverCard({
               </span>
             ) : null}
           </p>
-          {entry.phone ? <p className="drv-pay-phone">{entry.phone}</p> : null}
+          {entry.phone ? (
+            phoneHref ? (
+              <a className="drv-pay-phone" href={phoneHref}>
+                {entry.phone}
+              </a>
+            ) : (
+              <p className="drv-pay-phone">{entry.phone}</p>
+            )
+          ) : null}
         </div>
         {yos !== null ? (
           <span
