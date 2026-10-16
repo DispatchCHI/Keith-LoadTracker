@@ -1,3 +1,4 @@
+import { showSeparateSpecialtyDetail, uniqueById } from "../lib/specialtyRender";
 import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { ChevronDown, Minus, Plus, X } from "lucide-react";
 import { formatHeaderDate, formatShortDate } from "../lib/chicagoDate";
@@ -138,7 +139,7 @@ export function SpecialtyBoardCard({
   }
 
   if (layout === "chips") {
-    const stationSlots = gridSlots.filter((slot) => slot.kind === "station");
+    const stationSlots = uniqueById(gridSlots.filter((slot) => slot.kind === "station"));
     const openId =
       chipOpen && stationSlots.some((slot) => slot.id === chipOpen) ? chipOpen : null;
     // Odd-ball cards past the original four (custom-5, custom-6, …) are not in
@@ -269,7 +270,14 @@ export function SpecialtyBoardCard({
             <p className="yard-empty yard-spec-open-empty">No specialty loads.</p>
           )
         ) : null}
-        {openStation ? <ul className="yard-spec-detail">{renderStation(openStation)}</ul> : null}
+        {openStation &&
+        showSeparateSpecialtyDetail(
+          openStation.id,
+          laneReveal,
+          locationsWithLoads.map(({ slot }) => slot.id),
+        ) ? (
+          <ul className="yard-spec-detail">{renderStation(openStation)}</ul>
+        ) : null}
       </section>
     );
   }
