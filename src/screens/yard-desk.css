@@ -1187,6 +1187,10 @@ button.yard-specialty-head:focus-visible {
     grid-template-columns: 1fr;
   }
 
+  .yard-site-gap {
+    display: none;
+  }
+
   .yard-right {
     height: auto;
     max-height: none;

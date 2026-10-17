@@ -27,7 +27,7 @@ import {
   type RankRow,
 } from "../lib/totals";
 import { customerNames } from "../lib/customerLanes";
-import { sortPickupsFixedOrder } from "../lib/transferStationOrder";
+import { sortPickupsFixedOrder, transferStationCells } from "../lib/transferStationOrder";
 import { CommodityTag } from "../components/CommodityTag";
 import { LoadCreatorBadge, LoadEditedMark } from "../components/LoadRow";
 import { CustomerTallyChips } from "../components/CustomerTallyChips";
@@ -379,7 +379,8 @@ function TransferStations({
       </div>
       {rows.length > 0 ? (
         <div className="yard-site-grid">
-          {rows.map((row) => {
+          {transferStationCells(rows).map((row, i) => {
+            if (!row) return <span key={`gap-${i}`} className="yard-site-gap" aria-hidden="true" />;
             const selected = row.key === openKey;
             const trashOnly = isTrashOnlyRank(row);
             const numClass = trashOnly ? "yard-site-num full" : "yard-site-num";

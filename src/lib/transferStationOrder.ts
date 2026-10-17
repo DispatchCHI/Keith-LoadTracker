@@ -1,15 +1,40 @@
-﻿/**
- * Today "Transfer stations" card: locked positions (Keith's layout), never by load count.
- * Edit these three columns (top to bottom). Listed sites always show (0 / 0 when idle)
- * so nothing shifts; any other site goes after them, A-Z.
+/**
+ * Today "Transfer stations" card (Keith's layout, 1.1.40).
+ * LOCKED: always shown in a fixed slot, even at 0 / 0, so nothing shifts.
+ * FLOATING: shown only on days with loads, appended under Evanston in column 3
+ * (preferred order below), then any other site with loads, A-Z.
+ * Names match by normalized key (case, spaces, punctuation, LF/RDF suffix), so
+ * "NorthLake" = "Northlake", "Midway" = "Midway LF". Display labels are never renamed.
  */
 export const TRANSFER_STATION_COLUMNS: readonly (readonly string[])[] = [
-  ["Melrose", "Arc", "Medill", "GraysLake", "Hodgkins", "LRS", "Evanston", "Calumet", "Ford"],
-  ["Wheeling", "Hooker Street", "Schererville", "Apollo", "Liberty", "Chicago Heights", "Laraway", "Midway LF", "National Container"],
-  ["Northlake", "Tri-State", "Batavia", "Elgin", "DeKalb", "Rockdale", "Roscoe", "Wheatland RDF", "WoodLand RDF"],
+  ["Medill", "Calumet", "Hooker Street", "Chicago Heights", "Schererville", "Apollo", "LRS", "Tri-State", "Rockdale"],
+  ["Melrose", "Northlake", "Arc", "Batavia", "Elgin", "Roscoe", "Liberty", "Hodgkins", "Ford"],
+  ["Wheeling", "Evanston"],
 ];
 
-/** The 3-column grid fills left-to-right, so interleave columns into row order. */
+/** Shown only when they have loads that day, in this order, under Evanston. */
+export const TRANSFER_STATION_FLOATING: readonly string[] = [
+  "Laraway",
+  "National Container",
+  "DeKalb",
+  "GraysLake",
+  "Midway",
+  "Wheatland",
+  "Woodland",
+];
+
+const STATION_KEY_ALIASES: Readonly<Record<string, string>> = {
+  cheights: "chicagoheights",
+  hooker: "hookerstreet",
+};
+
+export function stationOrderKey(label: string): string {
+  const base = label.trim().toLowerCase().replace(/\s+(lf|rdf|landfill)\.?$/, "");
+  const key = base.replace(/[^a-z0-9]+/g, "");
+  return STATION_KEY_ALIASES[key] ?? key;
+}
+
+/** Locked sites in grid (row-major) order, for reference. */
 export const TRANSFER_STATION_ORDER: readonly string[] = (() => {
   const out: string[] = [];
   const rows = Math.max(...TRANSFER_STATION_COLUMNS.map((c) => c.length));
@@ -19,21 +44,51 @@ export const TRANSFER_STATION_ORDER: readonly string[] = (() => {
   return out;
 })();
 
-function stationOrderKey(label: string): string {
-  return label.trim().toLowerCase().replace(/[\s.'-]+/g, "");
-}
-
 type Row = { key: string; label: string; count: number; trashCount: number; custom?: boolean };
 
-/** Fixed slots first (zero rows for idle listed sites), then unlisted sites A-Z. */
-export function sortPickupsFixedOrder<T extends Row>(rows: readonly T[]): T[] {
-  const byKey = new Map(rows.map((row) => [stationOrderKey(row.label), row]));
-  const out: T[] = [];
-  for (const name of TRANSFER_STATION_ORDER) {
-    const k = stationOrderKey(name);
-    const hit = byKey.get(k);
-    out.push(hit ?? ({ key: name, label: name, count: 0, trashCount: 0 } as T));
-    byKey.delete(k);
+/** Three columns: locked slots (zero rows when idle), floating + other sites with loads under column 3. */
+export function transferStationColumns<T extends Row>(rows: readonly T[]): T[][] {
+  const pool = new Map<string, T[]>();
+  for (const row of rows) {
+    const k = stationOrderKey(row.label);
+    const list = pool.get(k);
+    if (list) list.push(row);
+    else pool.set(k, [row]);
   }
-  return out.concat([...byKey.values()].sort((a, b) => a.label.localeCompare(b.label)));
+  const take = (name: string): T | undefined => {
+    const k = stationOrderKey(name);
+    const list = pool.get(k);
+    if (!list?.length) return undefined;
+    const hit = list.shift();
+    if (!list.length) pool.delete(k);
+    return hit;
+  };
+  const cols = TRANSFER_STATION_COLUMNS.map((col) =>
+    col.map((name) => take(name) ?? ({ key: name, label: name, count: 0, trashCount: 0 } as T)),
+  );
+  const last = cols[cols.length - 1];
+  for (const name of TRANSFER_STATION_FLOATING) {
+    const hit = take(name);
+    if (hit && hit.count > 0) last.push(hit);
+  }
+  const rest = [...pool.values()]
+    .flat()
+    .filter((row) => row.count > 0)
+    .sort((a, b) => a.label.localeCompare(b.label));
+  last.push(...rest);
+  return cols;
+}
+
+/** Grid cells for the 3-column card, row by row; null = blank slot (column 3 runs longer/shorter). */
+export function transferStationCells<T extends Row>(rows: readonly T[]): (T | null)[] {
+  const cols = transferStationColumns(rows);
+  const height = Math.max(...cols.map((c) => c.length));
+  const out: (T | null)[] = [];
+  for (let r = 0; r < height; r++) for (const col of cols) out.push(col[r] ?? null);
+  return out;
+}
+
+/** Every row the card shows (locked + floating with loads), column by column. */
+export function sortPickupsFixedOrder<T extends Row>(rows: readonly T[]): T[] {
+  return transferStationColumns(rows).flat();
 }
