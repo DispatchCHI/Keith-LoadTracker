@@ -6688,3 +6688,6 @@ body.app-ready .splash {
 /* Log New Load: one slim row of recent-lane chips under the truck/driver header. */
 .log-load-suggest { gap: 4px; margin: 2px 0 4px; flex-wrap: nowrap; overflow: hidden; }
 .log-load-suggest-chip { font-size: 11px; padding: 2px 8px; min-height: 0; line-height: 1.4; max-width: 33%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Initials of the dispatcher who logged a load (next to time / Edit). */
+.load-creator { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 16px; padding: 0 4px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 0.02em; line-height: 1; flex: 0 0 auto; align-self: center; margin: 0 4px; cursor: default; }

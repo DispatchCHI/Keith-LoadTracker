@@ -38,3 +38,22 @@ export function keepLoadEditedBy<T extends { editedBy?: string | null }>(winner:
   if (loser.editedBy === undefined) return winner;
   return { ...winner, editedBy: loser.editedBy };
 }
+
+/**
+ * Who logged a load, from the display name already saved on it (display_name,
+ * set by the signed-in user at log time). Older loads with no name -> null;
+ * nothing is guessed.
+ */
+export function loadCreatorMark(
+  displayName: string | null | undefined,
+): { initials: string; title: string } | null {
+  const raw = (displayName ?? "").trim();
+  if (!raw) return null;
+  const email = raw.includes("@") ? raw : null;
+  const name = editorNameForUser(email ? (email.split("@")[0] ?? raw) : raw, email);
+  const initials = editorInitials(name);
+  if (!initials) return null;
+  const crew = CREW_ROSTER.find((person) => person.name.toLowerCase() === name.toLowerCase());
+  const mail = crew?.email ?? email;
+  return { initials, title: mail && mail.toLowerCase() !== name.toLowerCase() ? `Logged by ${name} (${mail})` : `Logged by ${name}` };
+}

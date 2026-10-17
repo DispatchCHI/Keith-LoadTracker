@@ -29,7 +29,7 @@ import {
 import { customerNames } from "../lib/customerLanes";
 import { sortPickupsFixedOrder } from "../lib/transferStationOrder";
 import { CommodityTag } from "../components/CommodityTag";
-import { LoadEditedMark } from "../components/LoadRow";
+import { LoadCreatorBadge, LoadEditedMark } from "../components/LoadRow";
 import { CustomerTallyChips } from "../components/CustomerTallyChips";
 import { DispatchTalliesRow } from "../components/DispatchTalliesRow";
 import { DriversCard } from "../components/DriversCard";
@@ -529,6 +529,7 @@ function RankLoads({
               ) : null}
               {checkoff ? <LoadEditedMark name={load.editedBy} /> : null}
             </button>
+            {checkoff ? <LoadCreatorBadge displayName={load.displayName} /> : null}
             {checkoff ? (
               <button type="button" className="yard-line-edit" onClick={() => onEdit(load.id)}>
                 Edit

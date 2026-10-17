@@ -1,5 +1,5 @@
 import { formatCreatedStamp } from "../lib/chicagoDate";
-import { editorInitials } from "../lib/loadEdited";
+import { editorInitials, loadCreatorMark } from "../lib/loadEdited";
 import type { Load } from "../types";
 import { CommodityTag } from "./CommodityTag";
 
@@ -9,6 +9,17 @@ export function LoadEditedMark({ name }: { name?: string | null }) {
   return (
     <span className="load-edited" title={`Edited by ${name.trim()}`}>
       Edited · {initials}
+    </span>
+  );
+}
+
+/** Small initials of whoever logged the load (tooltip: full name / email). */
+export function LoadCreatorBadge({ displayName }: { displayName?: string | null }) {
+  const mark = loadCreatorMark(displayName);
+  if (!mark) return null;
+  return (
+    <span className="load-creator" title={mark.title} aria-label={mark.title}>
+      {mark.initials}
     </span>
   );
 }
@@ -91,6 +102,7 @@ export function LoadRow({
             {createdStamp}
           </time>
         ) : null}
+        <LoadCreatorBadge displayName={load.displayName} />
         {highlight === "editing" ? (
           <span className="editing-label">Editing…</span>
         ) : (

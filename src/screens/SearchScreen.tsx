@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { CommodityTag } from "../components/CommodityTag";
 import { DayPicker } from "../components/DayPicker";
-import { LoadEditedMark, LoadRow } from "../components/LoadRow";
+import { LoadCreatorBadge, LoadEditedMark, LoadRow } from "../components/LoadRow";
 import { chicagoToday, formatShortDate, yearOfISO } from "../lib/chicagoDate";
 import {
   driverTimeOffRows,
@@ -351,6 +351,7 @@ export function SearchScreen({
                               </div>
                             </div>
                             <LoadEditedMark name={load.editedBy} />
+                            <LoadCreatorBadge displayName={load.displayName} />
                           </div>
                         </td>
                         <td>
