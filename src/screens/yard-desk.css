@@ -474,6 +474,35 @@
   flex: 0 0 auto;
 }
 
+.yard-load-pop-delete {
+  border: 0;
+  background: transparent;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.yard-load-pop-delete:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.yard-line-pick {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  margin: 0 9px 0 0;
+  cursor: pointer;
+}
+
+.yard-load-pop-head .yard-line-pick {
+  margin-right: 10px;
+}
+
 .yard-site.on {
   background: #d6e8fb;
   border-radius: 6px;

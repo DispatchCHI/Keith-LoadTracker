@@ -28,6 +28,13 @@ import {
 } from "../lib/totals";
 import { customerNames } from "../lib/customerLanes";
 import { sortPickupsFixedOrder, transferStationCells } from "../lib/transferStationOrder";
+import {
+  deleteButtonLabel,
+  deleteSelectedLoads,
+  pruneSelection,
+  toggleSelectAll,
+  toggleSelectedId,
+} from "../lib/loadMultiSelect";
 import { CommodityTag } from "../components/CommodityTag";
 import { LoadCreatorBadge, LoadEditedMark } from "../components/LoadRow";
 import { CustomerTallyChips } from "../components/CustomerTallyChips";
@@ -370,6 +377,21 @@ function TransferStations({
   const openLoads = open
     ? rankAccordionLoads(loads, { kind: "pickup", key: open.key })
     : [];
+  const { deleteLoad } = useLoads();
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const [pickedFor, setPickedFor] = useState<string | null>(open?.key ?? null);
+  if (pickedFor !== (open?.key ?? null)) {
+    // Popup closed or switched site: clear the selection.
+    setPickedFor(open?.key ?? null);
+    setPicked(new Set());
+  }
+  const openIds = openLoads.map((load) => load.id);
+  const livePicked = pruneSelection(picked, openIds);
+  const allPicked = openIds.length > 0 && livePicked.size === openIds.length;
+  const deletePicked = () => {
+    const n = deleteSelectedLoads([...livePicked], deleteLoad, (msg) => window.confirm(msg));
+    if (n > 0) setPicked(new Set());
+  };
 
   return (
     <section className="yard-panel yard-transfers">
@@ -423,8 +445,31 @@ function TransferStations({
             <button type="button" className="yard-load-pop-close" onClick={() => onSelect(open.key)}>
               Close
             </button>
+            <button
+              type="button"
+              className="yard-load-pop-delete"
+              disabled={livePicked.size === 0}
+              onClick={deletePicked}
+            >
+              {deleteButtonLabel(livePicked.size)}
+            </button>
+            <input
+              type="checkbox"
+              className="yard-line-pick"
+              aria-label="Select all loads"
+              title="Select all"
+              checked={allPicked}
+              disabled={openIds.length === 0}
+              onChange={() => setPicked(toggleSelectAll(livePicked, openIds))}
+            />
           </div>
-          <RankLoads loads={openLoads} onEdit={onEdit} checkoff />
+          <RankLoads
+            loads={openLoads}
+            onEdit={onEdit}
+            checkoff
+            picked={livePicked}
+            onPick={(id) => setPicked(toggleSelectedId(livePicked, id))}
+          />
         </div>
       ) : null}
     </section>
@@ -482,10 +527,15 @@ function RankLoads({
   loads,
   onEdit,
   checkoff = false,
+  picked,
+  onPick,
 }: {
   loads: Load[];
   onEdit: (id: string) => void;
   checkoff?: boolean;
+  /** Multi-delete selection (station popup only). */
+  picked?: ReadonlySet<string>;
+  onPick?: (id: string) => void;
 }) {
   const [checkedIds, setCheckedIds] = useState(() => readCheckedLoadIds());
 
@@ -535,6 +585,16 @@ function RankLoads({
               <button type="button" className="yard-line-edit" onClick={() => onEdit(load.id)}>
                 Edit
               </button>
+            ) : null}
+            {onPick ? (
+              <input
+                type="checkbox"
+                className="yard-line-pick"
+                aria-label={`Select load ${load.truck}`}
+                checked={picked?.has(load.id) ?? false}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => onPick(load.id)}
+              />
             ) : null}
           </div>
         );
