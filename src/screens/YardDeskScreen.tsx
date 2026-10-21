@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect, useSyncExternalStore } from "react";
+import { useMemo, useState, useEffect, useRef, useSyncExternalStore } from "react";
+import { useDismissOnOutside } from "../lib/dismissOnOutside";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { dailyCounts } from "../lib/analytics";
@@ -387,6 +388,10 @@ function TransferStations({
     ? rankAccordionLoads(loads, { kind: "pickup", key: open.key })
     : [];
   const { deleteLoad } = useLoads();
+  const panelRef = useRef<HTMLElement>(null);
+  useDismissOnOutside(panelRef, Boolean(open), () => {
+    if (open) onSelect(open.key);
+  });
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
   const [pickedFor, setPickedFor] = useState<string | null>(open?.key ?? null);
   if (pickedFor !== (open?.key ?? null)) {
@@ -403,7 +408,7 @@ function TransferStations({
   };
 
   return (
-    <section className="yard-panel yard-transfers">
+    <section ref={panelRef} className="yard-panel yard-transfers">
       <div className="yard-panel-head">
         <h2>Transfer stations</h2>
         <span className="yard-hint">Tap a site · MSW / total</span>
@@ -500,8 +505,12 @@ function OpeningList({
   onSelect: (key: string) => void;
   onEdit: (id: string) => void;
 }) {
+  const panelRef = useRef<HTMLElement>(null);
+  useDismissOnOutside(panelRef, openKey !== null && rows.some((r) => r.key === openKey), () => {
+    if (openKey !== null) onSelect(openKey);
+  });
   return (
-    <section className="yard-panel yard-rank">
+    <section ref={panelRef} className="yard-panel yard-rank">
       <div className="yard-panel-head">
         <h2>{title}</h2>
         <span className="yard-hint">Tap to open</span>

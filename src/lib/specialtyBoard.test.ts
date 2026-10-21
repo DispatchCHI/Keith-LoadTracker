@@ -256,10 +256,11 @@ describe("specialty walking-floor catalog", () => {
     });
     expect(
       resolveSpecialtyBoardMatch("apollo", "Apollo", "Christiansen Farms", "Yard Waste"),
-    ).toEqual({
+    ).toMatchObject({
       specialtyId: "apollo",
       chip: "Christianson Farms",
-      chips: ["Christianson Farms"],
+      // 1.1.47: exact dest first, then same-lane fallbacks
+      chips: expect.arrayContaining(["Christianson Farms"]),
     });
   });
 

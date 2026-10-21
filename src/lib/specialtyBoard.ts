@@ -236,7 +236,7 @@ function expandCommodityLaneLabels(
   chips: readonly string[],
 ): string[] {
   const id = resolveSpecialtyStationId(stationId, stationId) ?? stationId;
-  if (isCustomSpecialtyId(id) || specialtyChipMode(id) !== "commodity") {
+  if (isCustomSpecialtyId(id)) {
     return uniqueSpecialtyChipLabels(chips);
   }
   const stored = uniqueSpecialtyChipLabels(
@@ -248,10 +248,54 @@ function expandCommodityLaneLabels(
   for (const chip of chips) {
     out.push(chip);
     for (const label of stored) {
-      if (sameSpecialtyLaneChip(label, chip)) out.push(label);
+      if (sameSpecialtyLaneChip(label, chip) || sameSpecialtyLaneIdentity(label, chip, chips)) {
+        out.push(label);
+      }
     }
   }
   return uniqueSpecialtyChipLabels(out);
+}
+
+/**
+ * 1.1.47 lane identity: loose-spelling key for a destination
+ * ("Thelen's" / "Thelens" / "THELENS " all match).
+ */
+const SPECIALTY_LANE_COMMODITY_KEYS = [
+  "Yard Waste", "Recycle", "Recycling", "Residual", "Glass", "Cardboard", "Wood", "C&D", "Leachate", "Tires",
+];
+
+export function specialtyLooseDestKey(raw: string): string {
+  return specialtyDestKey(raw).replace(/[^a-z0-9]/g, "").replace(/s$/, "");
+}
+
+export function sameSpecialtyLooseDest(a: string, b: string): boolean {
+  const left = specialtyLooseDestKey(a);
+  const right = specialtyLooseDestKey(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const [short, long] = left.length <= right.length ? [left, right] : [right, left];
+  return short.length >= 5 && long.startsWith(short);
+}
+
+/**
+ * Stored board label belongs to the same lane as a consume chip, even when
+ * spelled differently: same plain destination (loose spelling), or the same
+ * commodity family whose pinned destination (if any) is one of this load's
+ * chips. A pinned lane for another destination never matches.
+ */
+function sameSpecialtyLaneIdentity(
+  label: string,
+  chip: string,
+  chips: readonly string[],
+): boolean {
+  const stored = parseSpecialtyLaneChip(label);
+  const want = parseSpecialtyLaneChip(chip);
+  if (!stored.family && !want.family) return sameSpecialtyLooseDest(label, chip);
+  if (!stored.family || stored.family !== want.family) return false;
+  const dests = [want.destination, ...chips.map((c) => parseSpecialtyLaneChip(c).destination)]
+    .filter(Boolean);
+  if (!stored.destination) return !want.destination;
+  return dests.some((d) => sameSpecialtyLooseDest(d, stored.destination));
 }
 
 /** Per-station dest chips; restricted yards match (or subset) log-load dests. */
@@ -1068,7 +1112,10 @@ function isSpecialtyBoardCommodity(
     key === "RECYCLE" ||
     key === "RESIDUAL" ||
     key === "CARDBOARD" ||
-    key === "GLASS"
+    key === "GLASS" ||
+    key === "WOOD" ||
+    key === "C&D" ||
+    key === "TIRES"
   ) {
     return true;
   }
@@ -1088,6 +1135,8 @@ export function specialtyLaneChipLabel(
   if (!needle || !String(needle).trim()) return null;
   const exact = chips.find((chip) => sameSpecialtyDest(chip, needle));
   if (exact) return exact;
+  const loose = chips.find((chip) => sameSpecialtyLooseDest(chip, needle));
+  if (loose) return loose;
   if (specialtyChipMode(specialtyId) !== "commodity") return null;
   const family = specialtyCommodityFamily(needle);
   return family
@@ -1137,6 +1186,27 @@ export function specialtyLaneChips(
   if (allowed) chips.push(allowed);
   if (specialtyChipMode(specialtyId) === "commodity" && destination.trim()) {
     chips.push(destination.trim());
+  }
+  // Destination cards (Arc, Northlake, Elgin...): an open typed as the commodity
+  // ("Yard waste" / "Yard waste - Thelens") is the same customer lane.
+  if (allowed && specialtyChipMode(specialtyId) !== "commodity" && specialtyCommodityFamily(commodity)) {
+    chips.push(`${commodity.trim()}${SPECIALTY_LANE_SEP}${allowed}`);
+    chips.push(commodity.trim());
+  }
+  // Same customer lane = pickup + commodity: other card dests that this
+  // pickup ships the same commodity to (Arc yard waste: Thelens <-> Organix)
+  // burn after the exact destination.
+  if (specialtyChipMode(specialtyId) !== "commodity") {
+    const family = specialtyCommodityFamily(commodity);
+    if (family) {
+      const keys = [commodity.trim(), ...SPECIALTY_LANE_COMMODITY_KEYS].filter(
+        (k) => specialtyCommodityFamily(k) === family,
+      );
+      const laneDests = keys.flatMap((k) => destinationsFor(specialtyId, k));
+      for (const chip of specialtyDestinationsFor(specialtyId)) {
+        if (laneDests.some((d) => sameSpecialtyLooseDest(d, chip))) chips.push(chip);
+      }
+    }
   }
   return uniqueSpecialtyChipLabels(chips);
 }

@@ -1,5 +1,6 @@
 import { showSeparateSpecialtyDetail, uniqueById } from "../lib/specialtyRender";
-import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useDismissOnOutside } from "../lib/dismissOnOutside";
 import { ChevronDown, Minus, Plus, X } from "lucide-react";
 import { formatHeaderDate, formatShortDate } from "../lib/chicagoDate";
 import { MAX_LOAD_QTY } from "../lib/quantity";
@@ -58,6 +59,8 @@ export function SpecialtyBoardCard({
   const { store: customerLanes } = useCustomerLanes();
   const [addingFor, setAddingFor] = useState<string | null>(null);
   const [chipOpen, setChipOpen] = useState<string | null>(null);
+  const chipPanelRef = useRef<HTMLElement>(null);
+  useDismissOnOutside(chipPanelRef, chipOpen !== null, () => setChipOpen(null));
   const [laneReveal, setLaneReveal] = useState(readSpecialtyLoadsOpen);
   const [open, setOpen] = useState(true);
   const [fresh, setFresh] = useState<{ date: string; id: string } | null>(null);
@@ -166,7 +169,7 @@ export function SpecialtyBoardCard({
       });
     }
     return (
-      <section className="yard-specialty">
+      <section ref={chipPanelRef} className="yard-specialty">
         <button
           type="button"
           className="yard-specialty-head"
