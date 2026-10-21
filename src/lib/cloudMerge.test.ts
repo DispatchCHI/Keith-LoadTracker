@@ -92,7 +92,7 @@ describe("mergeCloudLoads", () => {
     });
 
     expect(merged.map((row) => row.id).sort()).toEqual(["hooker-msw", "other-msw"]);
-    expect(toUpsert.map((row) => row.id).sort()).toEqual(["hooker-msw", "other-msw"]);
+    expect(toUpsert.map((row) => row.id).sort()).toEqual([]); // 1.1.42: uploads only from the explicit queue
   });
 
   it("remote empty, local has Sep 8 loads → Sep 8 survives", () => {
@@ -112,7 +112,7 @@ describe("mergeCloudLoads", () => {
 
     const kept = merged.filter((row) => row.date === "2026-09-08");
     expect(kept).toHaveLength(82);
-    expect(toUpsert).toHaveLength(82);
+    expect(toUpsert).toHaveLength(0); // 1.1.42: uploads only from the explicit queue
     expect(snapshotLosesDeviceDates(merged, store([]), store(sep8), [])).toBe(
       false,
     );
@@ -242,7 +242,7 @@ describe("mergeCloudLoads", () => {
 
     expect(merged).toHaveLength(1);
     expect(merged[0].id).toBe("legacy-local");
-    expect(toUpsert).toHaveLength(1);
+    expect(toUpsert).toHaveLength(0); // 1.1.42: uploads only from the explicit queue
   });
 
   it("skips seeded sample loads", () => {
@@ -256,7 +256,7 @@ describe("mergeCloudLoads", () => {
     });
 
     expect(merged.map((row) => row.id)).toEqual(["real-1"]);
-    expect(toUpsert.map((row) => row.id)).toEqual(["real-1"]);
+    expect(toUpsert.map((row) => row.id)).toEqual([]); // 1.1.42: uploads only from the explicit queue
   });
 
   it("lets a pending upsert win over a stale remote row", () => {
@@ -462,7 +462,7 @@ describe("delete then backup / Push all (resurrection bug)", () => {
     });
 
     expect(merged.map((row) => row.id).sort()).toEqual(["A", "B"]);
-    expect(toUpsert.map((row) => row.id).sort()).toEqual(["A", "B"]);
+    expect(toUpsert.map((row) => row.id).sort()).toEqual([]); // 1.1.42: uploads only from the explicit queue
     expect(snapshotLosesDeviceDates(merged, store([a, b]), store([a, b]), [])).toBe(
       false,
     );
@@ -659,7 +659,7 @@ describe("2026-09-09 count oscillation (324 → 306 class)", () => {
       refreshStartedAt,
     });
     expect(merged.filter((row) => row.date === TODAY)).toHaveLength(324);
-    expect(toUpsert).toHaveLength(18);
+    expect(toUpsert).toHaveLength(0); // 1.1.42: uploads only from the explicit queue
   });
 
   it("count drops stale ghosts across merge then persist (306, not 324)", () => {
@@ -833,13 +833,13 @@ describe("2026-09-09 count oscillation (324 → 306 class)", () => {
       pending: [],
     });
     expect(merged.filter((row) => row.date === TODAY)).toHaveLength(324);
-    expect(toUpsert).toHaveLength(324);
+    expect(toUpsert).toHaveLength(0); // 1.1.42: uploads only from the explicit queue
     expect(
       snapshotLosesDeviceDates(merged, store([]), store(today), []),
     ).toBe(false);
   });
 
-  it("loads newer than lastSuccessfulSync survive a thin remote without a pending op", () => {
+  it("1.1.42: loads merely newer than a (possibly stale) lastSuccessfulSync are not kept or re-uploaded", () => {
     const lastSuccessfulSyncAt = "2026-09-09T17:00:00.000Z";
     const fresh = localOnly18.map((row) =>
       load(row.id, TODAY, { ...row, updatedAt: "2026-09-09T17:00:01.000Z" }),
@@ -851,8 +851,8 @@ describe("2026-09-09 count oscillation (324 → 306 class)", () => {
       pending: [],
       lastSuccessfulSyncAt,
     });
-    expect(merged.filter((row) => row.date === TODAY)).toHaveLength(324);
-    expect(toUpsert).toHaveLength(18);
+    expect(merged.filter((row) => row.date === TODAY)).toHaveLength(306);
+    expect(toUpsert).toHaveLength(0);
   });
 });
 
@@ -1198,14 +1198,14 @@ describe("isProtectedDeviceLoad", () => {
     ).toBe(true);
   });
 
-  it("treats rows newer than lastSuccessfulSync as protected", () => {
+  it("1.1.42: rows newer than lastSuccessfulSync alone are NOT protected", () => {
     expect(
       isProtectedDeviceLoad(row, {
         pending: [],
         deleted,
         lastSuccessfulSyncAt: "2026-09-10T11:59:59.000Z",
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isProtectedDeviceLoad(row, {
         pending: [],

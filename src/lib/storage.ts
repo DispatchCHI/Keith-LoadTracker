@@ -1,6 +1,7 @@
 import type { Load } from "../types";
 import { chicagoToday } from "./chicagoDate";
 import { safeSetItem } from "./localStorageSafe";
+import { loadStoreGet, loadStoreSet } from "./loadsDb";
 import { sortLoads } from "./sortLoads";
 
 /** Same key in the browser and the Tauri WebView — each environment keeps its own store. */
@@ -123,7 +124,7 @@ function isLoad(value: unknown): value is Load {
 
 export function readStore(): Persisted {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = loadStoreGet(STORAGE_KEY);
     if (!raw) return EMPTY;
     const parsed = JSON.parse(raw) as Persisted;
     if (parsed?.version !== 1 || typeof parsed.loadsByDate !== "object") {
@@ -143,8 +144,8 @@ export function readStore(): Persisted {
   }
 }
 
-export function writeStore(store: Persisted): void {
-  safeSetItem(STORAGE_KEY, JSON.stringify(store));
+export function writeStore(store: Persisted): boolean {
+  return loadStoreSet(STORAGE_KEY, JSON.stringify(store));
 }
 
 export function allLoads(store: Persisted): Load[] {

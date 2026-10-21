@@ -1,4 +1,5 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
+import { isCustomTypedPickup } from "../lib/customPickupInput";
 import {
   CUSTOM,
   CUSTOM_ID,
@@ -165,6 +166,20 @@ export function LoadForm({
   );
   const customPickupId = lookupCustomSpecialtyIdByName(value.pickup);
   const isCustom = value.stationId === CUSTOM_ID;
+  // "Custom..." is the only choice that types a pickup. Programmed lane chips
+  // (Customers-page lanes with no station entry, e.g. Crown Point) and odd-ball
+  // chips also store stationId=CUSTOM_ID but must never show the text box.
+  const customChipSelected = isCustomTypedPickup({
+    isCustom,
+    pickup: value.pickup,
+    oddballNames: [
+      ...(customPickupId ? [value.pickup] : []),
+      ...namedOddballs.map((id) => customNames[id]),
+    ],
+    laneNames: extraLaneCustomers,
+  });
+  const [customTyping, setCustomTyping] = useState(false);
+  const showCustomPickupInput = isCustom && (customTyping || customChipSelected);
   const today = chicagoToday();
   const pickupName = pickupLabel(value.stationId, value.pickup).trim();
   const laneBookPickup = useMemo(() => {
@@ -217,6 +232,7 @@ export function LoadForm({
     return `${laneBookPickup} commodity and destination come from Customers lanes.`;
   }, [laneBookPickup]);
   const selectStation = (stationId: string) => {
+    if (stationId !== CUSTOM_ID) setCustomTyping(false);
     const pickup =
       stationId === CUSTOM_ID
         ? value.stationId === CUSTOM_ID
@@ -250,6 +266,7 @@ export function LoadForm({
     });
   };
   const selectLaneCustomer = (name: string) => {
+    setCustomTyping(false);
     const stationId = resolveStationId(name, CUSTOM_ID);
     const cascaded = routeForPickupSelect({
       stationId,
@@ -329,36 +346,29 @@ export function LoadForm({
           ) : null}
           <Chip
             label="Custom..."
-            selected={
-              isCustom &&
-              !customPickupId &&
-              !namedOddballs.some(
-                (id) =>
-                  customNames[id].toLowerCase() ===
-                  value.pickup.trim().toLowerCase(),
-              ) &&
-              !extraLaneCustomers.some(
-                (n) => n.toLowerCase() === value.pickup.trim().toLowerCase(),
-              )
-            }
-            onClick={() => selectStation(CUSTOM_ID)}
+            selected={customChipSelected}
+            onClick={() => {
+              setCustomTyping(true);
+              selectStation(CUSTOM_ID);
+            }}
           />
           {namedOddballs.map((id) => (
             <Chip
               key={id}
               label={customNames[id]}
               selected={isCustom && customPickupId === id}
-              onClick={() =>
+              onClick={() => {
+                setCustomTyping(false);
                 onChange({
                   ...value,
                   stationId: CUSTOM_ID,
                   pickup: customNames[id],
-                })
-              }
+                });
+              }}
             />
           ))}
         </div>
-        {isCustom ? (
+        {showCustomPickupInput ? (
           <input
             className="text-input"
             placeholder="Odd-ball pickup name (matches a specialty bubble)"

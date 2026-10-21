@@ -1,4 +1,5 @@
 import type { Load } from "../types";
+import { addDays } from "./chicagoDate";
 import { cleanLoggedDriverName } from "./loadDriver";
 
 /** PostgREST default max-rows is 1000; a busy tracker can exceed one page. */
@@ -116,7 +117,21 @@ export function loadToRow(
 export const LOADS_INCREMENTAL_OVERLAP_MS = 2_000;
 
 /** Rare full select(*) so deletes not seen via realtime still reconcile. */
-export const LOADS_FULL_RECONCILE_INTERVAL_MS = 30 * 60_000;
+export const LOADS_FULL_RECONCILE_INTERVAL_MS = 10 * 60_000;
+
+/**
+ * Days (today and back) that every incremental pull re-reads in full (1.1.44).
+ * Inserts keep the dispatcher's own save time as updated_at, so a load that
+ * reached the cloud late (slow upload, offline queue, PC clock behind) had an
+ * updated_at older than this browser's watermark and the 90s pulls never saw
+ * it until a full re-check - Treyling's "clear site data to see all loads".
+ */
+export const LOADS_RECENT_DAYS = 3;
+
+/** PostgREST `or` filter: changed since the watermark OR dated in the recent window. */
+export function loadsIncrementalFilter(since: string, today: string): string {
+  return `updated_at.gt."${since}",date.gte.${addDays(today, -(LOADS_RECENT_DAYS - 1))}`;
+}
 
 /**
  * Watermark for `.gt("updated_at", …)` incremental pulls. Subtracts a small

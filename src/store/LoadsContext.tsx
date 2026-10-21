@@ -8,6 +8,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { guardFullPullLoss } from "../lib/loadLossGuard";
+import {
+  loadStoreGet,
+  loadStoreSet,
+  loadStorageError,
+  loadStorageHealthy,
+  onLoadStorageChange,
+} from "../lib/loadsDb";
 import type { Load } from "../types";
 import {
   fetchAllPaged,
@@ -71,7 +79,6 @@ import {
   gcLoadDeletedIds,
   loadsForDate,
   parseDeletedIds,
-  readLastFullLoadsReconcileAt,
   readLastSuccessfulSyncAt,
   readStore,
   rememberDeletedIds,
@@ -84,7 +91,6 @@ import {
   writeStore,
   type Persisted,
 } from "../lib/storage";
-import { safeSetItem } from "../lib/localStorageSafe";
 import { useAuth } from "./AuthContext";
 
 export type SyncStatus = "local" | "live" | "syncing" | "offline" | "error";
@@ -110,6 +116,10 @@ type LoadsContextValue = {
 
 const CACHE_KEY = "chitrader.load-tracker.cloud-cache.v1";
 
+function storagePausedMessage(): string {
+  return `${loadStorageError() ?? "This computer could not save the load list."} Sync paused - nothing is uploaded or deleted. Close extra tabs and restart the app.`;
+}
+
 // How far back the loads-crew realtime subscription reaches. Loads outside
 // this window still sync fine via the periodic/on-focus refresh — they just
 // won't push live. Widen this if edits to older dates ever need to be live.
@@ -119,7 +129,7 @@ const LoadsContext = createContext<LoadsContextValue | null>(null);
 
 function readCloudCache(): Persisted {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = loadStoreGet(CACHE_KEY);
     if (!raw) return { version: 1, loadsByDate: {} };
     const parsed = JSON.parse(raw) as Persisted;
     if (parsed?.version !== 1 || typeof parsed.loadsByDate !== "object") {
@@ -134,8 +144,8 @@ function readCloudCache(): Persisted {
   }
 }
 
-function writeCloudCache(store: Persisted): void {
-  safeSetItem(CACHE_KEY, JSON.stringify(store));
+function writeCloudCache(store: Persisted): boolean {
+  return loadStoreSet(CACHE_KEY, JSON.stringify(store));
 }
 
 function bootstrapLocal(): Persisted {
@@ -167,7 +177,10 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
   const storeRef = useRef(store);
   const lastGoodRef = useRef<Persisted>(store);
   const lastSuccessfulSyncAtRef = useRef<string | null>(readLastSuccessfulSyncAt());
-  const lastFullReconcileAtRef = useRef<string | null>(readLastFullLoadsReconcileAt());
+  // First refresh after every launch is a full re-check (1.1.42): a stale
+  // on-device copy must never be patched by deltas alone.
+  const lastFullReconcileAtRef = useRef<string | null>(null);
+  const lossSuspectsRef = useRef<Map<string, number>>(new Map());
   const refreshStartedAtRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -224,7 +237,12 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
       return false;
     }
     next = reconciled;
-    writeCloudCache(next);
+    if (!writeCloudCache(next)) {
+      // Storage failing: keep the in-memory list but never advance the sync watermark.
+      storeRef.current = next;
+      setStore(next);
+      return false;
+    }
     storeRef.current = next;
     setStore(next);
     if (allLoads(next).some((load) => !load.seeded) || (next.deletedIds?.length ?? 0) > 0) {
@@ -248,6 +266,22 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
     setLastSyncError(null);
     setSyncStatus("live");
   }, []);
+
+  useEffect(
+    () =>
+      onLoadStorageChange(() => {
+        if (loadStorageHealthy()) return;
+        const message = storagePausedMessage();
+        setLastSyncError(message);
+        setSyncStatus("error");
+        try {
+          window.alert(message);
+        } catch {
+          /* no alert in this environment */
+        }
+      }),
+    [],
+  );
 
   const flushQueue = useCallback(async () => {
     const supabase = getSupabase();
@@ -483,6 +517,13 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
     refreshStartedAtRef.current = refreshStartedAt;
     const lastSuccessfulSyncAt = lastSuccessfulSyncAtRef.current;
     try {
+      if (!loadStorageHealthy()) {
+        const queued = readQueue().length;
+        const message = storagePausedMessage();
+        setLastSyncError(message);
+        applyQueueStatus(queued, true, message);
+        return;
+      }
       const fullReconcile = shouldFullReconcileLoads({
         lastSuccessfulSyncAt,
         lastFullReconcileAt: lastFullReconcileAtRef.current,
@@ -495,7 +536,8 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
         let query = supabase
           .from("loads")
           .select("*")
-          .order("updated_at", { ascending: false });
+          .order("updated_at", { ascending: false })
+          .order("id", { ascending: true });
         if (since) query = query.gt("updated_at", since);
         const page = await query.range(from, to);
         return { data: page.data as LoadRow[] | null, error: page.error };
@@ -539,6 +581,32 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
         ? mergeCloudLoads(mergeInput)
         : mergeIncrementalCloudLoads(mergeInput);
       const explicitDeletes = explicitPendingDeleteIds(pending);
+      // 1.1.46 hard guard: a full pull may not make shown loads vanish.
+      let mergedSafe = merged;
+      if (fullReconcile) {
+        const guarded = guardFullPullLoss({
+          merged,
+          device: allLoads(storeRef.current),
+          remoteIds: new Set(remote.map((row) => row.id)),
+          remoteCount: remote.length,
+          deleted: new Set([
+            ...explicitDeletes,
+            ...deletedLoadIds(pending, deviceCache, local, ...extra),
+          ]),
+          suspects: lossSuspectsRef.current,
+          now: Date.now(),
+        });
+        lossSuspectsRef.current = guarded.suspects;
+        mergedSafe = guarded.merged;
+        if (guarded.needsFullRepull) {
+          console.warn(
+            `[load-sync] full pull lacked ${guarded.kept.length} load(s) shown here (thin dates: ${guarded.thinDates.join(", ") || "-"}; complete=${guarded.trustworthy}). Kept them; re-pulling in full next cycle.`,
+          );
+        }
+        if (guarded.confirmedGone.length) {
+          console.info(`[load-sync] removed ${guarded.confirmedGone.length} load(s) confirmed gone by two full pulls`);
+        }
+      }
       const durableOnRemote = deletedLoadIds(pending, deviceCache, local, ...extra);
       const refreshCandidates = remote
         .map((row) => row.id)
@@ -560,7 +628,7 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
         local,
         explicitDeletes,
       );
-      const persisted = persistCloudCache(snapshotFromLoads(merged, keptTombstones));
+      const persisted = persistCloudCache(snapshotFromLoads(mergedSafe, keptTombstones));
       if (persisted) {
         // Advance watermark even on empty incremental pulls so the next
         // cycle stays cheap; full reconcile still requires a successful persist.
@@ -568,7 +636,8 @@ export function LoadsProvider({ children }: { children: ReactNode }) {
         lastSuccessfulSyncAtRef.current = refreshStartedAt;
         if (fullReconcile) {
           writeLastFullLoadsReconcileAt(refreshStartedAt);
-          lastFullReconcileAtRef.current = refreshStartedAt;
+          // Outstanding suspects: next cycle is another full pull.
+          lastFullReconcileAtRef.current = lossSuspectsRef.current.size ? null : refreshStartedAt;
         }
       }
       // Never rewrite the outbound queue while a flush holds opIds in flight.

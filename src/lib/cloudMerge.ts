@@ -182,9 +182,6 @@ function isoAtOrAfter(value: string, watermark: string): boolean {
   return value >= watermark;
 }
 
-function isoAfter(value: string, watermark: string): boolean {
-  return value > watermark;
-}
 
 export type ProtectLoadOpts = {
   pending: QueueOp[];
@@ -207,9 +204,9 @@ export function isProtectedDeviceLoad(load: Load, opts: ProtectLoadOpts): boolea
   if (opts.refreshStartedAt && isoAtOrAfter(load.updatedAt, opts.refreshStartedAt)) {
     return true;
   }
-  if (opts.lastSuccessfulSyncAt && isoAfter(load.updatedAt, opts.lastSuccessfulSyncAt)) {
-    return true;
-  }
+  // 1.1.42: no "edited after last sync" rule. A stale watermark (storage full
+  // for days) made old deleted loads look fresh and they were re-inserted.
+  // Real saves are always in the outbound queue (pending above).
   return false;
 }
 
@@ -577,7 +574,11 @@ export function mergeCloudLoads(input: CloudMergeInput): CloudMergeResult {
         deleted,
       );
     }
-    const toUpsert = restored.filter((load) => !deleted.has(load.id) && !load.seeded);
+    // Empty remote: never re-upload the device copy; only the explicit queue.
+    const pendingOnly = new Set(pendingUpserts.map((load) => load.id));
+    const toUpsert = restored.filter(
+      (load) => pendingOnly.has(load.id) && !deleted.has(load.id) && !load.seeded,
+    );
     return { merged: sortLoads(restored), toUpsert, toDelete: [], toTombstone: [] };
   }
 
@@ -657,7 +658,8 @@ export function mergeCloudLoads(input: CloudMergeInput): CloudMergeResult {
     if (durableTombstones.has(load.id) && !remoteById.has(load.id)) return false;
     const remote = remoteById.get(load.id);
     if (!remote) {
-      return pendingIds.has(load.id) || isProtectedDeviceLoad(load, protectOpts);
+      // Uploads come only from the explicit outbound queue (1.1.42).
+      return pendingIds.has(load.id);
     }
     return isIsoAfter(load.updatedAt, remote.updatedAt);
   });

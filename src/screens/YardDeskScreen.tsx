@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { dailyCounts } from "../lib/analytics";
@@ -16,6 +16,15 @@ import {
 } from "../lib/chicagoDate";
 import { notesButtonAriaLabel, notesButtonClassName } from "../lib/dayNotes";
 import { readCheckedLoadIds, toggleCheckedLoad } from "../lib/loadCheckoff";
+import {
+  CHECKOFF_POLL_MS,
+  getCheckoffStore,
+  isEvanstonPickup,
+  subscribeCheckoffs,
+  syncEvanstonCheckoffs,
+  toggleEvanstonCheckoff,
+} from "../lib/evanstonCheckoff";
+import { useAuth } from "../store/AuthContext";
 import {
   endOfDayCards,
   endOfDaySummary,
@@ -538,6 +547,15 @@ function RankLoads({
   onPick?: (id: string) => void;
 }) {
   const [checkedIds, setCheckedIds] = useState(() => readCheckedLoadIds());
+  const { displayName: myName } = useAuth();
+  const shared = useSyncExternalStore(subscribeCheckoffs, getCheckoffStore, getCheckoffStore);
+  const hasEvanston = checkoff && loads.some((load) => isEvanstonPickup(load.pickup, load.stationId));
+  useEffect(() => {
+    if (!hasEvanston) return;
+    void syncEvanstonCheckoffs();
+    const id = window.setInterval(() => void syncEvanstonCheckoffs(), CHECKOFF_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [hasEvanston]);
 
   if (loads.length === 0) {
     return <p className="yard-empty">No loads in this group.</p>;
@@ -548,7 +566,14 @@ function RankLoads({
         <p className="yard-empty">Shade turns the load darker gray. A second click clears it.</p>
       ) : null}
       {loads.map((load) => {
-        const checked = checkoff && checkedIds.has(load.id);
+        const evanston = checkoff && isEvanstonPickup(load.pickup, load.stationId);
+        const sharedEntry = evanston ? shared[load.id] : undefined;
+        // Evanston: shared across desks; falls back to this desk's old local shade until first click.
+        const checked = checkoff && (sharedEntry ? sharedEntry.checked : checkedIds.has(load.id));
+        const checkedTitle =
+          sharedEntry?.checked && sharedEntry.checkedAt
+            ? `Checked ${formatCreatedStamp(sharedEntry.checkedAt)}${sharedEntry.checkedBy ? ` by ${sharedEntry.checkedBy}` : ""}`
+            : undefined;
         const loggedAt = checkoff ? formatCreatedStamp(load.createdAt) : "";
         return (
           <div key={load.id} className={checked ? "yard-line is-checked" : "yard-line"}>
@@ -558,7 +583,9 @@ function RankLoads({
               aria-pressed={checkoff ? checked : undefined}
               onClick={
                 checkoff
-                  ? () => setCheckedIds(toggleCheckedLoad(load.id))
+                  ? evanston
+                    ? () => toggleEvanstonCheckoff(load.id, checked, myName || null)
+                    : () => setCheckedIds(toggleCheckedLoad(load.id))
                   : () => onEdit(load.id)
               }
             >
@@ -572,7 +599,11 @@ function RankLoads({
               ) : (
                 <span className="yard-line-kind">{load.commodity}</span>
               )}
-              {checked ? <em className="yard-line-mark">Checked</em> : null}
+              {checked ? (
+                <em className="yard-line-mark" title={checkedTitle}>
+                  Checked
+                </em>
+              ) : null}
               {checkoff && loggedAt ? (
                 <time className="yard-line-time" dateTime={load.createdAt}>
                   {loggedAt}
