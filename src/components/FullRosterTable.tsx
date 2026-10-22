@@ -463,6 +463,14 @@ function FullRosterRow({
         </td>
         <td className="drv-tbl-c-pay" data-label="Week $">
           {formatPayCents(week.totalCents)}
+          {week.assumedTier1 && week.loadCount > 0 ? (
+            <span
+              className="drv-pay-hint"
+              title="No start date on file - pay shown at Tier 1. Add the start date for the right tier."
+            >
+              {" "}T1?
+            </span>
+          ) : null}
         </td>
         <td className="drv-tbl-c-act">
           <button

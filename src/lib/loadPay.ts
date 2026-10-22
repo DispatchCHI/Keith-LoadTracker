@@ -36,6 +36,8 @@ export type WeekPay = {
   days: DayPay[];
   totalCents: number;
   loadCount: number;
+  /** No start date on the roster: pay shown at Tier 1. */
+  assumedTier1?: boolean;
 };
 
 export function formatPayCents(cents: number): string {
@@ -49,7 +51,9 @@ export function payForLoad(
   lanes: CustomerLaneStore,
   hireDate: string | null,
 ): LoadPayHit | null {
-  const tier = payTierFromHireDate(hireDate, load.date);
+  // 1.1.48: no start date on the roster = pay at Tier 1 (UI hints the date is
+  // missing) instead of silently $0.
+  const tier = hireDate?.trim() ? payTierFromHireDate(hireDate, load.date) : 1;
   if (!tier) return null;
   const lane = rateForLoad(lanes, load.pickup, load.destination, load.commodity, load.date);
   if (!lane) return null;
@@ -136,6 +140,7 @@ export function weekPayForDriver(opts: {
   }
 
   return {
+    assumedTier1: !opts.hireDate?.trim(),
     weekStart: week[0],
     days,
     totalCents: days.reduce((sum, day) => sum + day.cents, 0),
