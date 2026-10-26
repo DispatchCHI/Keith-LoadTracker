@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { CommodityTag } from "../components/CommodityTag";
 import { DayPicker } from "../components/DayPicker";
+import { TimeOffEditRow, type TimeOffPatch } from "../components/TimeOffEditRow";
 import { LoadCreatorBadge, LoadEditedMark, LoadRow } from "../components/LoadRow";
 import { chicagoToday, formatShortDate, yearOfISO } from "../lib/chicagoDate";
 import {
   driverTimeOffRows,
-  formatTimeOffDays,
-  formatTimeOffWhen,
+  type DriverTimeOffRow,
   loadsForDriverName,
   loadsMatchingDriverQuery,
   searchFullRosterDrivers,
@@ -43,8 +43,8 @@ export function SearchScreen({
   const year = yearOfISO(today);
   const { loads, loadsOn } = useLoads();
   const { store: roster } = useDriverRoster();
-  const { rows: callOffRows } = useCallOffLog();
-  const { manualOffs } = useDrivers();
+  const { rows: callOffRows, addRow, editRow, removeRow } = useCallOffLog();
+  const { manualOffs, removeManualOff } = useDrivers();
   const vacation = useVacation();
   const [digits, setDigits] = useState("");
   const [nameQuery, setNameQuery] = useState("");
@@ -78,6 +78,34 @@ export function SearchScreen({
         : [],
     [selected, year, callOffRows, manualOffs, vacation.store],
   );
+
+  // 1.1.49: edit / delete a Time off row. Each source keeps its own sync path
+  // (call-off log, Today manual offs, vacation board) so deletes tombstone and
+  // propagate instead of resurrecting.
+  const deleteTimeOff = async (row: DriverTimeOffRow) => {
+    if (row.id.startsWith("vac:")) {
+      await vacation.removeDriver(row.id.slice(4));
+    } else if (row.id.startsWith("man:")) {
+      if (selected) await removeManualOff(row.start, selected.name);
+    } else {
+      await removeRow(row.id);
+    }
+  };
+  const saveTimeOff = async (row: DriverTimeOffRow, patch: TimeOffPatch) => {
+    if (!selected) return;
+    const end = patch.end === patch.start ? null : patch.end;
+    if (row.id.startsWith("vac:") && patch.reason === "Vacation") {
+      await vacation.editDriver(row.id.slice(4), { startOn: patch.start, endOn: patch.end });
+      return;
+    }
+    if (!row.id.startsWith("vac:") && !row.id.startsWith("man:")) {
+      await editRow(row.id, { start: patch.start, end, reason: patch.reason });
+      return;
+    }
+    // Vacation -> other reason, or a single-day Today mark: move it to the call-off log.
+    const added = await addRow({ name: selected.name, start: patch.start, end, reason: patch.reason });
+    if (added) await deleteTimeOff(row);
+  };
   const recentLoads = useMemo(
     () => (selected ? loadsForDriverName(loads, selected.name) : []),
     [loads, selected],
@@ -307,19 +335,18 @@ export function SearchScreen({
                       <th>When</th>
                       <th>Reason</th>
                       <th>Days</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {timeOff.map((row) => (
-                      <tr key={row.id}>
-                        <td>{formatTimeOffWhen(row.start, row.end)}</td>
-                        <td>
-                          <span className={`tag calloff-chip calloff-chip-${row.kind}`}>
-                            {row.reason}
-                          </span>
-                        </td>
-                        <td>{formatTimeOffDays(row.start, row.end, today)}</td>
-                      </tr>
+                      <TimeOffEditRow
+                        key={row.id}
+                        row={row}
+                        today={today}
+                        onSave={(patch) => saveTimeOff(row, patch)}
+                        onDelete={() => deleteTimeOff(row)}
+                      />
                     ))}
                   </tbody>
                 </table>

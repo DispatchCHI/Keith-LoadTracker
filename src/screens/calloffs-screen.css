@@ -458,3 +458,8 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* 1.1.49 driver file Time off edit row */
+.timeoff-edit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.timeoff-edit .text-input { width: auto; }
+.search-table .calloffs-actions { white-space: nowrap; text-align: right; }
