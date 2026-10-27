@@ -41,6 +41,7 @@ import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useLoads } from "../store/LoadsContext";
 import { parseTruckList } from "../lib/truck";
 import { Chip } from "./Chip";
+import { pickupChipStyle, sortPickupsTodayOrder } from "../lib/pickupChipOrder";
 
 const CUSTOM_SPECIALTY_COMMODITIES: Record<string, string> = {
   Leachate: "Leachate (tanker)",
@@ -130,7 +131,11 @@ export function LoadForm({
     [laneCustomers],
   );
   const rankedPickups = useMemo(
-    () => rankPickupChoices(laneStations, extraLaneCustomers, loads),
+    () =>
+      sortPickupsTodayOrder(
+        rankPickupChoices(laneStations, extraLaneCustomers, loads),
+        (c) => (c.kind === "station" ? c.station.name : c.name),
+      ),
     [laneStations, extraLaneCustomers, loads],
   );
   const visibleCount = Math.min(
@@ -322,6 +327,7 @@ export function LoadForm({
               <Chip
                 key={choice.station.id}
                 label={choice.station.name}
+                tone={pickupChipStyle(choice.station.name)}
                 selected={value.stationId === choice.station.id}
                 onClick={() => selectStation(choice.station.id)}
               />
@@ -329,6 +335,7 @@ export function LoadForm({
               <Chip
                 key={`lane-${choice.name}`}
                 label={choice.name}
+                tone={pickupChipStyle(choice.name)}
                 selected={
                   isCustom &&
                   value.pickup.trim().toLowerCase() === choice.name.toLowerCase()
