@@ -136,7 +136,7 @@ export function LogLoadScreen({
       ),
     [rosterStore],
   );
-  // Client-side only: this driver's recent lanes from loads already in memory.
+  // Client-side only: this driver's lanes from every synced load, last few working days first.
   const laneSuggestions = useMemo(
     () =>
       suggestLanesForDriver({
@@ -400,7 +400,7 @@ export function LogLoadScreen({
               key={lane.key}
               type="button"
               className={lane.closed ? "chip chip-muted log-load-suggest-chip" : "chip log-load-suggest-chip"}
-              title={`${lane.pickup} → ${lane.destination} · ${lane.commodity} · ${lane.count} load${lane.count === 1 ? "" : "s"} in 45 days${lane.closed ? " · nothing open today" : ""}`}
+              title={`${lane.pickup} → ${lane.destination} · ${lane.commodity} · ${lane.count} load${lane.count === 1 ? "" : "s"} in 30 days${lane.recent ? " · recent" : ""}${lane.closed ? " · nothing open today" : ""}`}
               onClick={() =>
                 setForm((prev) => ({
                   ...prev,
