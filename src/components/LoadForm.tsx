@@ -3,7 +3,6 @@ import { isCustomTypedPickup } from "../lib/customPickupInput";
 import {
   CUSTOM,
   CUSTOM_ID,
-  FREQUENT_STATION_IDS,
   STATIONS,
   commoditiesFor,
   destinationsFor,
@@ -41,7 +40,7 @@ import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useLoads } from "../store/LoadsContext";
 import { parseTruckList } from "../lib/truck";
 import { Chip } from "./Chip";
-import { pickupChipStyle, sortPickupsTodayOrder } from "../lib/pickupChipOrder";
+import { collapsePickupGrid, layoutPickupGrid, pickupChipStyle } from "../lib/pickupChipOrder";
 
 const CUSTOM_SPECIALTY_COMMODITIES: Record<string, string> = {
   Leachate: "Leachate (tanker)",
@@ -131,37 +130,32 @@ export function LoadForm({
     [laneCustomers],
   );
   const rankedPickups = useMemo(
-    () =>
-      sortPickupsTodayOrder(
-        rankPickupChoices(laneStations, extraLaneCustomers, loads),
-        (c) => (c.kind === "station" ? c.station.name : c.name),
-      ),
+    () => rankPickupChoices(laneStations, extraLaneCustomers, loads),
     [laneStations, extraLaneCustomers, loads],
   );
-  const visibleCount = Math.min(
-    Math.max(FREQUENT_STATION_IDS.length, 12),
-    rankedPickups.length,
-  );
-  const rest = rankedPickups.slice(visibleCount);
+  const pickupName0 = (c: (typeof rankedPickups)[number]) =>
+    c.kind === "station" ? c.station.name : c.name;
+  const gridCols = useMemo(() => layoutPickupGrid(rankedPickups, pickupName0), [rankedPickups]);
+  const collapsedCols = useMemo(() => collapsePickupGrid(gridCols), [gridCols]);
+  const shownCount = collapsedCols.reduce((n, col) => n + col.length, 0);
+  const totalCount = gridCols.reduce((n, col) => n + col.length, 0);
+  const restCount = totalCount - shownCount;
   const [showAllStations, setShowAllStations] = useState(() => {
+    const collapsed = collapsedCols.flat();
     if (!value.stationId || value.stationId === CUSTOM_ID) {
       if (!value.pickup.trim()) return false;
-      return !rankedPickups.slice(0, visibleCount).some(
+      return !collapsed.some(
         (choice) =>
           choice.kind === "lane" &&
           choice.name.toLowerCase() === value.pickup.trim().toLowerCase(),
       );
     }
-    return !rankedPickups
-      .slice(0, visibleCount)
-      .some(
-        (choice) =>
-          choice.kind === "station" && choice.station.id === value.stationId,
-      );
+    return !collapsed.some(
+      (choice) => choice.kind === "station" && choice.station.id === value.stationId,
+    );
   });
-  const visiblePickups = showAllStations
-    ? rankedPickups
-    : rankedPickups.slice(0, visibleCount);
+  const gridShown = showAllStations || restCount === 0 ? gridCols : collapsedCols;
+
   const customNames = readCustomSpecialtyNames();
   const boardDate = logDate || chicagoToday();
   const namedOddballs = useSyncExternalStore(
@@ -322,36 +316,40 @@ export function LoadForm({
       <section className="field">
         <div className="field-label">Pickup</div>
         <div className="chip-row">
-          {visiblePickups.map((choice) =>
-            choice.kind === "station" ? (
-              <Chip
-                key={choice.station.id}
-                label={choice.station.name}
-                tone={pickupChipStyle(choice.station.name)}
-                selected={value.stationId === choice.station.id}
-                onClick={() => selectStation(choice.station.id)}
-              />
-            ) : (
-              <Chip
-                key={`lane-${choice.name}`}
-                label={choice.name}
-                tone={pickupChipStyle(choice.name)}
-                selected={
-                  isCustom &&
-                  value.pickup.trim().toLowerCase() === choice.name.toLowerCase()
-                }
-                onClick={() => selectLaneCustomer(choice.name)}
-              />
-            ),
-          )}
-          {!showAllStations && rest.length > 0 ? (
+          <div className="pickup-grid">
+            {gridShown.map((col, colIndex) => (
+              <div key={colIndex} className="pickup-col">
+                {col.map((choice) =>
+                  choice.kind === "station" ? (
+                    <Chip
+                      key={choice.station.id}
+                      label={choice.station.name}
+                      tone={pickupChipStyle(choice.station.name)}
+                      selected={value.stationId === choice.station.id}
+                      onClick={() => selectStation(choice.station.id)}
+                    />
+                  ) : (
+                    <Chip
+                      key={`lane-${choice.name}`}
+                      label={choice.name}
+                      tone={pickupChipStyle(choice.name)}
+                      selected={
+                        isCustom &&
+                        value.pickup.trim().toLowerCase() === choice.name.toLowerCase()
+                      }
+                      onClick={() => selectLaneCustomer(choice.name)}
+                    />
+                  ),
+                )}
+              </div>
+            ))}
+          </div>          {!showAllStations && restCount > 0 ? (
             <Chip
-              label={`+ ${rest.length} more`}
+              label={`+ ${restCount} more`}
               muted
               onClick={() => setShowAllStations(true)}
             />
-          ) : null}
-          <Chip
+          ) : null}          <Chip
             label="Custom..."
             selected={customChipSelected}
             onClick={() => {

@@ -6693,3 +6693,49 @@ body.app-ready .splash {
 .load-creator { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 16px; padding: 0 4px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 0.02em; line-height: 1; flex: 0 0 auto; align-self: center; margin: 0 4px; cursor: default; }
 
 .drv-pay-hint { font-size: 0.7em; opacity: 0.65; font-weight: 600; cursor: help; }
+
+/* 1.1.51 Log Load pickup chips: 4 fixed columns, each filled top to bottom. */
+.log-load-sheet .pickup-grid {
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  column-gap: 6px;
+  justify-content: start;
+  align-items: start;
+  max-width: 100%;
+}
+
+.log-load-sheet .pickup-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.log-load-sheet .pickup-grid .chip {
+  max-width: 100%;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+/* Tight cards: shrink type slightly so all 4 columns stay usable. */
+@media (max-width: 560px) {
+  .log-load-sheet .pickup-grid {
+    grid-template-columns: repeat(4, minmax(0, max-content));
+    column-gap: 4px;
+  }
+  .log-load-sheet .pickup-grid .chip {
+    font-size: 12px;
+    padding: 4px 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 400px) {
+  .log-load-sheet .pickup-grid .chip {
+    font-size: 11px;
+    padding: 4px 5px;
+  }
+}
