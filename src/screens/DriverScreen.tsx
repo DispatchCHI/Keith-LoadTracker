@@ -44,6 +44,9 @@ import { useDrivers } from "../store/DriversContext";
 import { useLoads } from "../store/LoadsContext";
 import { useVacation } from "../store/VacationContext";
 import { useSatWorklistSettings } from "../hooks/useSatWorklistSettings";
+import { useSatSignups } from "../hooks/useSatSignups";
+import { matchSatSignups } from "../lib/satSignups";
+import { OWNER_INK, pillToneFromInk } from "../lib/specialtyPillTone";
 import { printHtmlDocument } from "../lib/printHtml";
 import {
   WORKLIST_PREFIXES,
@@ -422,6 +425,13 @@ export function DriverScreen() {
   const fullCount = rosterEntryCount(store, "full", yard);
   const satMatchesFull = kind === "sat" && satRosterMatchesFull(store, yard);
   const satRows = satRosterRowCount(entries.length, satCols);
+  // Display only: green names for sheet sign-ups on this Planning Saturday.
+  const { signups: satSignups } = useSatSignups(!onGone && kind === "sat");
+  const signupMatch = useMemo(() => {
+    if (kind !== "sat") return null;
+    return matchSatSignups(satSignups, planningSaturday, entries, Object.values(store.entries));
+  }, [kind, satSignups, planningSaturday, entries, store.entries]);
+  const signupTone = useMemo(() => pillToneFromInk(OWNER_INK.wm), []);
   // Every Full Roster name (all yards): one logged name -> one driver.
   const resolveRosterName = useMemo(
     () =>
@@ -1054,7 +1064,17 @@ export function DriverScreen() {
                 </div>
                 <div className="drv-sat-cell-body">
                   <span className="drv-sat-emp">{entry.truckNumber ?? "—"}</span>
-                  <span className="drv-sat-cell-name">{entry.name}</span>
+                  {signupMatch?.signedUpIds.has(entry.id) ? (
+                    <span
+                      className="drv-sat-cell-name drv-sat-signed-up"
+                      title="Signed up for this Saturday"
+                      style={{ background: signupTone.background, color: signupTone.color, borderColor: signupTone.border }}
+                    >
+                      {entry.name}
+                    </span>
+                  ) : (
+                    <span className="drv-sat-cell-name">{entry.name}</span>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -1072,6 +1092,12 @@ export function DriverScreen() {
               );
             })}
           </div>
+          {signupMatch && signupMatch.unmatched.length ? (
+            <p className="drv-sat-unmatched" aria-label="Signed up, not matched">
+              <b>Signed up, not matched:</b>{" "}
+              {signupMatch.unmatched.map((s) => (s.number ? `${s.number} ${s.name}`.trim() : s.name)).join(" · ")}
+            </p>
+          ) : null}
           <button type="button" className="vac-add-link drv-sat-add" onClick={() => setAdding(true)}>
             + Add
           </button>

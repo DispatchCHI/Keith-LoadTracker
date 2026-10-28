@@ -4,6 +4,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const SKIP_DIRS = new Set(["node_modules", "target", "gen", "dist"]);
+/**
+ * 1.1.53 exception, requested by Keith: the Sat Roster reads his public Saturday
+ * sign-up Google Form sheet (display only). This is the only file allowed to
+ * name docs.google.com.
+ */
+const SIGNUP_SHEET_FILE = join("src", "lib", "satSignups.ts");
 const SCAN_EXT = new Set([
   ".ts",
   ".tsx",
@@ -43,6 +49,7 @@ describe("no Google Sheets in the app", () => {
     files.push(join(root, "README.md"));
     const hits: string[] = [];
     for (const file of files) {
+      if (file.endsWith(SIGNUP_SHEET_FILE)) continue;
       const text = readFileSync(file, "utf8");
       if (/docs\.google\.com|spreadsheets\.google\.com|1mdNWIsz7LZauHCccQBB7QzjR-Wo9pukGn8HrmODnPpw|1azaww09ttC1p571RzB_NDkeBqAFkRBhpTboODpk4z40/i.test(text)) {
         hits.push(file.replace(root, ""));
