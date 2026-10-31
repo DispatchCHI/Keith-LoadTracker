@@ -1,4 +1,4 @@
-﻿import {
+import {
   createContext,
   useCallback,
   useContext,
@@ -155,7 +155,9 @@ function entryToRow(
     // Non-null units always sync. JSON null clears the column — but only when
     // the caller opts in (dispatcher clear or duplicate-truck resolution).
     // Omitting the key on status/hire/reorder upserts leaves the saved unit.
-    assigned_truck: entry.assignedTruck ?? null,
+    // Explicit clear writes "" (not NULL) so other desks can tell a dispatcher
+    // clear from an older build that re-saved the row with a NULL unit (1.1.54).
+    assigned_truck: entry.assignedTruck ?? (opts?.clearAssignedTruck ? "" : null),
     name: entry.name,
     status: entry.status,
     hire_date: entry.hireDate,
@@ -166,7 +168,7 @@ function entryToRow(
     updated_at: entry.updatedAt,
     created_by: userId,
   };
-  if (row.assigned_truck == null && !opts?.clearAssignedTruck) {
+  if (row.assigned_truck == null) {
     delete row.assigned_truck;
   }
   return row;
@@ -251,6 +253,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
   const pullRemote = useCallback(async (): Promise<{
     store: DriverRosterStore;
     assignedTruckKnown: boolean;
+    clearedIds: Set<string>;
   } | null> => {
     const supabase = getSupabase();
     if (!supabase || !session) return null;
@@ -287,7 +290,11 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       console.warn("driver_roster_entries pull failed", pagedErrorMessage(page.error));
       return null;
     }
-    return { store: rowsToStore(page.data), assignedTruckKnown };
+    const clearedIds = new Set<string>();
+    for (const row of page.data) {
+      if (row.assigned_truck === "") clearedIds.add(row.id);
+    }
+    return { store: rowsToStore(page.data), assignedTruckKnown, clearedIds };
   }, [session]);
 
   const rpcMissingUntilRef = useRef(0);
@@ -492,6 +499,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         remote,
         reconciled: result.next,
         assignedTruckKnown: pulled.assignedTruckKnown,
+        clearedIds: pulled.clearedIds,
       });
       const next = preservePhones(
         prior,

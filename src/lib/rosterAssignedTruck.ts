@@ -21,6 +21,21 @@ function personKey(row: DriverRosterEntry): string {
   return `${row.kind}:${row.yard}:${emp || name}`;
 }
 
+/**
+ * Is a blank `assigned_truck` on this id a real dispatcher clear?
+ * 1.1.54: when the pull reports `clearedIds` (rows whose column holds the
+ * explicit clear marker ""), only those ids count. A plain NULL can come from
+ * an older build that re-saved the row (status / hire date / reorder) and must
+ * never wipe a unit the dispatcher typed.
+ */
+function blankAuthority(
+  opts: { blankIsAuthoritative?: boolean; clearedIds?: ReadonlySet<string> } | undefined,
+  id: string,
+): boolean {
+  if (opts?.blankIsAuthoritative !== true) return false;
+  return opts.clearedIds ? opts.clearedIds.has(id) : true;
+}
+
 function previousAssignedTruck(
   previous: DriverRosterStore,
   id: string,
@@ -67,14 +82,14 @@ export function mergeAssignedTruckFields(
   local: DriverRosterStore,
   remote: DriverRosterStore,
   reconciled: DriverRosterStore,
-  opts?: { blankIsAuthoritative?: boolean },
+  opts?: { blankIsAuthoritative?: boolean; clearedIds?: ReadonlySet<string> },
 ): DriverRosterStore {
-  const blankIsAuthoritative = opts?.blankIsAuthoritative === true;
   const entries: Record<string, DriverRosterEntry> = { ...reconciled.entries };
   for (const [id, row] of Object.entries(entries)) {
     if (row.kind !== "full") continue;
     if (cleanAssignedTruck(row.assignedTruck)) continue;
 
+    const blankIsAuthoritative = blankAuthority(opts, id);
     const localRow = local.entries[id];
     const remoteRow = remote.entries[id];
     const localTruck = cleanAssignedTruck(localRow?.assignedTruck ?? null);
@@ -112,14 +127,13 @@ export function mergeAssignedTruckFields(
 export function preserveAssignedTrucks(
   previous: DriverRosterStore,
   incoming: DriverRosterStore,
-  opts?: { blankIsAuthoritative?: boolean },
+  opts?: { blankIsAuthoritative?: boolean; clearedIds?: ReadonlySet<string> },
 ): DriverRosterStore {
-  const blankIsAuthoritative = opts?.blankIsAuthoritative === true;
   const entries: Record<string, DriverRosterEntry> = { ...incoming.entries };
   for (const [id, row] of Object.entries(entries)) {
     if (row.kind !== "full") continue;
     if (cleanAssignedTruck(row.assignedTruck)) continue;
-    const kept = previousAssignedTruck(previous, id, row, blankIsAuthoritative);
+    const kept = previousAssignedTruck(previous, id, row, blankAuthority(opts, id));
     if (!kept) continue;
     entries[id] = { ...row, assignedTruck: kept };
   }
@@ -150,6 +164,7 @@ export function preserveTruckNumbers(
 export function assignedTrucksNeedingUpload(
   store: DriverRosterStore,
   remote: DriverRosterStore,
+  opts?: { blankIsAuthoritative?: boolean; clearedIds?: ReadonlySet<string> },
 ): DriverRosterEntry[] {
   const out: DriverRosterEntry[] = [];
   for (const row of Object.values(store.entries)) {
@@ -159,7 +174,10 @@ export function assignedTrucksNeedingUpload(
     const remoteTruck = cleanAssignedTruck(remoteRow?.assignedTruck ?? null);
     if (localTruck === remoteTruck) continue;
     if (!localTruck) continue;
-    if (!remoteTruck && remoteRow && isIsoAfter(remoteRow.updatedAt, row.updatedAt)) continue;
+    // A newer cloud blank only wins when it is a real clear. Without clearedIds
+    // (legacy callers) every newer blank counts, as before.
+    const cloudClear = opts?.clearedIds ? blankAuthority(opts, row.id) : true;
+    if (cloudClear && !remoteTruck && remoteRow && isIsoAfter(remoteRow.updatedAt, row.updatedAt)) continue;
     out.push(row);
   }
   return out;
@@ -220,12 +238,16 @@ export function syncAssignedTrucks(input: {
   remote: DriverRosterStore;
   reconciled: DriverRosterStore;
   assignedTruckKnown: boolean;
+  /** Ids whose cloud column holds the explicit clear marker (""). See blankAuthority. */
+  clearedIds?: ReadonlySet<string>;
   at?: string;
 }): { store: DriverRosterStore; toUpload: DriverRosterEntry[]; clearIds: string[] } {
   const merged = mergeAssignedTruckFields(input.local, input.remote, input.reconciled, {
     blankIsAuthoritative: input.assignedTruckKnown,
+    clearedIds: input.clearedIds,
   });
   const preserved = preserveAssignedTrucks(input.local, merged, {
+    clearedIds: input.clearedIds,
     // After field merge, a remaining blank is either a real cloud clear or
     // never had a unit. Do not resurrect from a stale same-id local blank
     // bump — person-key fallback still heals id changes when cloud omitted
@@ -242,7 +264,10 @@ export function syncAssignedTrucks(input: {
     toUpload.push(row);
     if (asClear || !cleanAssignedTruck(row.assignedTruck)) clearIds.push(row.id);
   };
-  for (const row of assignedTrucksNeedingUpload(resolved.store, input.remote)) {
+  for (const row of assignedTrucksNeedingUpload(resolved.store, input.remote, {
+    blankIsAuthoritative: input.assignedTruckKnown,
+    clearedIds: input.clearedIds,
+  })) {
     push(resolved.store.entries[row.id] ?? row, false);
   }
   for (const row of resolved.cleared) {

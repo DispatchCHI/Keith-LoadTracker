@@ -204,9 +204,10 @@ describe("syncAssignedTrucks", () => {
 });
 
 describe("roster truck cloud wiring", () => {
-  it("sends JSON null only when clearing and does not prune Gone names", () => {
+  it("sends the explicit clear marker only when clearing and does not prune Gone names", () => {
     const src = readFileSync(new URL("../store/DriverRosterContext.tsx", import.meta.url), "utf8");
-    expect(src).toContain("assigned_truck: entry.assignedTruck ?? null");
+    expect(src).toContain('assigned_truck: entry.assignedTruck ?? (opts?.clearAssignedTruck ? "" : null)');
+    expect(src).toContain("clearedIds");
     expect(src).toContain("clearAssignedTruckIds");
     expect(src).toContain("delete row.assigned_truck");
     expect(src).toContain("syncAssignedTrucks");
@@ -269,5 +270,51 @@ describe("resolveDuplicateAssignedTrucks", () => {
     const resolved = resolveDuplicateAssignedTrucks(store, "2099-01-01T00:00:00.000Z");
     expect(resolved.cleared).toEqual([]);
     expect(resolved.store).toBe(store);
+  });
+});
+
+describe("1.1.54 a NULL unit from an older build never wipes a typed truck", () => {
+  // David Perez (rehire): Rockford, emp 20356, truck typed by Keith.
+  const base = () => {
+    const store = addRosterEntry(emptyDriverRosterStore(), {
+      kind: "full",
+      yard: "rockford",
+      truckNumber: "20356",
+      assignedTruck: "2476",
+      name: "David Perez",
+    }).store;
+    return { store, id: Object.keys(store.entries)[0]! };
+  };
+  const blankedRemote = (store: ReturnType<typeof base>["store"], id: string) => ({
+    entries: { [id]: { ...store.entries[id]!, assignedTruck: null, updatedAt: "2099-01-01T00:00:00.000Z" } },
+  });
+
+  it("keeps the truck and re-uploads it when cloud shows a newer plain NULL", () => {
+    const { store, id } = base();
+    const remote = blankedRemote(store, id);
+    const synced = syncAssignedTrucks({
+      local: store,
+      remote,
+      reconciled: remote,
+      assignedTruckKnown: true,
+      clearedIds: new Set(),
+    });
+    expect(synced.store.entries[id]?.assignedTruck).toBe("2476");
+    expect(synced.toUpload.map((row) => row.id)).toEqual([id]);
+    expect(synced.clearIds).toEqual([]);
+  });
+
+  it("still honors a real clear (cloud holds the explicit marker)", () => {
+    const { store, id } = base();
+    const remote = blankedRemote(store, id);
+    const synced = syncAssignedTrucks({
+      local: store,
+      remote,
+      reconciled: remote,
+      assignedTruckKnown: true,
+      clearedIds: new Set([id]),
+    });
+    expect(synced.store.entries[id]?.assignedTruck).toBeNull();
+    expect(synced.toUpload).toEqual([]);
   });
 });
