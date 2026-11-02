@@ -1,6 +1,6 @@
 import type { Load } from "../types";
 import type { RankRow } from "./totals";
-import { startOfYear, yearOfISO } from "./chicagoDate";
+import { addDays, startOfYear, weekStartingSunday, yearOfISO } from "./chicagoDate";
 
 export type DailyCount = {
   date: string;
@@ -110,4 +110,61 @@ export function pickupPieSlices(rows: RankRow[]): PieSlice[] {
     pct: percents[i],
     color: PIE_COLORS[i % PIE_COLORS.length],
   }));
+}
+
+/** Fewest weeks the Analytics list shows, even when the year is young. */
+export const MIN_WEEKS_SHOWN = 6;
+
+/**
+ * Sunday-start weeks for the Analytics list, newest first. Runs from the
+ * current week back to the earliest week that holds a load dated in the
+ * current year (never before the week that contains Jan 1), and always at
+ * least `minWeeks` rows. Weeks in between with no loads stay in the list as 0.
+ */
+export function analyticsWeeks(
+  loadDates: Iterable<string>,
+  today: string,
+  minWeeks = MIN_WEEKS_SHOWN,
+): string[][] {
+  const yearStart = startOfYear(today);
+  const currentStart = weekStartingSunday(today)[0];
+  const firstWeekStart = weekStartingSunday(yearStart)[0];
+  let earliest = "";
+  for (const date of loadDates) {
+    if (date < yearStart || date > today) continue;
+    if (earliest === "" || date < earliest) earliest = date;
+  }
+  let startSunday = earliest === "" ? currentStart : weekStartingSunday(earliest)[0];
+  if (startSunday < firstWeekStart) startSunday = firstWeekStart;
+  const weeks: string[][] = [];
+  for (let sunday = currentStart; sunday >= startSunday; sunday = addDays(sunday, -7)) {
+    weeks.push(weekStartingSunday(sunday));
+  }
+  for (let i = weeks.length; i < minWeeks; i++) {
+    weeks.push(weekStartingSunday(addDays(currentStart, -7 * i)));
+  }
+  return weeks;
+}
+
+export type WeekComparison = {
+  total: number;
+  prior: number;
+  lastYear: number;
+};
+
+/**
+ * Loads for a week against the prior week and the same week last year.
+ * The current week only counts the days that have happened. Works for every
+ * week, including the first of the year: the prior week then reaches into
+ * December and last year reaches 364 days back.
+ */
+export function weekComparison(
+  countOn: (iso: string) => number,
+  week: string[],
+  today: string,
+): WeekComparison {
+  const days = week.filter((day) => day <= today);
+  const sum = (offset: number) =>
+    days.reduce((total, day) => total + countOn(offset === 0 ? day : addDays(day, -offset)), 0);
+  return { total: sum(0), prior: sum(7), lastYear: sum(SAME_WEEK_LAST_YEAR_DAYS) };
 }

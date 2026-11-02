@@ -5249,6 +5249,13 @@ body.app-ready .splash {
   font-weight: 700;
 }
 
+.an-weeks-scroll {
+  max-height: 10.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .an-week-head {
   color: var(--muted);
   font-size: 10px;

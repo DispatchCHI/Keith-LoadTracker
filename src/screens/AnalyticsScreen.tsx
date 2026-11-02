@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import {
   SAME_WEEK_LAST_YEAR_DAYS,
+  analyticsWeeks,
   chicagoYearLabel,
   dailyCounts,
   formatPercentChange,
   formatSignedCount,
   loadsYearToDate,
   sumDailyCounts,
+  weekComparison,
 } from "../lib/analytics";
 import {
   addDays,
@@ -23,7 +25,6 @@ import { useLoads } from "../store/LoadsContext";
 import type { Load } from "../types";
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-const WEEKS_TO_SHOW = 6;
 const RANK_LIMIT = 5;
 
 function loadsBetween(loads: Load[], start: string, end: string): Load[] {
@@ -46,20 +47,13 @@ export function AnalyticsScreen() {
   const currentWeek = useMemo(() => weekStartingSunday(today), [today]);
   const [selectedStart, setSelectedStart] = useState(currentWeek[0]);
 
-  const weeks = useMemo(
-    () =>
-      Array.from({ length: WEEKS_TO_SHOW }, (_, index) =>
-        weekStartingSunday(addDays(currentWeek[0], -7 * index)),
-      ),
-    [currentWeek],
-  );
-
   const countByDate = useMemo(() => {
     const map = new Map<string, number>();
     for (const load of loads) map.set(load.date, (map.get(load.date) ?? 0) + 1);
     return map;
   }, [loads]);
   const countOn = (iso: string) => countByDate.get(iso) ?? 0;
+  const weeks = useMemo(() => analyticsWeeks(countByDate.keys(), today), [countByDate, today]);
   const sumDates = (dates: string[]) => sumDailyCounts(dailyCounts(loads, dates));
 
   const ytd = loadsYearToDate(loads, today).length;
@@ -91,6 +85,54 @@ export function AnalyticsScreen() {
     [selectedLoads],
   );
 
+  const renderWeek = (week: string[]) => {
+    const isCurrent = week[0] === currentWeek[0];
+    const open = week[0] === selectedWeek[0];
+    const { total, prior, lastYear } = weekComparison(countOn, week, today);
+    return (
+      <div key={week[0]}>
+        <button
+          type="button"
+          className={open ? "an-week-row an-week-on" : "an-week-row"}
+          aria-expanded={open}
+          onClick={() => setSelectedStart(week[0])}
+        >
+          <span>
+            {formatShortDate(week[0])} – {formatShortDate(week[6])}
+            {isCurrent ? " · this week" : ""}
+          </span>
+          <span className="an-num">{total.toLocaleString("en-US")}</span>
+          <span>
+            <Delta value={total - prior} />
+          </span>
+          <span>
+            <Delta value={total - lastYear} />
+          </span>
+        </button>
+        {open ? (
+          <div className="an-days">
+            {week.map((iso) => {
+              const future = iso > today;
+              const isToday = iso === today;
+              return (
+                <article key={iso} className={isToday ? "an-day an-day-today" : "an-day"}>
+                  <span className="an-day-wd">
+                    {isToday ? formatHeaderDate(iso) : `${WEEKDAY[weekdayOfISO(iso)]} ${dayNumber(iso)}`}
+                  </span>
+                  <span className="an-day-n">{future ? "—" : countOn(iso)}</span>
+                  <span className="an-day-meta">
+                    {future
+                      ? "still ahead"
+                      : `prior ${countOn(addDays(iso, -7))} · last yr ${countOn(addDays(iso, -SAME_WEEK_LAST_YEAR_DAYS))}`}
+                  </span>
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
   const year = chicagoYearLabel(today);
   const through = formatHeaderDate(today);
   const elapsedSpan =
@@ -160,64 +202,10 @@ export function AnalyticsScreen() {
               <span>Vs prior week</span>
               <span>Vs last year</span>
             </div>
-            {weeks.map((week) => {
-              const isCurrent = week[0] === currentWeek[0];
-              const open = week[0] === selectedWeek[0];
-              const comparable = isCurrent ? week.filter((day) => day <= today) : week;
-              const total = sumDates(comparable);
-              const prior = sumDates(comparable.map((day) => addDays(day, -7)));
-              const lastYear = sumDates(
-                comparable.map((day) => addDays(day, -SAME_WEEK_LAST_YEAR_DAYS)),
-              );
-              return (
-                <div key={week[0]}>
-                  <button
-                    type="button"
-                    className={open ? "an-week-row an-week-on" : "an-week-row"}
-                    aria-expanded={open}
-                    onClick={() => setSelectedStart(week[0])}
-                  >
-                    <span>
-                      {formatShortDate(week[0])} – {formatShortDate(week[6])}
-                      {isCurrent ? " · this week" : ""}
-                    </span>
-                    <span className="an-num">{total.toLocaleString("en-US")}</span>
-                    <span>
-                      <Delta value={total - prior} />
-                    </span>
-                    <span>
-                      <Delta value={total - lastYear} />
-                    </span>
-                  </button>
-                  {open ? (
-                    <div className="an-days">
-                      {week.map((iso) => {
-                        const future = iso > today;
-                        const isToday = iso === today;
-                        return (
-                          <article
-                            key={iso}
-                            className={isToday ? "an-day an-day-today" : "an-day"}
-                          >
-                            <span className="an-day-wd">
-                              {isToday
-                                ? formatHeaderDate(iso)
-                                : `${WEEKDAY[weekdayOfISO(iso)]} ${dayNumber(iso)}`}
-                            </span>
-                            <span className="an-day-n">{future ? "—" : countOn(iso)}</span>
-                            <span className="an-day-meta">
-                              {future
-                                ? "still ahead"
-                                : `prior ${countOn(addDays(iso, -7))} · last yr ${countOn(addDays(iso, -SAME_WEEK_LAST_YEAR_DAYS))}`}
-                            </span>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+            {renderWeek(weeks[0])}
+            <div className="an-weeks-scroll" tabIndex={0} aria-label="Earlier weeks this year">
+              {weeks.slice(1).map((week) => renderWeek(week))}
+            </div>
           </section>
 
           <div className="an-ranks">
