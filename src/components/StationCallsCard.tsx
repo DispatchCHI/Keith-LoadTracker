@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { customerNames, readCustomerLanePersisted } from "../lib/customerLanes";
+import { addedRowHint } from "../lib/totals";
 import { formatHeaderDate } from "../lib/chicagoDate";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
 import { useAuth } from "../store/AuthContext";
@@ -1081,6 +1083,8 @@ export function StationCallsCard({
                   return;
                 }
                 setExtraTick((n) => n + 1);
+                const hint = addedRowHint(yard, customerNames(readCustomerLanePersisted()));
+                if (hint) window.alert(hint);
               }}
             >
               Add row
@@ -1223,6 +1227,8 @@ export function StationCallsCard({
             return;
           }
           setExtraTick((n) => n + 1);
+          const hint = addedRowHint(yard, customerNames(readCustomerLanePersisted()));
+          if (hint) window.alert(hint);
         }}
       >
         + Add Row

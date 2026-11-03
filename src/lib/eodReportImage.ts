@@ -1,5 +1,6 @@
 import { formatHeaderDate } from "./chicagoDate";
 import { applyDailyEodToSummary, type DailyEodTotals } from "./dailyEod";
+import { customerNames as customerNames_, readCustomerLanePersisted } from "./customerLanes";
 import {
   STATION_CALL_HOURS,
   boardForDate,
@@ -266,7 +267,11 @@ export function buildEodReportPng(opts: {
   const store = readStationCallStore();
   const board = boardForDate(store, opts.date);
   const yards = stationCallYards();
-  const eod = applyDailyEodToSummary(endOfDaySummary(opts.loads, board), opts.snapshot);
+  const customerNames = customerNames_(readCustomerLanePersisted());
+  const eod = applyDailyEodToSummary(
+    endOfDaySummary(opts.loads, board, { yards, customerNames }),
+    opts.snapshot,
+  );
   const landfills = rankDestinations(opts.loads);
   const L = EOD_IMAGE_LAYOUT;
   const layout = measureEodReportLayout({
@@ -407,7 +412,14 @@ function drawHourGrid(
     ctx.textAlign = "center";
     ctx.fillStyle = "#111827";
     ctx.font = canvasFont(700, EOD_IMAGE_TYPE.hourCell);
-    ctx.fillText(totals ? String(totals.pickedUp) : "", totalX + L.totalColW / 2, ry + rowH / 2);
+    if (totals?.added && totals.linked === false) {
+      // An added row that matches no customer: say so instead of leaving a blank.
+      ctx.fillStyle = "#9ca3af";
+      ctx.font = canvasFont(600, EOD_IMAGE_TYPE.hourHeader);
+      ctx.fillText("no customer", totalX + L.totalColW / 2, ry + rowH / 2);
+    } else {
+      ctx.fillText(totals ? String(totals.pickedUp) : "0", totalX + L.totalColW / 2, ry + rowH / 2);
+    }
     ctx.textAlign = "left";
   });
 }

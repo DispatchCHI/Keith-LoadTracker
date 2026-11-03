@@ -1,7 +1,12 @@
 import { CUSTOM_ID, getStation, resolveStationId } from "../data/stations";
 import { normalizePlaceName } from "./customerLanes";
 import { commodityRankLabel, tallyLabel } from "./commodity";
-import { STATION_CALL_YARDS, type StationDayBoard } from "./stationCalls";
+import {
+  STATION_CALL_YARDS,
+  stationCallYards,
+  type StationCallYard,
+  type StationDayBoard,
+} from "./stationCalls";
 import { isBrokerTruck } from "./truck";
 import { sortLoadsNewestFirst } from "./sortLoads";
 import type { Load } from "../types";
@@ -330,12 +335,97 @@ export function loadMatchesCallYard(
   return keys.has(normKey(load.pickup));
 }
 
+/** True for the rows built into the Load Count grid (not ones added with + Add Row). */
+export function isBuiltInCallYard(yardId: string): boolean {
+  return STATION_CALL_YARDS.some((yard) => yard.id === yardId);
+}
+
+/** Case, punctuation, spacing, and "Street" insensitive key: "C. Heights" and "cheights" agree. */
+function looseKey(value: string): string {
+  return normalizePlaceName(value).replace(/[^a-z0-9]/g, "");
+}
+
+function withinOneEdit(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i += 1;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1);
+  const [short, long] = a.length < b.length ? [a, b] : [b, a];
+  return short.slice(i) === long.slice(i + 1);
+}
+
+/**
+ * Forgiving name match for rows Keith adds himself: ignores case, spacing,
+ * punctuation and "Street"; allows a longer name that starts with the row name
+ * ("Groen" and "Groen Brothers"), a shared whole word, and one typo on names of
+ * five or more letters. A destination like "Groot" is two edits from "Groen",
+ * so it is not pulled in.
+ */
+export function looseNameMatch(a: string, b: string): boolean {
+  const ka = looseKey(a);
+  const kb = looseKey(b);
+  if (!ka || !kb) return false;
+  if (ka === kb) return true;
+  const shortest = Math.min(ka.length, kb.length);
+  if (shortest >= 4 && (ka.startsWith(kb) || kb.startsWith(ka))) return true;
+  if (shortest >= 5 && withinOneEdit(ka, kb)) return true;
+  const words = (value: string) =>
+    normalizePlaceName(value)
+      .split(" ")
+      .filter((word) => word.length >= 4);
+  const wb = new Set(words(b));
+  return words(a).some((word) => wb.has(word));
+}
+
+/** Customers (from the Customers page) that a Load Count row stands for. */
+export function customersForCallYard(
+  yard: { id: string; label: string },
+  customerNames: readonly string[],
+): string[] {
+  return customerNames.filter(
+    (name) => looseNameMatch(name, yard.label) || looseNameMatch(name, yard.id),
+  );
+}
+
+/** Message for a new Load Count row that matches no customer. Null when it is linked. */
+export function addedRowHint(
+  yard: { id: string; label: string },
+  customerNames: readonly string[],
+): string | null {
+  if (customersForCallYard(yard, customerNames).length > 0) return null;
+  return `Added "${yard.label}", but no customer on the Customers page matches that name. Its Total counts loads whose pickup is spelled like it, and shows "no customer" until one exists. Add the customer (or use the same name) to link it.`;
+}
+
+/**
+ * Loads dispatched from a row's pickup. Built-in rows keep the exact rules.
+ * A row added by hand also takes loads whose pickup loosely matches its name
+ * or any linked customer, so a new row tallies without a code change.
+ */
+export function loadMatchesAddedCallYard(
+  load: Load,
+  yard: { id: string; label: string },
+  customerNames: readonly string[] = [],
+): boolean {
+  if (loadMatchesCallYard(load, yard)) return true;
+  if (STATION_CALL_YARDS.some((builtIn) => loadMatchesCallYard(load, builtIn))) return false;
+  const pickup = load.pickup.trim();
+  if (!pickup) return false;
+  if (looseNameMatch(pickup, yard.label)) return true;
+  return customersForCallYard(yard, customerNames).some((name) => looseNameMatch(pickup, name));
+}
 export type StationEodRow = {
   id: string;
   label: string;
   pickedUp: number;
   msw: number;
   left: string | null;
+  /** Set only on rows added with + Add Row. */
+  added?: true;
+  /** Customers-page names this row is linked to (added rows only). */
+  customers?: string[];
+  /** Added rows only: false when no customer matches and no loads came in, so show a hint, not a blank. */
+  linked?: boolean;
 };
 
 export type EndOfDaySummary = {
@@ -367,15 +457,22 @@ export function endOfDayCards(summary: EndOfDaySummary): EndOfDayCard[] {
 export function endOfDaySummary(
   loads: Load[],
   board: StationDayBoard,
+  opts: { yards?: readonly StationCallYard[]; customerNames?: readonly string[] } = {},
 ): EndOfDaySummary {
+  const yards = opts.yards ?? stationCallYards();
+  const customerNames = opts.customerNames ?? [];
   return {
     loads: countSheetTotalLoads(loads),
     subs: countBrokerLoads(loads),
     trash: countTrashLoads(loads),
     leachate: countByTallyLabel(loads, "LEACHATE"),
     walkingFloor: countWalkingFloorLoads(loads),
-    stations: STATION_CALL_YARDS.map((yard) => {
-      const yardLoads = loads.filter((load) => loadMatchesCallYard(load, yard));
+    stations: yards.map((yard) => {
+      const added = !isBuiltInCallYard(yard.id);
+      const yardLoads = added
+        ? loads.filter((load) => loadMatchesAddedCallYard(load, yard, customerNames))
+        : loads.filter((load) => loadMatchesCallYard(load, yard));
+      const customers = added ? customersForCallYard(yard, customerNames) : [];
       const pickedUp = yardLoads.length;
       const msw = yardLoads.filter(isTrashLoad).length;
       const close = board[yard.id]?.close;
@@ -384,6 +481,9 @@ export function endOfDaySummary(
         label: yard.label,
         pickedUp,
         msw,
+        ...(added
+          ? { added: true as const, customers, linked: customers.length > 0 || pickedUp > 0 }
+          : {}),
         left:
           close === null || close === undefined || close === ""
             ? null
