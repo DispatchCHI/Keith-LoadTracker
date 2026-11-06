@@ -1,4 +1,5 @@
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { isCustomTypedPickup } from "../lib/customPickupInput";
 import {
   CUSTOM,
@@ -40,7 +41,61 @@ import { useCustomerLanes } from "../store/CustomerLanesContext";
 import { useLoads } from "../store/LoadsContext";
 import { parseTruckList } from "../lib/truck";
 import { Chip } from "./Chip";
-import { collapsePickupGrid, layoutPickupGrid, pickupChipStyle } from "../lib/pickupChipOrder";
+import { collapsePickupGrid, pickupChipStyle } from "../lib/pickupChipOrder";
+import {
+  dropIndexFromRects,
+  getPickupChipLayoutSnapshot,
+  layoutPickupGridWithOrder,
+  movePickupChip,
+  pickupColumnsHaveKeys,
+  resetPickupChipLayout,
+  samePickupColumns,
+  savePickupChipLayout,
+  subscribePickupChipLayout,
+} from "../lib/pickupChipLayout";
+import { stationOrderKey } from "../lib/transferStationOrder";
+import type { PickupChoice } from "../lib/pickupRank";
+
+function choiceName(choice: PickupChoice): string {
+  return choice.kind === "station" ? choice.station.name : choice.name;
+}
+
+function pickupDropAt(
+  x: number,
+  y: number,
+  collapsed: boolean,
+  lengths: readonly number[],
+): { drop: { col: number; index: number } | null; overMore: boolean } {
+  const list =
+    typeof document !== "undefined" && typeof document.elementsFromPoint === "function"
+      ? document.elementsFromPoint(x, y)
+      : [];
+  let overMore = false;
+  let drop: { col: number; index: number } | null = null;
+  for (const el of list) {
+    if (!(el instanceof Element)) continue;
+    if (el.closest("[data-pickup-more]")) overMore = true;
+    if (drop) continue;
+    const host = el.closest("[data-pickup-col]");
+    if (!(host instanceof HTMLElement)) continue;
+    const col = Number(host.dataset.pickupCol);
+    if (!Number.isInteger(col)) continue;
+    const chips = [...host.querySelectorAll<HTMLElement>("[data-pickup-index]")];
+    drop = {
+      col,
+      index: dropIndexFromRects({
+        columnLength: lengths[col] ?? 0,
+        collapsed,
+        pointerY: y,
+        chips: chips.map((chip) => {
+          const rect = chip.getBoundingClientRect();
+          return { index: Number(chip.dataset.pickupIndex), top: rect.top, height: rect.height };
+        }),
+      }),
+    };
+  }
+  return { drop, overMore };
+}
 
 const CUSTOM_SPECIALTY_COMMODITIES: Record<string, string> = {
   Leachate: "Leachate (tanker)",
@@ -135,7 +190,15 @@ export function LoadForm({
   );
   const pickupName0 = (c: (typeof rankedPickups)[number]) =>
     c.kind === "station" ? c.station.name : c.name;
-  const gridCols = useMemo(() => layoutPickupGrid(rankedPickups, pickupName0), [rankedPickups]);
+  const pickupLayout = useSyncExternalStore(
+    subscribePickupChipLayout,
+    getPickupChipLayoutSnapshot,
+    getPickupChipLayoutSnapshot,
+  );
+  const gridCols = useMemo(
+    () => layoutPickupGridWithOrder(rankedPickups, pickupName0, pickupLayout),
+    [pickupLayout, rankedPickups],
+  );
   const collapsedCols = useMemo(() => collapsePickupGrid(gridCols), [gridCols]);
   const shownCount = collapsedCols.reduce((n, col) => n + col.length, 0);
   const totalCount = gridCols.reduce((n, col) => n + col.length, 0);
@@ -155,6 +218,118 @@ export function LoadForm({
     );
   });
   const gridShown = showAllStations || restCount === 0 ? gridCols : collapsedCols;
+  const pickupCollapsed = !showAllStations && restCount > 0;
+  const customPickupOrder = pickupColumnsHaveKeys(pickupLayout);
+  const [pickupDrag, setPickupDrag] = useState<{
+    col: number;
+    index: number;
+    label: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [pickupDrop, setPickupDrop] = useState<{ col: number; index: number } | null>(null);
+  const pickupGridRef = useRef(gridCols);
+  pickupGridRef.current = gridCols;
+  const pickupCollapsedRef = useRef(pickupCollapsed);
+  pickupCollapsedRef.current = pickupCollapsed;
+  const suppressPickupClick = useRef(false);
+  const pickupDragCleanup = useRef<(() => void) | null>(null);
+  const pickupExpandTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      pickupDragCleanup.current?.();
+      if (pickupExpandTimer.current != null) window.clearTimeout(pickupExpandTimer.current);
+      document.body.classList.remove("pickup-dragging");
+    };
+  }, []);
+
+  const commitPickupMove = (
+    fromCol: number,
+    fromIndex: number,
+    to: { col: number; index: number },
+  ) => {
+    const cols = pickupGridRef.current;
+    const keys = cols.map((col) => col.map((choice) => stationOrderKey(choiceName(choice))));
+    const next = movePickupChip(keys, { col: fromCol, index: fromIndex }, to);
+    if (samePickupColumns(keys, next)) return;
+    savePickupChipLayout(next);
+  };
+
+  const startPickupDrag = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    col: number,
+    index: number,
+    label: string,
+  ) => {
+    if (event.button !== 0) return;
+    pickupDragCleanup.current?.();
+    const pointerId = event.pointerId;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let dragging = false;
+    const clearExpand = () => {
+      if (pickupExpandTimer.current != null) {
+        window.clearTimeout(pickupExpandTimer.current);
+        pickupExpandTimer.current = null;
+      }
+    };
+    const stop = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      pickupDragCleanup.current = null;
+    };
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!dragging) {
+        if (dx * dx + dy * dy < 64) return;
+        dragging = true;
+        suppressPickupClick.current = true;
+        document.body.classList.add("pickup-dragging");
+      }
+      ev.preventDefault();
+      const lengths = pickupGridRef.current.map((column) => column.length);
+      const hit = pickupDropAt(ev.clientX, ev.clientY, pickupCollapsedRef.current, lengths);
+      setPickupDrag({ col, index, label, x: ev.clientX, y: ev.clientY });
+      setPickupDrop(hit.drop);
+      if (hit.overMore && pickupCollapsedRef.current) {
+        if (pickupExpandTimer.current == null) {
+          pickupExpandTimer.current = window.setTimeout(() => {
+            pickupExpandTimer.current = null;
+            setShowAllStations(true);
+          }, 180);
+        }
+      } else {
+        clearExpand();
+      }
+    };
+    const onUp = (ev: PointerEvent) => {
+      stop();
+      clearExpand();
+      document.body.classList.remove("pickup-dragging");
+      if (!dragging) {
+        setPickupDrag(null);
+        setPickupDrop(null);
+        return;
+      }
+      ev.preventDefault();
+      const lengths = pickupGridRef.current.map((column) => column.length);
+      const hit = pickupDropAt(ev.clientX, ev.clientY, pickupCollapsedRef.current, lengths);
+      if (hit.drop) commitPickupMove(col, index, hit.drop);
+      setPickupDrag(null);
+      setPickupDrop(null);
+      window.setTimeout(() => {
+        suppressPickupClick.current = false;
+      }, 0);
+    };
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    pickupDragCleanup.current = stop;
+  };
 
   const customNames = readCustomSpecialtyNames();
   const boardDate = logDate || chicagoToday();
@@ -314,42 +489,76 @@ export function LoadForm({
         </section>
       )}
       <section className="field">
-        <div className="field-label">Pickup</div>
+        <div className="field-label pickup-label">
+          <span>Pickup</span>
+          {customPickupOrder ? (
+            <button type="button" className="pickup-reset-order" onClick={() => resetPickupChipLayout()}>
+              Reset order
+            </button>
+          ) : null}
+        </div>
         <div className="chip-row">
           <div className="pickup-grid">
             {gridShown.map((col, colIndex) => (
-              <div key={colIndex} className="pickup-col">
-                {col.map((choice) =>
-                  choice.kind === "station" ? (
-                    <Chip
-                      key={choice.station.id}
-                      label={choice.station.name}
-                      tone={pickupChipStyle(choice.station.name)}
-                      selected={value.stationId === choice.station.id}
-                      onClick={() => selectStation(choice.station.id)}
-                    />
-                  ) : (
-                    <Chip
-                      key={`lane-${choice.name}`}
-                      label={choice.name}
-                      tone={pickupChipStyle(choice.name)}
-                      selected={
-                        isCustom &&
-                        value.pickup.trim().toLowerCase() === choice.name.toLowerCase()
-                      }
-                      onClick={() => selectLaneCustomer(choice.name)}
-                    />
-                  ),
-                )}
+              <div key={colIndex} className="pickup-col" data-pickup-col={colIndex}>
+                {col.map((choice, index) => {
+                  const label = choiceName(choice);
+                  const selected =
+                    choice.kind === "station"
+                      ? value.stationId === choice.station.id
+                      : isCustom && value.pickup.trim().toLowerCase() === choice.name.toLowerCase();
+                  const dragging = pickupDrag?.col === colIndex && pickupDrag.index === index;
+                  return (
+                    <span key={choice.kind === "station" ? choice.station.id : `lane-${choice.name}`} className="pickup-chip-slot">
+                      {pickupDrop?.col === colIndex && pickupDrop.index === index ? (
+                        <span className="pickup-drop-line" />
+                      ) : null}
+                      <Chip
+                        label={label}
+                        tone={pickupChipStyle(label)}
+                        selected={selected}
+                        className={dragging ? "pickup-chip-dimmed" : ""}
+                        attrs={{ "data-pickup-index": String(index) }}
+                        onPointerDown={(event) => startPickupDrag(event, colIndex, index, label)}
+                        onClick={() => {
+                          if (suppressPickupClick.current) {
+                            suppressPickupClick.current = false;
+                            return;
+                          }
+                          if (choice.kind === "station") selectStation(choice.station.id);
+                          else selectLaneCustomer(choice.name);
+                        }}
+                      />
+                    </span>
+                  );
+                })}
+                {pickupDrop?.col === colIndex && pickupDrop.index === col.length ? (
+                  <span className="pickup-drop-line" />
+                ) : null}
+                <span className="pickup-col-tail" data-pickup-end={colIndex} />
               </div>
             ))}
-          </div>          {!showAllStations && restCount > 0 ? (
+          </div>
+          {!showAllStations && restCount > 0 ? (
             <Chip
               label={`+ ${restCount} more`}
               muted
+              attrs={{ "data-pickup-more": "1" }}
               onClick={() => setShowAllStations(true)}
             />
-          ) : null}          <Chip
+          ) : null}
+          {pickupDrag && typeof document !== "undefined"
+            ? createPortal(
+                <div
+                  className="pickup-chip-ghost"
+                  style={{ left: pickupDrag.x, top: pickupDrag.y, ...pickupChipStyle(pickupDrag.label) }}
+                >
+                  {pickupDrag.label}
+                </div>,
+                document.body,
+              )
+            : null}
+          <Chip
             label="Custom..."
             selected={customChipSelected}
             onClick={() => {

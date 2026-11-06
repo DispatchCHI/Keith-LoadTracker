@@ -22,10 +22,10 @@ describe("layoutPickupGrid (1.1.51)", () => {
     expect(cols[3]).toEqual(["Crown Point","East Chicago","Hearthside","Kankakee RDF","McCook","Planet/WM","Prairie Hill RFD","Settler's Hill RDF","Virginia RD"]);
     expect(cols.flat()).toHaveLength(live.length);
   });
-  it("collapses to 4 rows with N computed live", () => {
+  it("collapses to 5 rows with N computed live", () => {
     const shown = collapsePickupGrid(cols).flat().length;
-    expect(shown).toBe(16);
-    expect(live.length - shown).toBe(20);
+    expect(shown).toBe(20);
+    expect(live.length - shown).toBe(16);
   });
   it("skips fixed names that are not in the app and never drops a pickup", () => {
     const few = layoutPickupGrid(["Zeta", "Apollo", "Alpha"], id);

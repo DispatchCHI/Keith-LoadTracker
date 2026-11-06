@@ -6718,12 +6718,89 @@ body.app-ready .splash {
   align-items: flex-start;
   gap: 6px;
   min-width: 0;
+  min-height: 28px;
+}
+
+.log-load-sheet .pickup-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.log-load-sheet .pickup-reset-order {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  cursor: pointer;
+}
+
+.log-load-sheet .pickup-reset-order:hover {
+  color: #1e3a8a;
+}
+
+.log-load-sheet .pickup-chip-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 100%;
+}
+
+.log-load-sheet .pickup-drop-line {
+  align-self: stretch;
+  width: 100%;
+  height: 3px;
+  margin: 0 0 3px;
+  border-radius: 999px;
+  background: #1e3a8a;
+  pointer-events: none;
+}
+
+.log-load-sheet .pickup-chip-dimmed {
+  opacity: 0.4;
+}
+
+.log-load-sheet .pickup-col-tail {
+  align-self: stretch;
+  width: 100%;
+  min-height: 16px;
+  flex: 1 0 16px;
+}
+
+.pickup-chip-ghost {
+  position: fixed;
+  z-index: 80;
+  margin: 0;
+  pointer-events: none;
+  transform: translate(-50%, -60%);
+  border: 1px solid #d0d3d9;
+  background: var(--surface, #fff);
+  color: var(--text, #1c1917);
+  border-radius: 999px;
+  min-height: 30px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(20, 24, 33, 0.18);
+}
+
+body.pickup-dragging,
+body.pickup-dragging * {
+  cursor: grabbing !important;
 }
 
 .log-load-sheet .pickup-grid .chip {
   max-width: 100%;
   padding: 4px 10px;
   white-space: nowrap;
+  touch-action: manipulation;
 }
 
 /* Tight cards: shrink type slightly so all 4 columns stay usable. */

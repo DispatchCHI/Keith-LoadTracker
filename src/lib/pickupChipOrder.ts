@@ -42,8 +42,8 @@ export const PICKUP_GRID_COL3_TOP: readonly string[] = ["Wheeling", "Evanston", 
 export const PICKUP_GRID_OVERFLOW_FIRST: readonly string[] = [
   "Laraway", "GraysLake", "Midway", "Wheatland", "Woodland",
 ];
-/** Rows shown before "+ N more". */
-export const PICKUP_GRID_COLLAPSED_ROWS = 4;
+/** Rows shown in each column before "+ N more". 1.1.57: five rows. */
+export const PICKUP_GRID_COLLAPSED_ROWS = 5;
 
 /**
  * Split the pickups the app shows into 4 columns. Fixed slots only appear when

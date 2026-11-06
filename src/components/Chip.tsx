@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, PointerEvent } from "react";
 
 type ChipProps = {
   label: string;
@@ -8,6 +8,13 @@ type ChipProps = {
   onClick?: () => void;
   /** Tint shown while not selected (1.1.50 owner colors). */
   tone?: CSSProperties;
+  className?: string;
+  /** data-* attributes (pickup grid drag targets). */
+  attrs?: Record<string, string>;
+  onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
+  onPointerMove?: (event: PointerEvent<HTMLButtonElement>) => void;
+  onPointerUp?: (event: PointerEvent<HTMLButtonElement>) => void;
+  onPointerCancel?: (event: PointerEvent<HTMLButtonElement>) => void;
 };
 
 export function Chip({
@@ -17,12 +24,19 @@ export function Chip({
   muted = false,
   onClick,
   tone,
+  className = "",
+  attrs,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
 }: ChipProps) {
   const classes = [
     "chip",
     selected ? "chip-selected" : "",
     invalid ? "chip-invalid" : "",
     muted ? "chip-muted" : "",
+    className,
   ]
     .filter(Boolean)
     .join(" ");
@@ -33,7 +47,12 @@ export function Chip({
       className={classes}
       aria-pressed={selected}
       onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       style={selected || invalid || muted ? undefined : tone}
+      {...attrs}
     >
       {invalid ? <s>{label}</s> : label}
     </button>

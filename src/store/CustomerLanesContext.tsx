@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
-import { attachCloudRefresh, scheduleCloudRefresh } from "../lib/cloudRefresh";
+import { attachCloudRefresh, attachCrewTableRealtime, scheduleCloudRefresh } from "../lib/cloudRefresh";
 import { CUSTOMER_LANES_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
 import {
   CUSTOMER_BRANDS_EVENT,
@@ -21,6 +21,11 @@ import {
   pullAndMergeCustomerBrandOverrides,
   pushCustomerBrandOverridesIfLocalNewer,
 } from "../lib/customerBrandOverridesCloud";
+import { PICKUP_CHIP_LAYOUT_FLUSH_EVENT } from "../lib/pickupChipLayout";
+import {
+  pullAndMergePickupChipLayout,
+  pushPickupChipLayoutIfLocalNewer,
+} from "../lib/pickupChipLayoutCloud";
 import {
   CUSTOMER_LANES_TABLE,
   customerLaneToRow,
@@ -144,6 +149,10 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     if (!supabase || !session) return;
     await pullAndMergeCustomerBrandOverrides(supabase);
     await pushCustomerBrandOverridesIfLocalNewer(supabase, user?.id ?? null);
+    // Same crew-row LWW as brand overrides. A fresh desk pulls the shared
+    // order and does not push an empty layout over a newer cloud row.
+    await pullAndMergePickupChipLayout(supabase);
+    await pushPickupChipLayoutIfLocalNewer(supabase, user?.id ?? null);
   }, [session, user?.id]);
 
   const pullRemote = useCallback(async (): Promise<CustomerLaneStore | null> => {
@@ -283,7 +292,18 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
       void syncBrandOverrides();
     };
     window.addEventListener(CUSTOMER_BRANDS_FLUSH_EVENT, onFlush);
-    return () => window.removeEventListener(CUSTOMER_BRANDS_FLUSH_EVENT, onFlush);
+    window.addEventListener(PICKUP_CHIP_LAYOUT_FLUSH_EVENT, onFlush);
+    return () => {
+      window.removeEventListener(CUSTOMER_BRANDS_FLUSH_EVENT, onFlush);
+      window.removeEventListener(PICKUP_CHIP_LAYOUT_FLUSH_EVENT, onFlush);
+    };
+  }, [cloud, syncBrandOverrides]);
+
+  useEffect(() => {
+    if (!cloud) return;
+    return attachCrewTableRealtime("pickup-chip-layout", ["pickup_chip_layout"], () => {
+      void syncBrandOverrides();
+    });
   }, [cloud, syncBrandOverrides]);
 
   useEffect(() => {
