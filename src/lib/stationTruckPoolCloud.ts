@@ -3,7 +3,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   applyStationTruckPoolRemote,
-  poolHasTrucks,
   readStationTruckPool,
   readStationTruckPoolUpdatedAt,
 } from "./stationTruckPool";
@@ -51,8 +50,11 @@ export async function pushStationTruckPoolIfLocalNewer(
 ): Promise<void> {
   const localAt = readStationTruckPoolUpdatedAt();
   const local = readStationTruckPool();
-  if (!localAt && !poolHasTrucks(local)) return;
-  const stamp = localAt || new Date().toISOString();
+  // No stamp means this desk has never saved. Do not upload that over the
+  // crew row. A Clear is a real save: ten blank boxes and a newer stamp,
+  // and that empty row must upload so an older filled copy does not win.
+  if (!localAt) return;
+  const stamp = localAt;
   const { data, error } = await supabase
     .from(STATION_TRUCK_POOL_TABLE)
     .select("updated_at")

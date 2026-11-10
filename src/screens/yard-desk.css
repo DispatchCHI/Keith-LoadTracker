@@ -411,6 +411,29 @@
   gap: 2px;
   min-width: 0;
   flex: 1 1 auto;
+  position: relative;
+}
+
+.station-truck-clear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.station-truck-clear:hover,
+.station-truck-clear:focus-visible {
+  color: #1e3a8a;
+  text-decoration: underline;
 }
 
 .yard-side .tally-chip-dual.has-truck-pool .tally-dual-row {
@@ -419,6 +442,7 @@
 }
 
 .station-truck-grid {
+  position: relative;
   flex: 0 0 104px;
   width: 104px;
   display: grid;
@@ -428,12 +452,23 @@
   min-height: 0;
 }
 
+.station-truck-clear {
+  right: calc(100% + 4px);
+}
+
+.station-truck-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
 .station-truck-input {
   width: 100%;
   min-width: 0;
   height: 100%;
   margin: 0;
-  padding: 0 1px;
+  padding: 0 10px 0 1px;
   border: 1px solid var(--line);
   border-radius: 3px;
   background: var(--field);
@@ -444,6 +479,30 @@
   text-align: center;
   font-variant-numeric: tabular-nums;
   text-transform: uppercase;
+}
+
+.station-truck-x {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.station-truck-cell:hover .station-truck-x,
+.station-truck-cell:focus-within .station-truck-x {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .station-truck-input:focus {

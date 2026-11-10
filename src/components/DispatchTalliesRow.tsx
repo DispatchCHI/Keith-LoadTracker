@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  clearStationTruckSlotAt,
+  clearStationTruckSlots,
   nextEmptyTruckSlot,
   previousTruckSlot,
   readStationTruckSlots,
+  saveStationTruckSlotsNow,
   scheduleStationTruckSave,
+  selectTruckInputText,
   stationTruckPoolEnabled,
   subscribeStationTruckPool,
+  truckSlotFilled,
   STATION_TRUCK_SLOT_COUNT,
 } from "../lib/stationTruckPool";
 import { sanitizeTruck, TRUCK_MAX_LENGTH } from "../lib/truck";
@@ -162,12 +167,19 @@ function StationTruckGrid({ station }: { station: string }) {
   const slotsRef = useRef(slots);
   slotsRef.current = slots;
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
+  const focusFirst = useRef(false);
 
   useEffect(() => {
     return subscribeStationTruckPool(() => {
       setSlots(readStationTruckSlots(station));
     });
   }, [station]);
+
+  useEffect(() => {
+    if (!focusFirst.current) return;
+    focusFirst.current = false;
+    inputs.current[0]?.focus();
+  }, [slots]);
 
   const writeBox = (index: number, raw: string) => {
     const next = slotsRef.current.slice();
@@ -177,44 +189,91 @@ function StationTruckGrid({ station }: { station: string }) {
     return next;
   };
 
+  const filled = slots.some((value) => truckSlotFilled(value));
+
+  const remember = (next: string[]) => {
+    slotsRef.current = next;
+    setSlots(next);
+    return next;
+  };
+
+  const clearAll = () => {
+    focusFirst.current = true;
+    remember(clearStationTruckSlots(station));
+  };
+
+  const clearOne = (index: number) => {
+    const next = saveStationTruckSlotsNow(station, clearStationTruckSlotAt(slotsRef.current, index));
+    remember(next);
+    inputs.current[index]?.focus();
+  };
+
   return (
     <div className="station-truck-grid" role="group" aria-label={`Trucks for ${station}`}>
-      {Array.from({ length: STATION_TRUCK_SLOT_COUNT }, (_, index) => (
-        <input
-          key={index}
-          ref={(node) => {
-            inputs.current[index] = node;
-          }}
-          className="station-truck-input"
-          value={slots[index] ?? ""}
-          aria-label={`${station} truck ${index + 1}`}
-          maxLength={TRUCK_MAX_LENGTH}
-          autoCapitalize="characters"
-          autoCorrect="off"
-          spellCheck={false}
-          onChange={(event) => {
-            writeBox(index, event.target.value);
-          }}
-          onBlur={() => scheduleStationTruckSave(station, slotsRef.current)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              const next = writeBox(index, event.currentTarget.value);
-              scheduleStationTruckSave(station, next);
-              const dest = nextEmptyTruckSlot(next, index);
-              if (dest == null) event.currentTarget.blur();
-              else inputs.current[dest]?.focus();
-              return;
-            }
-            if (event.key === "Backspace" && event.currentTarget.value === "") {
-              const prev = previousTruckSlot(index);
-              if (prev == null) return;
-              event.preventDefault();
-              inputs.current[prev]?.focus();
-            }
-          }}
-        />
-      ))}
+      {filled ? (
+        <button type="button" className="station-truck-clear" onClick={clearAll}>
+          Clear
+        </button>
+      ) : null}
+      {Array.from({ length: STATION_TRUCK_SLOT_COUNT }, (_, index) => {
+        const value = slots[index] ?? "";
+        return (
+          <div className="station-truck-cell" key={index}>
+            <input
+              ref={(node) => {
+                inputs.current[index] = node;
+              }}
+              className="station-truck-input"
+              value={value}
+              aria-label={`${station} truck ${index + 1}`}
+              maxLength={TRUCK_MAX_LENGTH}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              onFocus={(event) => selectTruckInputText(event.currentTarget)}
+              onMouseUp={(event) => {
+                event.preventDefault();
+                selectTruckInputText(event.currentTarget);
+              }}
+              onChange={(event) => {
+                const next = writeBox(index, event.target.value);
+                if (!truckSlotFilled(next[index])) saveStationTruckSlotsNow(station, next);
+              }}
+              onBlur={() => scheduleStationTruckSave(station, slotsRef.current)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  const next = writeBox(index, event.currentTarget.value);
+                  if (!truckSlotFilled(next[index])) saveStationTruckSlotsNow(station, next);
+                  else scheduleStationTruckSave(station, next);
+                  const dest = nextEmptyTruckSlot(next, index);
+                  if (dest == null) event.currentTarget.blur();
+                  else inputs.current[dest]?.focus();
+                  return;
+                }
+                if (event.key === "Backspace" && event.currentTarget.value === "") {
+                  const prev = previousTruckSlot(index);
+                  if (prev == null) return;
+                  event.preventDefault();
+                  inputs.current[prev]?.focus();
+                }
+              }}
+            />
+            {value ? (
+              <button
+                type="button"
+                className="station-truck-x"
+                tabIndex={-1}
+                aria-label={`Clear ${station} truck ${index + 1}`}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => clearOne(index)}
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }

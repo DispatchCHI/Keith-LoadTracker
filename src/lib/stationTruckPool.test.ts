@@ -3,13 +3,17 @@ import { readFileSync } from "node:fs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   applyStationTruckPoolRemote,
+  clearStationTruckSlotAt,
+  clearStationTruckSlots,
   flushScheduledStationTruckSave,
   nextEmptyTruckSlot,
   normalizeTruckSlots,
   previousTruckSlot,
   readStationTruckPoolUpdatedAt,
   readStationTruckSlots,
+  saveStationTruckSlotsNow,
   scheduleStationTruckSave,
+  selectTruckInputText,
   stationTruckPoolEnabled,
   stationTruckPoolWinner,
   STATION_TRUCK_SLOT_COUNT,
@@ -173,6 +177,90 @@ describe("station truck pool merge", () => {
     expect(readStationTruckSlots("Batavia")[0]).toBe("207");
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+
+  it("clears every box immediately and drops a save that was still waiting", () => {
+    scheduleStationTruckSave("Batavia", ["207", "214", "301"]);
+    const cleared = clearStationTruckSlots("Batavia");
+    flushScheduledStationTruckSave();
+    expect(cleared.every((value) => value === "")).toBe(true);
+    expect(cleared).toHaveLength(STATION_TRUCK_SLOT_COUNT);
+    expect(readStationTruckSlots("Batavia").every((value) => value === "")).toBe(true);
+    expect(readStationTruckPoolUpdatedAt()).not.toBe("");
+  });
+
+  it("clears one box and keeps the others", () => {
+    const slots = normalizeTruckSlots(["207", "214", "301"]);
+    expect(clearStationTruckSlotAt(slots, 1)).toEqual(
+      normalizeTruckSlots(["207", "", "301"]),
+    );
+    expect(clearStationTruckSlotAt(slots, 0)[0]).toBe("");
+    expect(clearStationTruckSlotAt(slots, 0)[1]).toBe("214");
+    const selected: number[] = [];
+    selectTruckInputText({
+      value: "207",
+      setSelectionRange: (start, end) => {
+        selected.push(start, end);
+      },
+    });
+    expect(selected).toEqual([0, 3]);
+  });
+
+  it("an empty newer row beats an older filled row", async () => {
+    saveStationTruckSlotsNow("Batavia", ["207", "214"]);
+    const filledAt = readStationTruckPoolUpdatedAt();
+    const emptied = clearStationTruckSlots("Batavia");
+    expect(emptied.every((value) => value === "")).toBe(true);
+    const clearedAt = readStationTruckPoolUpdatedAt();
+    expect(Date.parse(clearedAt)).toBeGreaterThanOrEqual(Date.parse(filledAt));
+
+    const kept = stationTruckPoolWinner(
+      { slots: { batavia: emptied }, updatedAt: clearedAt },
+      { slots: { batavia: ["207", "214"] }, updatedAt: "2026-11-10T01:00:00.000Z" },
+    );
+    expect(kept.source).toBe("local");
+    expect(kept.slots.batavia?.every((value) => value === "")).toBe(true);
+
+    const applied = stationTruckPoolWinner(
+      { slots: { batavia: normalizeTruckSlots(["207", "214"]) }, updatedAt: "2026-11-10T01:00:00.000Z" },
+      { slots: { batavia: emptied }, updatedAt: clearedAt },
+    );
+    expect(applied.source).toBe("remote");
+    expect(applied.slots.batavia?.every((value) => value === "")).toBe(true);
+
+    const upserts: Array<{ slots: { batavia?: string[] }; updated_at: string }> = [];
+    const client = {
+      from() {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  maybeSingle: async () => ({
+                    data: {
+                      slots: { batavia: ["207", "214"] },
+                      updated_at: "2026-11-10T01:00:00.000Z",
+                    },
+                    error: null,
+                  }),
+                };
+              },
+            };
+          },
+          upsert: async (row: { slots: { batavia?: string[] }; updated_at: string }) => {
+            upserts.push(row);
+            return { error: null };
+          },
+        };
+      },
+    } as unknown as SupabaseClient;
+    await pushStationTruckPoolIfLocalNewer(client, "dispatcher-1");
+    expect(upserts).toHaveLength(1);
+    expect(upserts[0]!.slots.batavia?.every((value) => value === "")).toBe(true);
+    expect(upserts[0]!.updated_at).toBe(clearedAt);
+
+    await pullAndMergeStationTruckPool(client);
+    expect(readStationTruckSlots("Batavia").every((value) => value === "")).toBe(true);
   });
 
   it("wires the crew row into refresh, flush, and realtime", () => {

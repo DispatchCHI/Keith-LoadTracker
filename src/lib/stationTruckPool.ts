@@ -207,6 +207,54 @@ function commitSlots(stationKey: string, slots: readonly string[]): void {
   writeStored(next, new Date().toISOString(), true);
 }
 
+function cancelScheduledSave(): void {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  pendingSave = null;
+}
+
+/** Blank one box. Other boxes are left as they are. */
+export function clearStationTruckSlotAt(slots: readonly string[], index: number): string[] {
+  const next = normalizeTruckSlots(slots);
+  if (index >= 0 && index < next.length) next[index] = "";
+  return next;
+}
+
+/** Select the whole truck number. Used on focus so one Delete clears it. */
+export function selectTruckInputText(input: {
+  value: string;
+  setSelectionRange?: (start: number, end: number) => void;
+  select?: () => void;
+}): void {
+  if (typeof input.setSelectionRange === "function") {
+    input.setSelectionRange(0, input.value.length);
+    return;
+  }
+  input.select?.();
+}
+
+/**
+ * Write these boxes now and drop any save still waiting. An empty list is a
+ * real crew row (ten blanks plus a new stamp), not missing data.
+ */
+export function saveStationTruckSlotsNow(labelOrKey: string, slots: readonly string[]): string[] {
+  cancelScheduledSave();
+  const normalized = normalizeTruckSlots(slots);
+  commitSlots(labelOrKey, normalized);
+  return readStationTruckSlots(labelOrKey);
+}
+
+/**
+ * Wipe one station's boxes now. The ten blanks stay on the crew row with a
+ * new stamp so an older filled cloud copy cannot fill them back in.
+ * A save that was still waiting (typed trucks not yet flushed) is dropped.
+ */
+export function clearStationTruckSlots(labelOrKey: string): string[] {
+  return saveStationTruckSlotsNow(labelOrKey, emptyTruckSlots());
+}
+
 function runPendingSave(): void {
   const job = pendingSave;
   pendingSave = null;
