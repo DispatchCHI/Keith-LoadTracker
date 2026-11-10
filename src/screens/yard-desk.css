@@ -385,6 +385,73 @@
   border-color: var(--line);
 }
 
+/* Truck boxes sit in the card's existing box. 107px is the measured desktop height. */
+.yard-side .tally-chip-dual.has-truck-pool {
+  height: 107px;
+  overflow: hidden;
+}
+
+.tally-truck-body {
+  width: 100%;
+  min-width: 0;
+}
+
+.yard-side .tally-chip-dual.has-truck-pool .tally-truck-body {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.tally-truck-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.yard-side .tally-chip-dual.has-truck-pool .tally-dual-row {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.station-truck-grid {
+  flex: 0 0 104px;
+  width: 104px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: 2px 3px;
+  min-height: 0;
+}
+
+.station-truck-input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 1px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--field);
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+}
+
+.station-truck-input:focus {
+  border-color: #7eb6ff;
+  outline: 1px solid #7eb6ff;
+  background: #fff;
+}
+
 .yard-desk .tally-chip-label {
   text-align: left;
   color: var(--text);

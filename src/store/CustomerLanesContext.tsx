@@ -26,6 +26,11 @@ import {
   pullAndMergePickupChipLayout,
   pushPickupChipLayoutIfLocalNewer,
 } from "../lib/pickupChipLayoutCloud";
+import { STATION_TRUCK_POOL_FLUSH_EVENT } from "../lib/stationTruckPool";
+import {
+  pullAndMergeStationTruckPool,
+  pushStationTruckPoolIfLocalNewer,
+} from "../lib/stationTruckPoolCloud";
 import {
   CUSTOMER_LANES_TABLE,
   customerLaneToRow,
@@ -153,6 +158,8 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     // order and does not push an empty layout over a newer cloud row.
     await pullAndMergePickupChipLayout(supabase);
     await pushPickupChipLayoutIfLocalNewer(supabase, user?.id ?? null);
+    await pullAndMergeStationTruckPool(supabase);
+    await pushStationTruckPoolIfLocalNewer(supabase, user?.id ?? null);
   }, [session, user?.id]);
 
   const pullRemote = useCallback(async (): Promise<CustomerLaneStore | null> => {
@@ -293,15 +300,24 @@ export function CustomerLanesProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener(CUSTOMER_BRANDS_FLUSH_EVENT, onFlush);
     window.addEventListener(PICKUP_CHIP_LAYOUT_FLUSH_EVENT, onFlush);
+    window.addEventListener(STATION_TRUCK_POOL_FLUSH_EVENT, onFlush);
     return () => {
       window.removeEventListener(CUSTOMER_BRANDS_FLUSH_EVENT, onFlush);
       window.removeEventListener(PICKUP_CHIP_LAYOUT_FLUSH_EVENT, onFlush);
+      window.removeEventListener(STATION_TRUCK_POOL_FLUSH_EVENT, onFlush);
     };
   }, [cloud, syncBrandOverrides]);
 
   useEffect(() => {
     if (!cloud) return;
     return attachCrewTableRealtime("pickup-chip-layout", ["pickup_chip_layout"], () => {
+      void syncBrandOverrides();
+    });
+  }, [cloud, syncBrandOverrides]);
+
+  useEffect(() => {
+    if (!cloud) return;
+    return attachCrewTableRealtime("station-truck-pool", ["station_truck_pool"], () => {
       void syncBrandOverrides();
     });
   }, [cloud, syncBrandOverrides]);
