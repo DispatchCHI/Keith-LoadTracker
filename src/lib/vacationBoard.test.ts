@@ -16,6 +16,7 @@ import {
   formatWeekRange,
   holidayLabelForWeek,
   inferSeedStatus,
+  isPaidOutVacationNote,
   laborDayISO,
   memorialDayISO,
   mergeVacationStores,
@@ -32,6 +33,7 @@ import {
   statusTone,
   sundayOnOrBefore,
   vacationStatusLabel,
+  vacationEntryMarksUnavailable,
   sundaysForVacationYear,
   thanksgivingISO,
   updateVacationEntry,
@@ -100,6 +102,53 @@ describe("week helpers", () => {
   it("formats a week range", () => {
     expect(formatWeekRange("2026-03-08")).toBe("Mar 8–14");
     expect(formatWeekRange("2025-12-28")).toBe("Dec 28 – Jan 3");
+  });
+});
+
+describe("paid-out vacation notes", () => {
+  it("matches cash-out wording and ignores ordinary time-off notes", () => {
+    for (const note of [
+      "paid out",
+      "Paid Out",
+      "PAID OUT",
+      "paid-out",
+      "Paid-Out",
+      "paidout",
+      "payout",
+      "Payout",
+      "pay out",
+      "pay-out",
+      "paid out.",
+      "  Paid  Out  ",
+      "payout 2/11",
+      "payouts",
+      "he was paid out",
+      "payed out",
+    ]) {
+      expect(isPaidOutVacationNote(note), note).toBe(true);
+      expect(vacationEntryMarksUnavailable({ note }), note).toBe(false);
+    }
+    for (const note of [
+      "",
+      "   ",
+      "Pay",
+      "using up all PTO",
+      "10/28/26 - 11/11/26 (using up all PTO)",
+      "Oct 15 - Oct 23",
+      "payroll",
+      "pay outside",
+      "approved",
+      "back Friday",
+    ]) {
+      expect(isPaidOutVacationNote(note), note).toBe(false);
+      expect(vacationEntryMarksUnavailable({ note }), note).toBe(true);
+    }
+  });
+
+  it("still matches when the note is packed with a date span", () => {
+    const packed = packVacationNote("paid out", "2026-10-11", "2026-10-17");
+    expect(isPaidOutVacationNote(packed)).toBe(true);
+    expect(isPaidOutVacationNote(packVacationNote("", "2026-10-11", "2026-10-17"))).toBe(false);
   });
 });
 

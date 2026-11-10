@@ -286,4 +286,65 @@ describe("chicago Full Roster available base", () => {
       available: 136,
     });
   });
+
+  it("keeps a paid-out driver available on Today and Saturday while a normal vacation is off", () => {
+    let roster = rosterWith([
+      { yard: "burnham", name: "Samuel Feliciano" },
+      { yard: "burnham", name: "Greg Cellarius" },
+    ]);
+    roster = addRosterEntry(roster, {
+      kind: "sat",
+      yard: "burnham",
+      name: "Samuel Feliciano",
+    }).store;
+    roster = addRosterEntry(roster, {
+      kind: "sat",
+      yard: "burnham",
+      name: "Greg Cellarius",
+    }).store;
+    let vacation = emptyVacationStore();
+    vacation = addVacationEntry(vacation, "2026-01-04", "Samuel Feliciano", {
+      yard: "chicago",
+      note: "payout",
+      status: "paid",
+    }).store;
+    vacation = addVacationEntry(vacation, "2026-01-04", "Greg Cellarius", {
+      yard: "chicago",
+      note: "Oct 15 - Oct 23",
+    }).store;
+
+    const weekday = "2026-01-07";
+    expect(chicagoFullRosterTally(roster, vacation, weekday)).toEqual({
+      hired: 2,
+      unavailable: 1,
+      available: 1,
+    });
+    const unavailable = rosterUnavailableEntries(roster, vacation, weekday);
+    expect(unavailable.map((row) => row.name)).toEqual(["Greg Cellarius"]);
+    expect(unavailable.map((row) => row.status)).toEqual(["vac"]);
+
+    const saturday = "2026-01-10";
+    expect(chicagoSatRosterTally(roster, vacation, saturday)).toEqual({
+      hired: 2,
+      unavailable: 1,
+      available: 1,
+    });
+    const satOff = rosterUnavailableEntries(roster, vacation, saturday, { kind: "sat" });
+    expect(satOff.map((row) => [row.name, row.status])).toEqual([["Greg Cellarius", "vac"]]);
+
+    const live = liveSheetFromRoster({
+      roster,
+      vacation,
+      date: weekday,
+      offs: [],
+      saturdayUsesWeekdayBase: true,
+    });
+    expect(live.base).toBe(1);
+    expect(live.rosterTotal).toBe(2);
+    expect(computeAvailability(live, weekday)).toMatchObject({
+      base: 1,
+      available: 1,
+      rosterTotal: 2,
+    });
+  });
 });

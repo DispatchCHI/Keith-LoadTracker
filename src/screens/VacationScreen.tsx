@@ -10,6 +10,7 @@ import {
   formatWeekRange,
   holidayLabelForWeek,
   isCustomVacationSpan,
+  isPaidOutVacationNote,
   monthKeyForWeek,
   monthLabelForKey,
   spanCrossesWeek,
@@ -47,8 +48,14 @@ const HOLIDAY_PRESETS = [
   "Blocked",
 ] as const;
 
-function statusClass(status: VacationStatus): string {
-  return `vac-pill vac-pill-${status}`;
+function statusClass(status: VacationStatus, paidOut: boolean): string {
+  return `vac-pill vac-pill-${status}${paidOut ? " is-paid-out" : ""}`;
+}
+
+/** Note line for a cash-out chip. The stored note stays; "working" is display only. */
+function paidOutNoteLabel(note: string): string {
+  if (/\bworking\b/i.test(note)) return note;
+  return `${note} · working`;
 }
 
 function DriverPill({
@@ -64,17 +71,22 @@ function DriverPill({
 }) {
   const custom = isCustomVacationSpan(entry);
   const daysLabel = custom ? formatVacationSpanLabel(entry) : "Days";
+  const paidOut = isPaidOutVacationNote(entry.note);
+  const noteLabel = entry.note ? (paidOut ? paidOutNoteLabel(entry.note) : entry.note) : "";
+  const statusLabel = vacationStatusLabel(entry.status);
+  const workingTitle = `${entry.name}${noteLabel ? ` · ${noteLabel}` : ""} · ${statusLabel}. Click to change status.`;
+  const workingLabel = `${entry.name}${noteLabel ? `, ${noteLabel}` : ""}, ${statusLabel}. Click to change status.`;
   return (
-    <span className={statusClass(entry.status)}>
+    <span className={statusClass(entry.status, paidOut)}>
       <button
         type="button"
         className="vac-pill-main"
         onClick={onCycle}
-        title={`${entry.name}${entry.note ? ` · ${entry.note}` : ""} · ${vacationStatusLabel(entry.status)}. Click to change status.`}
-        aria-label={`${entry.name}${entry.note ? `, ${entry.note}` : ""}, ${vacationStatusLabel(entry.status)}. Click to change status.`}
+        title={workingTitle}
+        aria-label={workingLabel}
       >
         <span className="vac-pill-name">{entry.name}</span>
-        {entry.note ? <span className="vac-pill-note">{entry.note}</span> : null}
+        {noteLabel ? <span className="vac-pill-note">{noteLabel}</span> : null}
       </button>
       <button
         type="button"

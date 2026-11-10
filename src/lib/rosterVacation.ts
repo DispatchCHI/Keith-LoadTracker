@@ -15,6 +15,11 @@
  *
  * Read-only: never writes `status`, never deletes hired / Sat rows. VAC is
  * derived at display/tally time so a week rollover cannot wipe the roster.
+ *
+ * A note that cashes the week out ("paid out", "payout", "pay out", …) is
+ * not time off. Those entries stay on the Vacation board and still fill the
+ * week, but the name lists below omit them so Today, Full Roster, Sat
+ * Roster, Call-Offs, and driver lookup stay available.
  */
 
 import {
@@ -27,6 +32,7 @@ import {
   entriesForWeek,
   entryCoversDate,
   sundayOnOrBefore,
+  vacationEntryMarksUnavailable,
   vacationNameKey,
   type VacationStore,
   type VacationYard,
@@ -167,6 +173,7 @@ export function vacationNamesOnDateAllYards(
   for (const yard of ["rockford", "chicago"] as const) {
     for (const entry of entriesForWeek(vacation, weekOf, yard)) {
       if (!entryCoversDate(entry, date)) continue;
+      if (!vacationEntryMarksUnavailable(entry)) continue;
       const key = rosterNameKey(entry.name);
       if (!key || seen.has(key)) continue;
       seen.add(key);
@@ -187,6 +194,7 @@ export function vacationNamesOnDate(
   for (const yard of vacationYardsForRosterYard(rosterYard)) {
     for (const entry of entriesForWeek(vacation, weekOf, yard)) {
       if (!entryCoversDate(entry, date)) continue;
+      if (!vacationEntryMarksUnavailable(entry)) continue;
       const key = rosterNameKey(entry.name);
       if (!key || seen.has(key)) continue;
       seen.add(key);

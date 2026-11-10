@@ -374,6 +374,24 @@ export function splitVacationNote(note: string): {
   return { note: user, startOn: match[1], endOn: match[2] };
 }
 
+/**
+ * Cash-out, not time off. The driver is paid for the week and still working.
+ * Case-insensitive. Tolerates "paid out", "paid-out", "paidout", "payout",
+ * "pay out", "pay-out", and a trailing plural ("payouts").
+ * A bare "Pay" / status `paid` is payroll coloring only and does not match.
+ */
+export function isPaidOutVacationNote(note: string): boolean {
+  const user = splitVacationNote(note).note;
+  if (!user.trim()) return false;
+  const flat = user.toLowerCase().replace(/['’]/g, "");
+  return /\b(?:paid|payed|pay)[\s/_-]*outs?\b/.test(flat);
+}
+
+/** Real time off. Paid-out notes stay on the board but do not mark the driver off. */
+export function vacationEntryMarksUnavailable(entry: Pick<VacationEntry, "note">): boolean {
+  return !isPaidOutVacationNote(entry.note);
+}
+
 export function packVacationNote(
   note: string,
   startOn: string | null,

@@ -18,7 +18,7 @@ import {
   vacationYardForRosterYard,
   vacationYardsForRosterYard,
 } from "./rosterVacation";
-import { addVacationEntry, emptyVacationStore } from "./vacationBoard";
+import { addVacationEntry, emptyVacationStore, entriesForWeek } from "./vacationBoard";
 
 function roster(
   name: string,
@@ -206,6 +206,84 @@ describe("vacation → Full Roster auto-VAC", () => {
     expect(tally).toEqual({ hired: 2, unavailable: 1, available: 1 });
     expect(store.entries).toEqual(before);
     expect(Object.keys(store.entries)).toHaveLength(2);
+  });
+
+  it("keeps a paid-out week on the board but does not mark the driver VAC", () => {
+    const weekOf = "2026-01-04";
+    let vacation = emptyVacationStore();
+    vacation = addVacationEntry(vacation, weekOf, "Samuel Feliciano", {
+      yard: "chicago",
+      note: "paid out",
+      status: "paid",
+    }).store;
+    vacation = addVacationEntry(vacation, weekOf, "Greg Cellarius", {
+      yard: "chicago",
+      note: "Oct 15 - Oct 23",
+    }).store;
+    vacation = addVacationEntry(vacation, weekOf, "Dave Vanderbilt", {
+      yard: "rockford",
+      note: "paid-out",
+    }).store;
+
+    expect(entriesForWeek(vacation, weekOf, "chicago").map((entry) => entry.name)).toEqual([
+      "Greg Cellarius",
+      "Samuel Feliciano",
+    ]);
+    expect(entriesForWeek(vacation, weekOf, "rockford").map((entry) => entry.name)).toEqual([
+      "Dave Vanderbilt",
+    ]);
+
+    expect(vacationNamesOnDate(vacation, midweek, "burnham")).toEqual(["Greg Cellarius"]);
+    expect(vacationNamesOnDate(vacation, midweek, "rockford")).toEqual(["Greg Cellarius"]);
+    expect(vacationNamesOnDateAllYards(vacation, midweek)).toEqual(["Greg Cellarius"]);
+
+    const paidOut = roster("Samuel Feliciano");
+    const off = roster("Greg Cellarius");
+    const names = vacationNamesOnDate(vacation, midweek, "burnham");
+    expect(rosterEntryOnVacation(paidOut, names)).toBe(false);
+    expect(effectiveRosterStatus(paidOut, names)).toEqual({
+      status: null,
+      source: null,
+      storedStatus: null,
+      onVacation: false,
+    });
+    expect(effectiveRosterStatus(off, names).onVacation).toBe(true);
+    expect(effectiveRosterStatus(off, names).status).toBe("vac");
+
+    let store = emptyDriverRosterStore();
+    store = addRosterEntry(store, {
+      kind: "full",
+      yard: "burnham",
+      name: "Samuel Feliciano",
+    }).store;
+    store = addRosterEntry(store, {
+      kind: "full",
+      yard: "burnham",
+      name: "Greg Cellarius",
+    }).store;
+    store = addRosterEntry(store, {
+      kind: "full",
+      yard: "burnham",
+      name: "Working Driver",
+    }).store;
+    const tally = fullRosterTallyForDate(
+      entriesForRoster(store, "full", "burnham"),
+      vacation,
+      midweek,
+      "burnham",
+    );
+    expect(tally).toEqual({ hired: 3, unavailable: 1, available: 2 });
+  });
+
+  it("still marks a normal vacation off when the note is not a cash-out", () => {
+    const vacation = vacationStore([{ weekOf, name: "Ryan Lollis" }]);
+    const withNote = addVacationEntry(vacation, weekOf, "Samuel Feliciano", {
+      yard: "rockford",
+      note: "10/28/26 - 11/11/26 (using up all PTO)",
+    }).store;
+    const names = vacationNamesOnDate(withNote, midweek, "rockford");
+    expect(names).toEqual(expect.arrayContaining(["Ryan Lollis", "Samuel Feliciano"]));
+    expect(effectiveRosterStatus(roster("Samuel Feliciano"), names).onVacation).toBe(true);
   });
 
   it("does not persist auto-VAC when a dispatcher later edits another field", () => {

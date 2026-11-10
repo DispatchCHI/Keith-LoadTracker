@@ -3413,6 +3413,19 @@ body.app-ready .splash {
   color: #14532d;
 }
 
+/* Cash-out week: driver is still working. Quieter than a real time-off chip. */
+.vac-pill.is-paid-out {
+  border-color: #9aa3ad;
+  background: #eef0f3;
+  color: #3d4654;
+}
+
+.vac-pill.is-paid-out .vac-pill-note {
+  color: #5c6775;
+  font-weight: 700;
+  opacity: 1;
+}
+
 .vac-pill-main {
   display: inline-flex;
   flex-direction: column;
@@ -3461,6 +3474,11 @@ body.app-ready .splash {
 .vac-pill-paid .vac-days {
   border-color: #166534;
   color: #14532d;
+}
+
+.vac-pill.is-paid-out .vac-days {
+  border-color: #6b7280;
+  color: #3d4654;
 }
 
 .vac-days.is-full {
