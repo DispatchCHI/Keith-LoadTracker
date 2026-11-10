@@ -105,6 +105,21 @@ describe("week helpers", () => {
   });
 });
 
+describe("paid-out chip color", () => {
+  it("keeps the click-to-cycle status color and only dashes the edge", () => {
+    const screen = readFileSync(new URL("../screens/VacationScreen.tsx", import.meta.url), "utf8");
+    expect(screen).toContain("vac-pill vac-pill-${status}");
+    expect(screen).toContain("is-paid-out");
+    expect(screen).toContain("· working");
+    const css = readFileSync(new URL("../index.css", import.meta.url), "utf8");
+    const block = css.match(/\.vac-pill\.is-paid-out\s*\{[^}]*\}/);
+    expect(block?.[0]).toMatch(/border-style:\s*dashed/);
+    expect(block?.[0]).not.toMatch(/background/);
+    expect(block?.[0]).not.toMatch(/(^|[^-])color\s*:/);
+    expect(css).not.toMatch(/\.vac-pill\.is-paid-out[^{]*\{[^}]*background/);
+  });
+});
+
 describe("paid-out vacation notes", () => {
   it("matches cash-out wording and ignores ordinary time-off notes", () => {
     for (const note of [
