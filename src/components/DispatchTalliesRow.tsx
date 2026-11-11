@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  armTruckInputSelect,
   clearStationTruckSlotAt,
   clearStationTruckSlots,
+  emptyTruckSlots,
+  disarmTruckInputSelect,
+  mergeTruckSlotsKeepingDraft,
   nextEmptyTruckSlot,
   previousTruckSlot,
   readStationTruckSlots,
@@ -10,6 +14,7 @@ import {
   selectTruckInputText,
   stationTruckPoolEnabled,
   subscribeStationTruckPool,
+  truckInputMouseUp,
   truckSlotFilled,
   STATION_TRUCK_SLOT_COUNT,
 } from "../lib/stationTruckPool";
@@ -168,10 +173,29 @@ function StationTruckGrid({ station }: { station: string }) {
   slotsRef.current = slots;
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
   const focusFirst = useRef(false);
+  const selectArm = useRef(disarmTruckInputSelect());
+  const focusedIndex = useRef<number | null>(null);
+  const dirty = useRef<boolean[]>(Array.from({ length: STATION_TRUCK_SLOT_COUNT }, () => false));
 
   useEffect(() => {
     return subscribeStationTruckPool(() => {
-      setSlots(readStationTruckSlots(station));
+      const incoming = readStationTruckSlots(station);
+      setSlots(() => {
+        const draft = slotsRef.current;
+        const keep: number[] = [];
+        dirty.current.forEach((isDirty, index) => {
+          if (isDirty) keep.push(index);
+        });
+        if (focusedIndex.current != null) keep.push(focusedIndex.current);
+        const merged = mergeTruckSlotsKeepingDraft(draft, incoming, keep);
+        slotsRef.current = merged;
+        dirty.current.forEach((isDirty, index) => {
+          if (isDirty && index !== focusedIndex.current && draft[index] === incoming[index]) {
+            dirty.current[index] = false;
+          }
+        });
+        return merged;
+      });
     });
   }, [station]);
 
@@ -198,13 +222,21 @@ function StationTruckGrid({ station }: { station: string }) {
   };
 
   const clearAll = () => {
+    dirty.current.fill(false);
+    focusedIndex.current = null;
+    slotsRef.current = emptyTruckSlots();
+    const empty = clearStationTruckSlots(station);
+    slotsRef.current = empty;
     focusFirst.current = true;
-    remember(clearStationTruckSlots(station));
+    setSlots(empty);
   };
 
   const clearOne = (index: number) => {
-    const next = saveStationTruckSlotsNow(station, clearStationTruckSlotAt(slotsRef.current, index));
-    remember(next);
+    dirty.current[index] = false;
+    const next = clearStationTruckSlotAt(slotsRef.current, index);
+    slotsRef.current = next;
+    const saved = saveStationTruckSlotsNow(station, next);
+    remember(saved);
     inputs.current[index]?.focus();
   };
 
@@ -230,17 +262,35 @@ function StationTruckGrid({ station }: { station: string }) {
               autoCapitalize="characters"
               autoCorrect="off"
               spellCheck={false}
-              onFocus={(event) => selectTruckInputText(event.currentTarget)}
+              onFocus={(event) => {
+                focusedIndex.current = index;
+                selectArm.current = armTruckInputSelect();
+                selectTruckInputText(event.currentTarget);
+              }}
               onMouseUp={(event) => {
+                const step = truckInputMouseUp(selectArm.current);
+                selectArm.current = step.arm;
+                if (!step.select) return;
                 event.preventDefault();
                 selectTruckInputText(event.currentTarget);
               }}
-              onChange={(event) => {
-                const next = writeBox(index, event.target.value);
-                if (!truckSlotFilled(next[index])) saveStationTruckSlotsNow(station, next);
+              onBeforeInput={() => {
+                selectArm.current = disarmTruckInputSelect();
               }}
-              onBlur={() => scheduleStationTruckSave(station, slotsRef.current)}
+              onChange={(event) => {
+                dirty.current[index] = true;
+                const next = writeBox(index, event.target.value);
+                if (!truckSlotFilled(next[index])) {
+                  dirty.current[index] = false;
+                  saveStationTruckSlotsNow(station, next);
+                }
+              }}
+              onBlur={() => {
+                if (focusedIndex.current === index) focusedIndex.current = null;
+                scheduleStationTruckSave(station, slotsRef.current);
+              }}
               onKeyDown={(event) => {
+                selectArm.current = disarmTruckInputSelect();
                 if (event.key === "Enter") {
                   event.preventDefault();
                   const next = writeBox(index, event.currentTarget.value);

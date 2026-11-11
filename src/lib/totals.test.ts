@@ -24,6 +24,7 @@ import {
   loadMatchesCallYard,
   rankCommodities,
   rankAccordionLoads,
+  mswRowNumbers,
   rankDestinations,
   rankPickups,
   formatRankTrashTotal,
@@ -1005,6 +1006,24 @@ describe("endOfDaySummary", () => {
     const summary = endOfDaySummary([], board);
     expect(summary.stations.find((row) => row.id === "melrose")?.left).toBe("1.5");
     expect(summary.stations.find((row) => row.id === "calumet")?.left).toBe("late");
+  });
+});
+
+describe("mswRowNumbers", () => {
+  it("numbers only MSW rows top-down and skips everything else", () => {
+    const loads = [
+      load({ id: "1", commodity: "Trash (MSW)" }),
+      load({ id: "2", commodity: "Yard Waste" }),
+      load({ id: "3", commodity: "Recycle" }),
+      load({ id: "4", commodity: "C&D" }),
+      load({ id: "5", commodity: "Leachate (tanker)" }),
+      load({ id: "6", commodity: "Trash" }),
+      load({ id: "7", commodity: "Wood" }),
+      load({ id: "8", commodity: "MSW" }),
+    ];
+    expect(mswRowNumbers(loads)).toEqual([1, null, null, null, null, 2, null, 3]);
+    const numbered = mswRowNumbers(loads).filter((n): n is number => n != null);
+    expect(numbered[numbered.length - 1]).toBe(countTrashLoads(loads));
   });
 });
 

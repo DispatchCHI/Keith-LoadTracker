@@ -3,10 +3,14 @@ import { readFileSync } from "node:fs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   applyStationTruckPoolRemote,
+  armTruckInputSelect,
   clearStationTruckSlotAt,
   clearStationTruckSlots,
+  disarmTruckInputSelect,
   flushScheduledStationTruckSave,
+  mergeTruckSlotsKeepingDraft,
   nextEmptyTruckSlot,
+  truckInputMouseUp,
   normalizeTruckSlots,
   previousTruckSlot,
   readStationTruckPoolUpdatedAt,
@@ -65,6 +69,37 @@ describe("station truck box focus", () => {
     expect(previousTruckSlot(0)).toBeNull();
     expect(previousTruckSlot(2)).toBe(1);
     expect(normalizeTruckSlots(["ab-12"])[0]).toBe("AB12");
+  });
+
+  it("fills row-wise: top-left, top-right, then the next row", () => {
+    const empty = normalizeTruckSlots([]);
+    expect(nextEmptyTruckSlot(empty, 0)).toBe(1);
+    const topLeft = normalizeTruckSlots(["2344"]);
+    expect(nextEmptyTruckSlot(topLeft, 0)).toBe(1);
+    const topRow = normalizeTruckSlots(["2344", "2566"]);
+    expect(nextEmptyTruckSlot(topRow, 1)).toBe(2);
+  });
+
+  it("selects the whole number once per focus, not after typing starts", () => {
+    let arm = armTruckInputSelect();
+    const firstUp = truckInputMouseUp(arm);
+    arm = firstUp.arm;
+    expect(firstUp.select).toBe(true);
+    arm = disarmTruckInputSelect();
+    expect(truckInputMouseUp(arm).select).toBe(false);
+    const late = truckInputMouseUp(armTruckInputSelect());
+    expect(late.select).toBe(true);
+    const afterDigit = truckInputMouseUp(disarmTruckInputSelect());
+    expect(afterDigit.select).toBe(false);
+  });
+
+  it("keeps the focused draft when a remote row arrives", () => {
+    const draft = normalizeTruckSlots(["12", "2566"]);
+    const incoming = normalizeTruckSlots(["REMOTE", "2566", "999"]);
+    expect(mergeTruckSlotsKeepingDraft(draft, incoming, [0])).toEqual(
+      normalizeTruckSlots(["12", "2566", "999"]),
+    );
+    expect(mergeTruckSlotsKeepingDraft(draft, incoming, [])[0]).toBe("REMOTE");
   });
 
   it("enables Batavia by station key, not by card position", () => {

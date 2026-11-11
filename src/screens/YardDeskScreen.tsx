@@ -30,6 +30,7 @@ import {
   endOfDayCards,
   endOfDaySummary,
   isTrashOnlyRank,
+  mswRowNumbers,
   rankAccordionLoads,
   rankCommodities,
   rankDestinations,
@@ -569,12 +570,14 @@ function RankLoads({
   if (loads.length === 0) {
     return <p className="yard-empty">No loads in this group.</p>;
   }
+  const mswNumbers = mswRowNumbers(loads);
   return (
     <div className="feed yard-load-feed">
       {checkoff ? (
         <p className="yard-empty">Shade turns the load darker gray. A second click clears it.</p>
       ) : null}
-      {loads.map((load) => {
+      {loads.map((load, index) => {
+        const mswNo = mswNumbers[index];
         const evanston = checkoff && isEvanstonPickup(load.pickup, load.stationId);
         const sharedEntry = evanston ? shared[load.id] : undefined;
         // Evanston: shared across desks; falls back to this desk's old local shade until first click.
@@ -598,6 +601,7 @@ function RankLoads({
                   : () => onEdit(load.id)
               }
             >
+              <span className="yard-line-msw">{mswNo == null ? "" : `${mswNo}.`}</span>
               <b>{load.truck}</b>
               {load.driverName ? <span className="yard-line-driver">{load.driverName}</span> : null}
               <span className="yard-line-route">

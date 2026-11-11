@@ -66,6 +66,7 @@ export function truckSlotFilled(value: string | undefined): boolean {
 
 /**
  * Index of the next empty box after `fromIndex`, wrapping to the start.
+ * Slots are row-wise: 0 top-left, 1 top-right, 2 second-row left, and so on.
  * The current box is not a candidate. Null when every box is filled.
  */
 export function nextEmptyTruckSlot(slots: readonly string[], fromIndex: number): number | null {
@@ -222,7 +223,7 @@ export function clearStationTruckSlotAt(slots: readonly string[], index: number)
   return next;
 }
 
-/** Select the whole truck number. Used on focus so one Delete clears it. */
+/** Select the whole truck number. Used once per focus so one Delete clears it. */
 export function selectTruckInputText(input: {
   value: string;
   setSelectionRange?: (start: number, end: number) => void;
@@ -233,6 +234,45 @@ export function selectTruckInputText(input: {
     return;
   }
   input.select?.();
+}
+
+/**
+ * Select-all is armed by focus and consumed by the mouseup that follows it
+ * (that mouseup would otherwise drop the selection). A keystroke disarms it
+ * first, so a late mouseup cannot select the digits already typed.
+ */
+export type TruckInputSelectArm = { armed: boolean };
+
+export function armTruckInputSelect(): TruckInputSelectArm {
+  return { armed: true };
+}
+
+export function truckInputMouseUp(
+  arm: TruckInputSelectArm,
+): { arm: TruckInputSelectArm; select: boolean } {
+  if (!arm.armed) return { arm, select: false };
+  return { arm: { armed: false }, select: true };
+}
+
+export function disarmTruckInputSelect(): TruckInputSelectArm {
+  return { armed: false };
+}
+
+/**
+ * Remote/crew rows update every box except ones the dispatcher is editing.
+ * `keep` indexes (focused box, or a box with unsent keystrokes) stay on `draft`.
+ */
+export function mergeTruckSlotsKeepingDraft(
+  draft: readonly string[],
+  incoming: readonly string[],
+  keep: readonly number[],
+): string[] {
+  const next = normalizeTruckSlots(incoming);
+  const local = normalizeTruckSlots(draft);
+  for (const index of keep) {
+    if (index >= 0 && index < next.length) next[index] = local[index] ?? "";
+  }
+  return next;
 }
 
 /**

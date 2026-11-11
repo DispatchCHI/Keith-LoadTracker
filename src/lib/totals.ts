@@ -243,6 +243,19 @@ export function isTrashLoad(load: Load): boolean {
   return tallyLabel(load.commodity) === "TRASH" && !isWalkingFloorLoad(load);
 }
 
+/**
+ * 1-based MSW numbers in display order. Non-MSW rows are null so the count
+ * skips them. Uses isTrashLoad, the same check as the station header's msw count.
+ */
+export function mswRowNumbers(loads: readonly Load[]): Array<number | null> {
+  let n = 0;
+  return loads.map((load) => {
+    if (!isTrashLoad(load)) return null;
+    n += 1;
+    return n;
+  });
+}
+
 export function countTrashLoads(loads: Load[]): number {
   return loads.filter(isTrashLoad).length;
 }
