@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   EOD_IMAGE_LAYOUT,
+  EOD_IMAGE_TITLE,
   EOD_IMAGE_TYPE,
+  eodImageDownloadName,
+  eodImageTitle,
   eodCardsBlockHeight,
   eodContentWidth,
   hourGridCardWidth,
@@ -29,6 +32,44 @@ function legacyHeight(yards: number, stations: number, landfills: number): numbe
   const lfH = 36 + lfRows * lfRowH;
   return pad + 64 + 28 + gridH + 28 + 24 + cardsH + 16 + tableH + 28 + lfH + 36 + pad;
 }
+
+describe("eodImageTitle", () => {
+  const thu = "2026-01-15";
+  const wed = "2026-07-15";
+
+  it("uses Chicago clock on a weekday, including across DST", () => {
+    // January is CST (UTC-6). July is CDT (UTC-5). Same Chicago clock, different UTC.
+    expect(eodImageTitle(thu, new Date("2026-01-15T17:59:00.000Z"))).toBe(EOD_IMAGE_TITLE.morning);
+    expect(eodImageTitle(thu, new Date("2026-01-15T18:00:00.000Z"))).toBe(EOD_IMAGE_TITLE.afternoon);
+    expect(eodImageTitle(thu, new Date("2026-01-15T22:59:00.000Z"))).toBe(EOD_IMAGE_TITLE.afternoon);
+    expect(eodImageTitle(thu, new Date("2026-01-15T23:00:00.000Z"))).toBe(EOD_IMAGE_TITLE.endOfDay);
+
+    expect(eodImageTitle(wed, new Date("2026-07-15T16:59:00.000Z"))).toBe(EOD_IMAGE_TITLE.morning);
+    expect(eodImageTitle(wed, new Date("2026-07-15T17:00:00.000Z"))).toBe(EOD_IMAGE_TITLE.afternoon);
+    expect(eodImageTitle(wed, new Date("2026-07-15T21:59:00.000Z"))).toBe(EOD_IMAGE_TITLE.afternoon);
+    expect(eodImageTitle(wed, new Date("2026-07-15T22:00:00.000Z"))).toBe(EOD_IMAGE_TITLE.endOfDay);
+  });
+
+  it("keeps End Of Day on weekends and on any date that is not today in Chicago", () => {
+    const saturdayNoon = new Date("2026-01-17T18:00:00.000Z");
+    const sundayMorning = new Date("2026-07-19T15:00:00.000Z");
+    expect(eodImageTitle("2026-01-17", saturdayNoon)).toBe(EOD_IMAGE_TITLE.endOfDay);
+    expect(eodImageTitle("2026-07-19", sundayMorning)).toBe(EOD_IMAGE_TITLE.endOfDay);
+
+    const thursdayMorning = new Date("2026-01-15T15:00:00.000Z");
+    expect(eodImageTitle("2026-01-14", thursdayMorning)).toBe(EOD_IMAGE_TITLE.endOfDay);
+    // 04:30 UTC Friday is still Thursday night in Chicago, so Thursday is "today".
+    const thursdayNight = new Date("2026-01-16T04:30:00.000Z");
+    expect(eodImageTitle("2026-01-15", thursdayNight)).toBe(EOD_IMAGE_TITLE.endOfDay);
+    expect(eodImageTitle("2026-01-16", thursdayNight)).toBe(EOD_IMAGE_TITLE.endOfDay);
+  });
+
+  it("uses the same title in the download name", () => {
+    const morning = new Date("2026-01-15T17:59:00.000Z");
+    expect(eodImageDownloadName(thu, morning)).toBe("Morning-Load-Count-2026-01-15.png");
+    expect(eodImageDownloadName("2026-01-14", morning)).toBe("End-Of-Day-Load-Count-2026-01-14.png");
+  });
+});
 
 describe("EOD_IMAGE_LAYOUT", () => {
   it("scales every EOD canvas font up for email readability", () => {

@@ -13,12 +13,14 @@ export function EodReportButton({ date }: { date: string }) {
     setError(null);
     setBusy(true);
     try {
+      const now = new Date();
       const dataUrl = buildEodReportPng({
         date,
         loads: loadsOn(date),
         snapshot: totalsOn(date),
+        now,
       });
-      await shareEodReportPng(dataUrl, date);
+      await shareEodReportPng(dataUrl, date, now);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not build the EOD image");
     } finally {

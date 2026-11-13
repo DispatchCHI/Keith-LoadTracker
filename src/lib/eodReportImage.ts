@@ -1,4 +1,4 @@
-import { formatHeaderDate } from "./chicagoDate";
+import { CHICAGO_TZ, formatHeaderDate, weekdayOfISO } from "./chicagoDate";
 import { applyDailyEodToSummary, type DailyEodTotals } from "./dailyEod";
 import { customerNames as customerNames_, readCustomerLanePersisted } from "./customerLanes";
 import {
@@ -50,6 +50,57 @@ export const EOD_IMAGE_TYPE = {
   landfillCaption: 13,
   footer: 18,
 } as const;
+
+export const EOD_IMAGE_TITLE = {
+  morning: "Morning Load Count",
+  afternoon: "Afternoon Load Count",
+  endOfDay: "End Of Day Load Count",
+} as const;
+
+export type EodImageTitle = (typeof EOD_IMAGE_TITLE)[keyof typeof EOD_IMAGE_TITLE];
+
+type ChicagoClock = { iso: string; minutes: number };
+
+/** America/Chicago calendar date and minutes since midnight. Not the machine zone. */
+export function chicagoClock(now: Date): ChicagoClock {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CHICAGO_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  let hour = Number(get("hour"));
+  if (!Number.isFinite(hour) || hour === 24) hour = 0;
+  const minute = Number(get("minute"));
+  return {
+    iso: `${get("year")}-${get("month")}-${get("day")}`,
+    minutes: hour * 60 + (Number.isFinite(minute) ? minute : 0),
+  };
+}
+
+/**
+ * Header for the EOD image. Weekdays use Chicago time at generation.
+ * Weekends and any day that is not today in Chicago stay "End Of Day Load Count".
+ */
+export function eodImageTitle(date: string, now: Date = new Date()): EodImageTitle {
+  const clock = chicagoClock(now);
+  if (date !== clock.iso) return EOD_IMAGE_TITLE.endOfDay;
+  const dow = weekdayOfISO(clock.iso);
+  if (dow === 0 || dow === 6) return EOD_IMAGE_TITLE.endOfDay;
+  if (clock.minutes < 12 * 60) return EOD_IMAGE_TITLE.morning;
+  if (clock.minutes < 17 * 60) return EOD_IMAGE_TITLE.afternoon;
+  return EOD_IMAGE_TITLE.endOfDay;
+}
+
+export function eodImageDownloadName(date: string, now: Date = new Date()): string {
+  const slug = eodImageTitle(date, now).replace(/ /g, "-");
+  return `${slug}-${date}.png`;
+}
 
 function canvasFont(weight: 500 | 600 | 700, px: number): string {
   return `${weight} ${px}px ${SANS}`;
@@ -263,6 +314,7 @@ export function buildEodReportPng(opts: {
   date: string;
   loads: Load[];
   snapshot: DailyEodTotals | null;
+  now?: Date;
 }): string {
   const store = readStationCallStore();
   const board = boardForDate(store, opts.date);
@@ -305,7 +357,7 @@ export function buildEodReportPng(opts: {
   let y = L.pad;
   ctx.fillStyle = "#111827";
   ctx.font = canvasFont(700, EOD_IMAGE_TYPE.title);
-  ctx.fillText("END OF DAY LOAD COUNT", L.pad, y + 40);
+  ctx.fillText(eodImageTitle(opts.date, opts.now ?? new Date()).toUpperCase(), L.pad, y + 40);
   ctx.font = canvasFont(500, EOD_IMAGE_TYPE.subtitle);
   ctx.fillStyle = "#6b7280";
   ctx.fillText(formatHeaderDate(opts.date), L.pad, y + 68);
@@ -573,17 +625,22 @@ function roundRect(
   ctx.closePath();
 }
 
-export async function shareEodReportPng(dataUrl: string, date: string): Promise<void> {
+export async function shareEodReportPng(
+  dataUrl: string,
+  date: string,
+  now: Date = new Date(),
+): Promise<void> {
   const res = await fetch(dataUrl);
   const blob = await res.blob();
-  const name = `EOD-load-count-${date}.png`;
+  const title = eodImageTitle(date, now);
+  const name = eodImageDownloadName(date, now);
   const file = new File([blob], name, { type: "image/png" });
   const nav = navigator as Navigator & {
     share?: (data: ShareData & { files?: File[] }) => Promise<void>;
     canShare?: (data: ShareData & { files?: File[] }) => boolean;
   };
   if (nav.share && nav.canShare?.({ files: [file] })) {
-    await nav.share({ files: [file], title: `EOD load count ${date}` });
+    await nav.share({ files: [file], title: `${title} ${date}` });
     return;
   }
   const a = document.createElement("a");
