@@ -26,7 +26,7 @@ import {
   loadStationNotes,
   mergeStationNoteStores,
   noteForStation,
-  parseNumericCell,
+  isZeroCount,
   pushStationCallDay,
   pushStationNote,
   readLegacyNotesFromStationCallStorage,
@@ -85,7 +85,7 @@ function CellInput({
   const [draft, setDraft] = useState<string | null>(null);
   const parentShown = value === null || value === undefined ? "" : String(value);
   const shown = draft !== null ? draft : parentShown;
-  const isZero = draft === null && parseNumericCell(value) === 0;
+  const isZero = isZeroCount(shown);
   const committedRef = useRef(false);
 
   // Drop the local draft once the parent store shows the same text. Clearing
@@ -1000,7 +1000,7 @@ export function StationCallsCard({
                         </button>
                       </th>
                       <td className="is-start">
-                        <span className={`station-call-start${start === 0 ? " is-zero" : ""}`}>
+                        <span className={`station-call-start${isZeroCount(start) ? " is-zero" : ""}`}>
                           {start}
                         </span>
                       </td>
@@ -1185,7 +1185,7 @@ export function StationCallsCard({
                     }}
                   />
                   <td className="is-start">
-                    <span className={`station-call-start${start === 0 ? " is-zero" : ""}`}>
+                    <span className={`station-call-start${isZeroCount(start) ? " is-zero" : ""}`}>
                       {start}
                     </span>
                   </td>

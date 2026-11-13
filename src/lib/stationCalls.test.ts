@@ -16,6 +16,7 @@ import {
   normalizeStationCell,
   noteForStation,
   notesEquivalent,
+  isZeroCount,
   parseNumericCell,
   reconcileStationCallCloud,
   reconcileStationNotesCloud,
@@ -98,6 +99,15 @@ describe("station call cell text", () => {
     store = setStationClose(store, "2026-09-08", "melrose", "3");
     store = setStationClose(store, "2026-09-08", "melrose", "");
     expect(store["2026-09-08"]!.melrose!.close).toBeNull();
+  });
+
+  it("treats a zero numeric part as a zero count, including an in suffix", () => {
+    for (const zero of ["0", "0.0", ".0", "0.", "0in", "0IN", " 0 ", "0 in", 0, 0.0]) {
+      expect(isZeroCount(zero), String(zero)).toBe(true);
+    }
+    for (const other of ["", "   ", null, undefined, ".5", "10", "0.5", "10in", "4in", "late", "0.5in", 1, 0.5]) {
+      expect(isZeroCount(other), String(other)).toBe(false);
+    }
   });
 
   it("parses numeric summaries and ignores letters", () => {

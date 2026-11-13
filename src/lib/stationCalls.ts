@@ -413,6 +413,21 @@ export function parseNumericCell(raw: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * True when a load-count cell's numeric part is exactly 0.
+ * Blank is not zero. A trailing letter suffix still counts ("0in", Evanston).
+ * "0.5", ".5", "10", and "10in" are not zero.
+ */
+export function isZeroCount(raw: unknown): boolean {
+  if (typeof raw === "number") return raw === 0;
+  if (raw == null) return false;
+  const t = String(raw).trim();
+  if (t === "") return false;
+  const match = /^(-?(?:\d+\.?\d*|\.\d+))\s*([a-zA-Z]*)$/.exec(t);
+  if (!match) return false;
+  return Number(match[1]) === 0;
+}
+
 /** Hour storage: missing = never set, `null` = explicit clear, string = value. */
 function readHourCell(raw: unknown): StationCellValue | null | undefined {
   if (raw === undefined) return undefined;

@@ -2743,7 +2743,8 @@ body.app-ready .splash {
 }
 .station-call-start.is-zero,
 .station-call-input.is-zero {
-  color: #e85d4c;
+  color: #dc2626;
+  font-weight: 700;
 }
 .station-call-input {
   width: 100%;

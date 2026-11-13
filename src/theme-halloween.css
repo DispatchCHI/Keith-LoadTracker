@@ -266,6 +266,14 @@ html[data-theme="halloween"] .yard-hour-table thead th {
   color: #f4a261;
 }
 
+html[data-theme="halloween"] .yard-hour .station-call-start.is-zero,
+html[data-theme="halloween"] .yard-hour .station-call-input.is-zero,
+html[data-theme="halloween"] .station-call-start.is-zero,
+html[data-theme="halloween"] .station-call-input.is-zero {
+  color: #dc2626;
+  font-weight: 700;
+}
+
 html[data-theme="halloween"] .yard-hour .station-call-input:focus {
   outline-color: #f4a261;
   background: rgba(244, 162, 97, 0.28);

@@ -1261,7 +1261,8 @@ button.yard-specialty-head:focus-visible {
 
 .yard-hour .station-call-start.is-zero,
 .yard-hour .station-call-input.is-zero {
-  color: var(--text);
+  color: #dc2626;
+  font-weight: 700;
 }
 
 .yard-hour .station-call-input:focus {

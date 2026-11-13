@@ -4,7 +4,7 @@ import { customerNames as customerNames_, readCustomerLanePersisted } from "./cu
 import {
   STATION_CALL_HOURS,
   boardForDate,
-  parseNumericCell,
+  isZeroCount,
   readStationCallStore,
   stationCallYards,
   stationCellFilled,
@@ -305,11 +305,6 @@ function closeCell(board: StationDayBoard, stationId: string): string {
   return stationCellFilled(raw) ? String(raw).trim() : "";
 }
 
-function isZeroish(value: string): boolean {
-  const n = parseNumericCell(value);
-  return n === 0;
-}
-
 export function buildEodReportPng(opts: {
   date: string;
   loads: Load[];
@@ -454,9 +449,10 @@ function drawHourGrid(
             ? closeCell(board, yard.id)
             : hourCell(board, yard.id, col.key);
       const cx = x + nameColW + i * hourColW + hourColW / 2;
+      const zero = isZeroCount(value);
       ctx.textAlign = "center";
-      ctx.font = canvasFont(600, EOD_IMAGE_TYPE.hourCell);
-      ctx.fillStyle = isZeroish(value) ? "#dc2626" : "#111827";
+      ctx.font = canvasFont(zero ? 700 : 600, EOD_IMAGE_TYPE.hourCell);
+      ctx.fillStyle = zero ? "#dc2626" : "#111827";
       ctx.fillText(value, cx, ry + rowH / 2);
       ctx.textAlign = "left";
     });
