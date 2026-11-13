@@ -33,6 +33,12 @@ import { useLoads } from "../store/LoadsContext";
 import type { Load } from "../types";
 import { suggestLanesForDriver } from "../lib/laneSuggestions";
 import { makeRosterNameResolver } from "../lib/rosterVacation";
+import {
+  formatDriverNameChoice,
+  searchDriversForLogLoad,
+  truckFieldIsNameQuery,
+} from "../lib/driverNameLookup";
+import type { DriverRosterEntry } from "../lib/driverRoster";
 
 type LogLoadScreenProps = {
   initialTruck?: string;
@@ -102,6 +108,8 @@ export function LogLoadScreen({
   const [quantity, setQuantity] = useState(1);
   const [truck, setTruck] = useState(initialTruck);
   const [truckError, setTruckError] = useState<string | null>(null);
+  /** Driver chosen by name who has no unit yet. The next truck number is theirs. */
+  const [awaitingTruckFor, setAwaitingTruckFor] = useState<DriverRosterEntry | null>(null);
   const [step, setStep] = useState<"truck" | "form">(
     initialTruck ? "form" : "truck",
   );
@@ -160,8 +168,15 @@ export function LogLoadScreen({
     () => previewForTruckListInput(rosterStore, truck),
     [rosterStore, truck],
   );
+  const nameChoices = useMemo(() => {
+    if (!truckFieldIsNameQuery(truck)) return [];
+    return searchDriversForLogLoad(rosterStore, goneEntries, truck).map((match) => ({
+      id: match.id,
+      label: formatDriverNameChoice(match),
+    }));
+  }, [rosterStore, goneEntries, truck]);
 
-  const commitTruck = (nextTruck: string) => {
+  const commitTruck = async (nextTruck: string, opts?: { keepPending?: boolean }) => {
     const { trucks, invalid } = parseTruckList(nextTruck);
     if (trucks.length === 0) {
       setTruckError(
@@ -172,14 +187,47 @@ export function LogLoadScreen({
       return;
     }
     const normalized = formatTruckList(trucks);
+    const pending = opts?.keepPending === false ? null : awaitingTruckFor;
+    if (pending && trucks.length === 1) {
+      const result = await setDriverAssignedTruck(pending.id, trucks[0]);
+      if (!result.ok) {
+        setTruckError(
+          `Truck ${trucks[0]} is already assigned to ${result.conflictName ?? "another driver"}.`,
+        );
+        return;
+      }
+      setAwaitingTruckFor(null);
+      setTruckError(null);
+      setTruck(normalized);
+      goToForm(normalized);
+      return;
+    }
+    if (pending && trucks.length > 1) setAwaitingTruckFor(null);
     setTruckError(null);
     setTruck(normalized);
-    const pending = trucksNeedingDriver(rosterStore, trucks);
-    if (pending.length) {
-      setAssignQueue({ trucks: pending, total: pending.length, normalized });
+    const unassigned = trucksNeedingDriver(rosterStore, trucks);
+    if (unassigned.length) {
+      setAssignQueue({ trucks: unassigned, total: unassigned.length, normalized });
       return;
     }
     goToForm(normalized);
+  };
+
+  const pickNamedDriver = (id: string) => {
+    const entry = rosterStore.entries[id];
+    if (!entry || entry.kind !== "full") return;
+    const unit = entry.assignedTruck;
+    if (unit) {
+      setAwaitingTruckFor(null);
+      setTruckError(null);
+      setTruck(unit);
+      void commitTruck(unit, { keepPending: false });
+      return;
+    }
+    setAssignQueue(null);
+    setTruckError(null);
+    setTruck("");
+    setAwaitingTruckFor(entry);
   };
 
   const goToForm = (normalized: string) => {
@@ -327,16 +375,29 @@ export function LogLoadScreen({
           onChange={(next) => {
             setTruckError(null);
             setAssignQueue(null);
+            if (truckFieldIsNameQuery(next)) setAwaitingTruckFor(null);
             setTruck(next);
           }}
-          onSubmit={() => truck && commitTruck(truck)}
+          onSubmit={() => truck && void commitTruck(truck)}
+          onNamePick={pickNamedDriver}
+          nameChoices={nameChoices}
           submitLabel="Next"
           autoFocus
           allowMulti
           error={truckError}
-          hint="Type unit numbers or broker codes — commas for several (e.g. 207, 214)."
+          hint={
+            awaitingTruckFor
+              ? `${awaitingTruckFor.name} has no truck. Type the unit number.`
+              : nameChoices.length
+                ? "Matching drivers. Arrows and Enter to choose."
+                : truckFieldIsNameQuery(truck)
+                  ? "No matching driver."
+                  : "Type unit numbers or broker codes — commas for several (e.g. 207, 214)."
+          }
           driverPreview={
-            truckError ? undefined : formatTruckDriverPreview(typingPreview)
+            truckError || awaitingTruckFor || truckFieldIsNameQuery(truck)
+              ? undefined
+              : formatTruckDriverPreview(typingPreview)
           }
         />
         {assignQueue && assignQueue.trucks.length ? (
