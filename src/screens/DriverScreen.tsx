@@ -33,6 +33,7 @@ import {
   vacationNamesOnDate,
 } from "../lib/rosterVacation";
 import { allotmentForName, yearlyAllotmentUses } from "../lib/rosterAllotment";
+import { vacationDaysLeftForDriver } from "../lib/driverVacation";
 import { makeRosterNameResolver } from "../lib/rosterVacation";
 import { weekPayForDriver } from "../lib/loadPay";
 import { sundayOnOrBefore } from "../lib/vacationBoard";
@@ -475,6 +476,15 @@ export function DriverScreen() {
               storedOut: rosterStatusRemovesFromAvailable(entry.status),
               onVacation: Boolean(effective.onVacation),
               allot: allotmentForName(entry.name, allotmentUses, resolveRosterName),
+              vacation: vacationDaysLeftForDriver({
+                name: entry.name,
+                hireDate: entry.hireDate,
+                asOf: today,
+                entries: Object.values(vacation.store.entries),
+                logRows: callOffRows,
+                manuals: manualOffs,
+                resolveName: resolveRosterName,
+              }),
               week:
                 weekPayById.get(entry.id) ??
                 weekPayForDriver({
@@ -486,7 +496,7 @@ export function DriverScreen() {
                 }),
             };
           }),
-    [kind, entries, vacationNames, allotmentUses, weekPayById, customerLanes, asOf, resolveRosterName],
+    [kind, entries, vacationNames, vacation.store.entries, allotmentUses, callOffRows, manualOffs, weekPayById, customerLanes, asOf, today, resolveRosterName],
   );
   // Keep the open pop-out on the live roster row so a rename/EMP # edit shows up.
   const notesDriver = useMemo(

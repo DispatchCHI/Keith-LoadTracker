@@ -244,15 +244,18 @@ export function isTrashLoad(load: Load): boolean {
 }
 
 /**
- * 1-based MSW numbers in display order. Non-MSW rows are null so the count
- * skips them. Uses isTrashLoad, the same check as the station header's msw count.
+ * MSW numbers for a newest-first list. The oldest MSW row (bottom) is 1 and
+ * the count climbs toward the top, so the newest MSW row's number equals the
+ * header's msw count. Non-MSW rows are null. Uses isTrashLoad.
  */
 export function mswRowNumbers(loads: readonly Load[]): Array<number | null> {
-  let n = 0;
-  return loads.map((load) => {
-    if (!isTrashLoad(load)) return null;
-    n += 1;
-    return n;
+  const msw = loads.map((load) => isTrashLoad(load));
+  const total = msw.reduce((sum, isMsw) => sum + (isMsw ? 1 : 0), 0);
+  let seen = 0;
+  return msw.map((isMsw) => {
+    if (!isMsw) return null;
+    seen += 1;
+    return total - seen + 1;
   });
 }
 

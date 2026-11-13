@@ -4179,6 +4179,11 @@ body.app-ready .splash {
   color: #6b6b70;
 }
 
+.drv-allot-vac {
+  background: #5b3cc4;
+  color: #ffffff;
+}
+
 .drv-allot-tag.is-empty {
   background: #e8e8ea;
   color: #6b6b70;

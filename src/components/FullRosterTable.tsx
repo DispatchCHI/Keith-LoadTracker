@@ -9,6 +9,7 @@ import { payTierFromHireDate, payTierLabel } from "../lib/driverPay";
 import { formatPayCents, type WeekPay } from "../lib/loadPay";
 import { yearsOfService, yearsOfServiceLabel } from "../lib/rosterHireDate";
 import type { DriverAllotment } from "../lib/rosterAllotment";
+import type { DriverVacationLeft } from "../lib/driverVacation";
 import { notesForDriver } from "../lib/driverNotes";
 import { useDriverNotes } from "../store/DriverNotesContext";
 import { formatMonthDayYear } from "../lib/chicagoDate";
@@ -20,6 +21,7 @@ export type FullRosterRowData = {
   storedOut: boolean;
   onVacation: boolean;
   allot: DriverAllotment;
+  vacation: DriverVacationLeft;
   week: WeekPay;
 };
 
@@ -32,7 +34,7 @@ type Handlers = {
   onNotes: (entry: DriverRosterEntry) => void;
 };
 
-type SortKey = "order" | "emp" | "name" | "yrs" | "truck" | "status" | "pday" | "calloff" | "okd" | "pay";
+type SortKey = "order" | "emp" | "name" | "yrs" | "truck" | "status" | "pday" | "calloff" | "okd" | "vac" | "pay";
 
 type FullRosterTableProps = Handlers & {
   rows: FullRosterRowData[];
@@ -73,6 +75,8 @@ function sortValue(row: FullRosterRowData, key: SortKey, today: string): string 
       return row.allot.callOffLeft;
     case "okd":
       return row.allot.okdOffUsed;
+    case "vac":
+      return row.vacation.left ?? -1;
     case "pay":
       return row.week.totalCents;
     default:
@@ -187,6 +191,7 @@ export function FullRosterTable({ rows, today, asOf, yardLabel, onAdd, ...handle
               {th("pday", "P-Day", "drv-tbl-c-num")}
               {th("calloff", "Call-off", "drv-tbl-c-num")}
               {th("okd", "OK'd Off", "drv-tbl-c-num")}
+              {th("vac", "Vac Left", "drv-tbl-c-num")}
               {th("pay", "Week $", "drv-tbl-c-pay")}
               <th className="drv-tbl-c-act" aria-label="Actions" />
             </tr>
@@ -210,7 +215,7 @@ export function FullRosterTable({ rows, today, asOf, yardLabel, onAdd, ...handle
           {shown.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={11} className="drv-tbl-empty">
+                <td colSpan={12} className="drv-tbl-empty">
                   No drivers match “{query}”.
                 </td>
               </tr>
@@ -256,7 +261,7 @@ function FullRosterRow({
   onProfile,
   onNotes,
 }: RowProps) {
-  const { entry, out, storedOut, onVacation, allot, week } = row;
+  const { entry, out, storedOut, onVacation, allot, vacation, week } = row;
   const [editing, setEditing] = useState(false);
   const [truck, setTruck] = useState(entry.assignedTruck ?? "");
   const [truckError, setTruckError] = useState<string | null>(null);
@@ -461,6 +466,22 @@ function FullRosterRow({
             {allot.okdOffUsed}
           </span>
         </td>
+        <td className="drv-tbl-c-num" data-label="Vac Left">
+          <span
+            className={
+              vacation.known && vacation.left
+                ? "drv-allot-tag drv-allot-vac"
+                : "drv-allot-tag drv-allot-vac is-empty"
+            }
+            title={
+              vacation.known
+                ? `Vacation days left this year (${vacation.usedDays} of ${vacation.grantedDays} used). ${vacation.weeks} week${vacation.weeks === 1 ? "" : "s"} after ${vacation.years} completed year${vacation.years === 1 ? "" : "s"}. A week is 5 weekdays. Paid-out weeks count as used.`
+                : "No start date — vacation days can't be calculated."
+            }
+          >
+            {vacation.known ? vacation.left : "—"}
+          </span>
+        </td>
         <td className="drv-tbl-c-pay" data-label="Week $">
           {formatPayCents(week.totalCents)}
           {week.assumedTier1 && week.loadCount > 0 ? (
@@ -505,7 +526,7 @@ function FullRosterRow({
       </tr>
       {open ? (
         <tr className="drv-tbl-detail">
-          <td colSpan={11}>
+          <td colSpan={12}>
             <div className="drv-tbl-detail-inner">
               {editing ? (
                 <div className="drv-pay-edit">
@@ -563,6 +584,20 @@ function FullRosterRow({
                   className={allot.okdOffUsed ? "drv-allot-tag drv-allot-okdoff" : "drv-allot-tag drv-allot-okdoff is-empty"}
                 >
                   OK'd Off {allot.okdOffUsed}
+                </span>
+                <span
+                  className={
+                    vacation.known && vacation.left
+                      ? "drv-allot-tag drv-allot-vac"
+                      : "drv-allot-tag drv-allot-vac is-empty"
+                  }
+                  title={
+                    vacation.known
+                      ? `Vacation days left this year (${vacation.usedDays} of ${vacation.grantedDays} used)`
+                      : "No start date"
+                  }
+                >
+                  Vac {vacation.known ? vacation.left : "—"}
                 </span>
               </div>
               <button type="button" className="drv-tbl-note" onClick={() => onNotes(entry)}>

@@ -1021,9 +1021,10 @@ describe("mswRowNumbers", () => {
       load({ id: "7", commodity: "Wood" }),
       load({ id: "8", commodity: "MSW" }),
     ];
-    expect(mswRowNumbers(loads)).toEqual([1, null, null, null, null, 2, null, 3]);
+    expect(mswRowNumbers(loads)).toEqual([3, null, null, null, null, 2, null, 1]);
     const numbered = mswRowNumbers(loads).filter((n): n is number => n != null);
-    expect(numbered[numbered.length - 1]).toBe(countTrashLoads(loads));
+    expect(numbered[0]).toBe(countTrashLoads(loads));
+    expect(numbered[numbered.length - 1]).toBe(1);
   });
 });
 
