@@ -415,7 +415,7 @@ export function DriversCard({
             <ul className="oot-list">
               {unavailableNames.map((name) => (
                 <li key={name} className="oot-chip">
-                  <RosterPersonName name={name} type={driverTypeForName(rosterStore, name)} />
+                  {name}
                 </li>
               ))}
             </ul>
