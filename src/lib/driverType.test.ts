@@ -4,6 +4,7 @@ import {
   displayDriverName,
   resolveDriverType,
   resolveStoredDriverType,
+  driverTypeListSuffix,
   rosterNameWithType,
   splitTankerSuffix,
 } from "./driverType";
@@ -65,10 +66,20 @@ describe("driver type defaults", () => {
     expect(sat.name).toBe("Dan Kasprzycki");
     expect(resolveDriverType(store, sat)).toBe("tanker");
     expect(rosterNameWithType(sat.name, resolveDriverType(store, sat))).toBe(
-      "Dan Kasprzycki - Tanker",
+      "Dan Kasprzycki - T",
     );
     expect(rosterNameWithType("Alex Acosta", "wf")).toBe("Alex Acosta - WF");
     expect(displayDriverName("Gerald Orr - T")).toBe("Gerald Orr");
     expect(rosterNameWithType("Dave Vanderbilt", "msw")).toBe("Dave Vanderbilt");
+  });
+
+  it("prints tanker as - T and walking floor as - WF", () => {
+    expect(driverTypeListSuffix("tanker")).toBe(" - T");
+    expect(driverTypeListSuffix("wf")).toBe(" - WF");
+    expect(driverTypeListSuffix("msw")).toBe("");
+    expect(driverTypeListSuffix(null)).toBe("");
+    expect(rosterNameWithType("Bill Vrtis", "tanker")).toBe("Bill Vrtis - T");
+    expect(rosterNameWithType("James Carter", "wf")).toBe("James Carter - WF");
+    expect(rosterNameWithType("Christopher Washington", "msw")).toBe("Christopher Washington");
   });
 });

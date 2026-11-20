@@ -319,7 +319,7 @@ describe("roster add/remove helpers", () => {
     ]);
     const burnham = entriesForRoster(store, "full", "burnham");
     expect(formatRosterLine(burnham[0])).toBe("56 Dave Vanderbilt");
-    expect(formatRosterCopyList(burnham)).toBe("56 Dave Vanderbilt\n102 Dan Kasprzycki - Tanker");
+    expect(formatRosterCopyList(burnham)).toBe("56 Dave Vanderbilt\n102 Dan Kasprzycki - T");
 
     const removed = removeRosterEntry(store, burnham[0].id);
     expect(removed.removed?.name).toBe("Dave Vanderbilt");
@@ -572,7 +572,7 @@ describe("sat roster seeds and resets from full", () => {
     const seeded = seedEmptySatRostersFromFull(store, { yards: ["burnham"] });
     const satLines = formatRosterCopyList(entriesForRoster(seeded.store, "sat", "burnham"));
     const fullLines = formatRosterCopyList(entriesForRoster(seeded.store, "full", "burnham"));
-    expect(satLines).toBe("56 Dave Vanderbilt\n102 Dan Kasprzycki - Tanker");
+    expect(satLines).toBe("56 Dave Vanderbilt\n102 Dan Kasprzycki - T");
     expect(satLines).toBe(fullLines);
     expect(satLines.includes("\t")).toBe(false);
 
@@ -584,7 +584,7 @@ describe("sat roster seeds and resets from full", () => {
     }).store;
     const reset = resetSatRosterFromFull(store, "burnham");
     expect(formatRosterCopyList(entriesForRoster(reset.store, "sat", "burnham"))).toBe(
-      "56 Dave Vanderbilt\n102 Dan Kasprzycki - Tanker",
+      "56 Dave Vanderbilt\n102 Dan Kasprzycki - T",
     );
   });
 

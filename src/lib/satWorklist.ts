@@ -118,6 +118,24 @@ export function allYardsSaturday(
 /** Non-breaking space: an empty <title> makes some browsers print the URL instead. */
 export const PRINT_DOCUMENT_TITLE = "&#160;";
 
+/** Letter sheet after the 0.5in side padding used by the print page. */
+const PRINT_CONTENT_PT = (8.5 - 1) * 72;
+const PRINT_COLUMN_GAP_PT = 8;
+
+/**
+ * Point size that keeps emp + name + suffix on one column line.
+ * All-yards (4 columns) starts smaller; a long name shrinks further.
+ */
+export function worklistLineFontPt(emp: string, name: string, columns: number): number {
+  const cols = Math.max(1, columns);
+  const columnPt = (PRINT_CONTENT_PT - PRINT_COLUMN_GAP_PT * (cols - 1)) / cols;
+  const base = cols >= 4 ? 8 : 11;
+  const empEms = Math.max(3.8, emp.length * 0.56);
+  const nameEms = Math.max(name.length, 1) * 0.56;
+  const fitted = columnPt / (empEms + nameEms + 0.35);
+  return Math.max(6, Math.min(base, Math.round(fitted * 10) / 10));
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -160,7 +178,8 @@ export function buildWorklistPrintHtml(input: {
             driverType: entry.driverType,
           });
           if (!name) return "";
-          return `<li><span class="emp">${escapeHtml(emp)}</span><span class="name">${escapeHtml(name)}</span></li>`;
+          const fontPt = worklistLineFontPt(emp, name, many ? 4 : 3);
+          return `<li style="font-size:${fontPt}pt"><span class="emp">${escapeHtml(emp)}</span><span class="name">${escapeHtml(name)}</span></li>`;
         })
         .filter(Boolean);
       const body = lines.length
@@ -184,9 +203,9 @@ export function buildWorklistPrintHtml(input: {
   h1 { font-size: 16pt; margin: 0 0 10pt; }
   h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1px solid #000; padding-bottom: 2pt; }
   .yard { break-inside: avoid; page-break-inside: avoid; }
-  .names { list-style: none; margin: 0; padding: 0; columns: ${many ? 4 : 3}; column-gap: 18pt; font-size: ${many ? 10 : 12}pt; }
-  .names li { break-inside: avoid; padding: 1pt 0; }
-  .emp { display: inline-block; min-width: 4.2em; font-variant-numeric: tabular-nums; }
+  .names { list-style: none; margin: 0; padding: 0; columns: ${many ? 4 : 3}; column-gap: ${PRINT_COLUMN_GAP_PT}pt; font-size: ${many ? 8 : 11}pt; }
+  .names li { break-inside: avoid; padding: 0.4pt 0; white-space: nowrap; line-height: 1.15; }
+  .emp { display: inline-block; min-width: 3.8em; font-variant-numeric: tabular-nums; }
   .none { margin: 0; font-style: italic; }
   .footer { margin: 14pt 0 0; font-size: 12pt; font-weight: bold; white-space: pre-wrap; }
   @media print { html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }

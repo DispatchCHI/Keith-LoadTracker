@@ -9,9 +9,9 @@ export const DRIVER_TYPE_LABELS: Record<DriverType, string> = {
   wf: "Walking-Floor",
 };
 
-/** Copy / print suffix. MSW stays unmarked. */
+/** Copy / print suffix. MSW stays unmarked. Screen pills stay "Tanker" / "WF". */
 export function driverTypeListSuffix(type: DriverType | null | undefined): string {
-  if (type === "tanker") return " - Tanker";
+  if (type === "tanker") return " - T";
   if (type === "wf") return " - WF";
   return "";
 }

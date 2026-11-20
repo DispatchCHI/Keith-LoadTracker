@@ -5,6 +5,7 @@ import {
   allYardsSaturday,
   buildWorklistPrintHtml,
   comingSaturday,
+  worklistLineFontPt,
   formatAllYardsWorklist,
   formatWorklistDate,
   formatYardWorklist,
@@ -149,6 +150,32 @@ describe("Saturday Worklist text", () => {
     expect(html).not.toMatch(/\d+ drivers?/);
     expect(html).not.toContain("Total Drivers");
     expect(html.match(/Keep phones/g)).toHaveLength(1);
+  });
+
+  it("keeps every printed driver on one line and shrinks a long name", () => {
+    const shortPt = worklistLineFontPt("56", "Dave Vanderbilt", 4);
+    const longPt = worklistLineFontPt("39352", "Christopher Washington", 4);
+    expect(longPt).toBeLessThan(shortPt);
+    expect(longPt).toBeGreaterThanOrEqual(6);
+    const html = buildWorklistPrintHtml({
+      title: "Final Saturday Worklist - All Yards - Sat 11/21/26",
+      sections: [
+        {
+          heading: "Burnham",
+          entries: [
+            { truckNumber: "30765", name: "Bill Vrtis", driverType: "tanker" },
+            { truckNumber: "39352", name: "Christopher Washington" },
+          ],
+        },
+        { heading: "Pontiac", entries: [{ truckNumber: "40478", name: "Margarito Hernandez" }] },
+      ],
+      footer: DEFAULT_SAT_FOOTER,
+    });
+    expect(html).toContain("white-space: nowrap");
+    expect(html).toContain("Bill Vrtis - T");
+    expect(html).not.toContain("Bill Vrtis - Tanker");
+    expect(html).toContain(`font-size:${longPt}pt`);
+    expect(html).toContain("columns: 4");
   });
 
   it("copied text still carries Total Drivers", () => {
