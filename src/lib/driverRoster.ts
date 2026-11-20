@@ -710,6 +710,45 @@ export function matchDriverNameSuggestions(
 }
 
 /**
+ * Full Roster row for a typed or picked name. The current yard wins;
+ * otherwise the first match on any yard. Sat-only and Gone-only names miss.
+ */
+export function lookupFullRosterDriver(
+  store: DriverRosterStore,
+  name: string,
+  yard?: DriverRosterYard,
+): DriverRosterEntry | null {
+  const key = displayDriverName(name).toLowerCase();
+  if (!key) return null;
+  const full = Object.values(store.entries).filter(
+    (entry) => entry.kind === "full" && displayDriverName(entry.name).toLowerCase() === key,
+  );
+  if (yard) {
+    const local = full.find((entry) => entry.yard === yard);
+    if (local) return local;
+  }
+  return full[0] ?? null;
+}
+
+/** Name suggestions for Sat + Add: this yard's Full Roster first, then the other yards. */
+export function fullRosterNameSuggestions(
+  store: DriverRosterStore,
+  query: string,
+  yard?: DriverRosterYard,
+  limit = 8,
+): string[] {
+  const yardNames = yard
+    ? entriesForRoster(store, "full", yard).map((entry) => displayDriverName(entry.name))
+    : [];
+  const yardHits = matchDriverNameSuggestions(yardNames, query, limit);
+  const seen = new Set(yardHits.map((item) => item.toLowerCase()));
+  const rest = matchDriverNameSuggestions(fullRosterHiredNames(store), query, limit).filter(
+    (item) => !seen.has(item.toLowerCase()),
+  );
+  return [...yardHits, ...rest].slice(0, limit);
+}
+
+/**
  * The yard's Planning Saturday. Every Sat row carries for_date, so the latest
  * one wins (a single stale row, e.g. one added by an out-of-date desk, can no
  * longer drag the yard back to an old week).
@@ -1102,6 +1141,35 @@ export function removeRosterEntry(
   const entries = { ...store.entries };
   delete entries[id];
   return { store: { entries }, removed };
+}
+
+/** Move one roster row to a new index in its yard list. Same sortOrder field the arrows swap. */
+export function reorderRosterEntry(
+  store: DriverRosterStore,
+  id: string,
+  toIndex: number,
+  at?: string,
+): DriverRosterStore {
+  const current = store.entries[id];
+  if (!current || !Number.isInteger(toIndex)) return store;
+  const list = entriesForRoster(store, current.kind, current.yard);
+  const from = list.findIndex((row) => row.id === id);
+  if (from < 0 || toIndex < 0 || toIndex >= list.length || from === toIndex) return store;
+  const next = list.slice();
+  const [moved] = next.splice(from, 1);
+  if (!moved) return store;
+  next.splice(toIndex, 0, moved);
+  const stamp = nowIso(at);
+  const entries = { ...store.entries };
+  let changed = false;
+  for (let index = 0; index < next.length; index += 1) {
+    const row = next[index]!;
+    const prev = entries[row.id];
+    if (!prev || (prev.sortOrder === index && prev.id !== moved.id)) continue;
+    entries[row.id] = { ...prev, sortOrder: index, updatedAt: stamp };
+    changed = true;
+  }
+  return changed ? { entries } : store;
 }
 
 export function moveRosterEntry(

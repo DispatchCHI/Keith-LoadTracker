@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { DriverNameInput } from "../components/DriverNameInput";
 import { ConfirmOverlay } from "../components/ConfirmOverlay";
 import { DriverNotesPopout } from "../components/DriverNotesPopout";
 import { FullRosterTable } from "../components/FullRosterTable";
 import { RosterPersonName } from "../components/DriverTypeTag";
-import { resolveDriverType, splitTankerSuffix } from "../lib/driverType";
+import { resolveDriverType, splitTankerSuffix, type DriverType } from "../lib/driverType";
 import { addDays, chicagoToday, formatMonthDayYear, isValidISODate, weekdayOfISO, yearOfISO } from "../lib/chicagoDate";
 import {
   entriesForGoneYear,
@@ -19,7 +19,9 @@ import {
   ROSTER_UNAVAILABLE_REASONS,
   driverRosterYardLabel,
   entriesForRoster,
+  fullRosterNameSuggestions,
   fullRosterTally,
+  lookupFullRosterDriver,
   rosterEntryCount,
   rosterStatusRemovesFromAvailable,
   satDateForYard,
@@ -28,6 +30,8 @@ import {
   satRosterRowCount,
   type DriverRosterEntry,
   type DriverRosterKind,
+  type DriverRosterStore,
+  type DriverRosterYard,
   type DriverTabGroup,
 } from "../lib/driverRoster";
 import {
@@ -107,12 +111,22 @@ async function copyText(text: string): Promise<boolean> {
 
 function AddRosterForm({
   kind,
+  yard,
+  store,
   onCancel,
   onSave,
 }: {
   kind: DriverRosterKind;
+  yard: DriverRosterYard;
+  store: DriverRosterStore;
   onCancel: () => void;
-  onSave: (emp: string, name: string, status: string, assignedTruck: string) => Promise<string | null>;
+  onSave: (
+    emp: string,
+    name: string,
+    status: string,
+    assignedTruck: string,
+    driverType?: DriverType,
+  ) => Promise<string | null>;
 }) {
   const [truck, setTruck] = useState("");
   const [assignedTruck, setAssignedTruck] = useState("");
@@ -132,7 +146,14 @@ function AddRosterForm({
         event.preventDefault();
         if (!name.trim()) return;
         setError(null);
-        void onSave(truck.trim(), name.trim(), status.trim(), assignedTruck.trim()).then(
+        const match = kind === "sat" ? lookupFullRosterDriver(store, name, yard) : null;
+        void onSave(
+          truck.trim() || match?.truckNumber || "",
+          name.trim(),
+          status.trim(),
+          assignedTruck.trim(),
+          match?.driverType,
+        ).then(
           (conflictName) => {
             if (conflictName) setError(`Truck # already assigned to ${conflictName}.`);
           },
@@ -165,7 +186,13 @@ function AddRosterForm({
         inputRef={nameRef}
         className="text-input drv-add-name"
         value={name}
-        onChange={setName}
+        suggestions={kind === "sat" ? fullRosterNameSuggestions(store, name, yard) : undefined}
+        onChange={(next) => {
+          setName(next);
+          if (kind !== "sat") return;
+          const match = lookupFullRosterDriver(store, next, yard);
+          if (match?.truckNumber) setTruck(match.truckNumber);
+        }}
         placeholder="Driver name"
         aria-label="Driver name"
       />
@@ -328,6 +355,7 @@ export function DriverScreen() {
     removeDriver,
     removeHiredAndSat,
     moveDriver,
+    reorderDriver,
     setSatDate,
     resetSatToFullRoster,
   } = useDriverRoster();
@@ -349,6 +377,8 @@ export function DriverScreen() {
   const [notesFor, setNotesFor] = useState<DriverRosterEntry | null>(null);
   const [asOf, setAsOf] = useState(() => chicagoToday());
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const satGridRef = useRef<HTMLDivElement>(null);
+  const [satDrag, setSatDrag] = useState<{ id: string; to: number } | null>(null);
   const today = chicagoToday();
   const currentGoneYear = yearOfISO(today);
   const [goneYear, setGoneYear] = useState(currentGoneYear);
@@ -519,6 +549,43 @@ export function DriverScreen() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
+  }
+
+  function startSatPointer(event: ReactPointerEvent<HTMLDivElement>, id: string, index: number) {
+    if (event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("button")) return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let dragging = false;
+    const indexAt = (x: number, y: number) => {
+      const cells = satGridRef.current?.querySelectorAll<HTMLElement>(".drv-sat-cell");
+      if (!cells) return -1;
+      for (let i = 0; i < cells.length; i += 1) {
+        const rect = cells[i]!.getBoundingClientRect();
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) return i;
+      }
+      return -1;
+    };
+    const onMove = (ev: PointerEvent) => {
+      if (!dragging && Math.hypot(ev.clientX - startX, ev.clientY - startY) < 6) return;
+      dragging = true;
+      if (ev.cancelable) ev.preventDefault();
+      const to = indexAt(ev.clientX, ev.clientY);
+      setSatDrag({ id, to: to < 0 ? index : to });
+    };
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (dragging) {
+        const to = indexAt(ev.clientX, ev.clientY);
+        if (to >= 0 && to !== index) void reorderDriver(id, to);
+      } else {
+        toggleSelected(id);
+      }
+      setSatDrag(null);
+    };
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
   }
 
   async function deleteSelected() {
@@ -836,13 +903,16 @@ export function DriverScreen() {
       {adding && !onGone ? (
         <AddRosterForm
           kind={kind}
+          yard={yard}
+          store={store}
           onCancel={() => setAdding(false)}
-          onSave={async (emp, name, status, assignedTruck) => {
+          onSave={async (emp, name, status, assignedTruck, driverType) => {
             const result = await addDriver({
               truckNumber: emp,
               assignedTruck: assignedTruck || null,
               name,
               status,
+              driverType,
               forDate: satDate,
             });
             if (result.conflictName) return result.conflictName;
@@ -907,9 +977,6 @@ export function DriverScreen() {
                 if (event.key === "Escape") setFooterDraft(null);
               }}
             />
-            <p className="field-hint tight">
-              Tanker and WF are written after the name (Name - Tanker, Name - WF). MSW is left plain.
-            </p>
           </label>
           {allYardsWorklist ? (
             <details className="drv-worklist-all">
@@ -1056,6 +1123,7 @@ export function DriverScreen() {
             )}
           </div>
           <div
+            ref={satGridRef}
             className="drv-sat-grid"
             role="list"
             aria-label={`${yardLabel} Saturday roster`}
@@ -1064,13 +1132,15 @@ export function DriverScreen() {
           >
             {entries.map((entry, index) => {
               const selected = selectedSet.has(entry.id);
+              const dragging = satDrag?.id === entry.id;
+              const drop = Boolean(satDrag && satDrag.to === index && satDrag.id !== entry.id);
               return (
               <div
                 key={entry.id}
-                className={selected ? "drv-sat-cell is-selected" : "drv-sat-cell"}
+                className={`drv-sat-cell${selected ? " is-selected" : ""}${dragging ? " is-dragging" : ""}${drop ? " is-drop" : ""}`}
                 role="listitem"
                 aria-selected={selected}
-                onClick={() => toggleSelected(entry.id)}
+                onPointerDown={(event) => startSatPointer(event, entry.id, index)}
               >
                 <div className="drv-move drv-sat-cell-move">
                   <button

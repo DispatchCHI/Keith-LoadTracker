@@ -10,6 +10,8 @@ type DriverNameInputProps = {
   autoFocus?: boolean;
   inputRef?: Ref<HTMLInputElement>;
   "aria-label"?: string;
+  /** When set, these names replace the default Full Roster list. */
+  suggestions?: readonly string[];
 };
 
 export function DriverNameInput({
@@ -21,8 +23,10 @@ export function DriverNameInput({
   autoFocus = false,
   inputRef,
   "aria-label": ariaLabel,
+  suggestions,
 }: DriverNameInputProps) {
-  const matches = useDriverNameSuggestions(value);
+  const fromRoster = useDriverNameSuggestions(value);
+  const matches = suggestions ?? fromRoster;
 
   return (
     <div className="driver-name-field">

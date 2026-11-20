@@ -23,6 +23,7 @@ import {
   cleanDriverTabGroup,
   findAssignedTruckConflict,
   moveRosterEntry,
+  reorderRosterEntry,
   collapseDuplicateRosterEntries,
   phonesNeedingUpload,
   preservePhones,
@@ -114,6 +115,7 @@ type DriverRosterContextValue = {
   removeDriver: (id: string) => Promise<void>;
   removeHiredAndSat: (id: string) => Promise<void>;
   moveDriver: (id: string, delta: -1 | 1) => Promise<void>;
+  reorderDriver: (id: string, toIndex: number) => Promise<void>;
   setSatDate: (forDate: string | null) => Promise<void>;
   resetSatToFullRoster: () => Promise<void>;
 };
@@ -728,6 +730,22 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     [cloud, cloudUpsert, persistLocal],
   );
 
+  const reorderDriver = useCallback(
+    async (id: string, toIndex: number) => {
+      epochRef.current += 1;
+      const next = reorderRosterEntry(storeRef.current, id, toIndex);
+      if (next === storeRef.current) return;
+      persistLocal(next);
+      const current = next.entries[id];
+      if (!current || !cloud) return;
+      const list = Object.values(next.entries).filter(
+        (entry) => entry.kind === current.kind && entry.yard === current.yard,
+      );
+      await cloudUpsert(list);
+    },
+    [cloud, cloudUpsert, persistLocal],
+  );
+
   const setSatDate = useCallback(
     async (forDate: string | null) => {
       epochRef.current += 1;
@@ -820,6 +838,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       removeDriver,
       removeHiredAndSat,
       moveDriver,
+      reorderDriver,
       setSatDate,
       resetSatToFullRoster,
     }),
@@ -841,6 +860,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       removeDriver,
       removeHiredAndSat,
       moveDriver,
+      reorderDriver,
       setSatDate,
       resetSatToFullRoster,
     ],

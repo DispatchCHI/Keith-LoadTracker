@@ -21,7 +21,10 @@ import {
   rosterStatusLabel,
   rosterStatusRemovesFromAvailable,
   mergeImportedRows,
+  fullRosterNameSuggestions,
+  lookupFullRosterDriver,
   moveRosterEntry,
+  reorderRosterEntry,
   reconcileDriverRosterCloud,
   removeRosterEntry,
   resetSatRosterFromFull,
@@ -344,10 +347,63 @@ describe("roster add/remove helpers", () => {
       "Mike Davy",
       "Frank Ragano",
     ]);
+    const c = addRosterEntry(store, {
+      kind: "sat",
+      yard: "pontiac",
+      truckNumber: "300",
+      name: "Chris Lane",
+    });
+    store = c.store;
+    store = reorderRosterEntry(store, a.entry!.id, 2);
+    expect(entriesForRoster(store, "sat", "pontiac").map((row) => row.name)).toEqual([
+      "Mike Davy",
+      "Chris Lane",
+      "Frank Ragano",
+    ]);
+    expect(reorderRosterEntry(store, a.entry!.id, 2)).toBe(store);
     store = setSatDateForYard(store, "pontiac", "2026-09-12");
     expect(entriesForRoster(store, "sat", "pontiac").every((row) => row.forDate === "2026-09-12")).toBe(
       true,
     );
+  });
+
+  it("fills a Sat add from this yard's Full Roster, then any yard", () => {
+    let store = emptyDriverRosterStore();
+    store = addRosterEntry(store, {
+      kind: "full",
+      yard: "burnham",
+      truckNumber: "102",
+      name: "Dan Kasprzycki -T",
+      driverType: "tanker",
+    }).store;
+    store = addRosterEntry(store, {
+      kind: "full",
+      yard: "rockford",
+      truckNumber: "185",
+      name: "Dan Kasprzycki",
+      driverType: "wf",
+    }).store;
+    store = addRosterEntry(store, {
+      kind: "full",
+      yard: "pontiac",
+      truckNumber: "95",
+      name: "Frank Ragano",
+    }).store;
+    store = addRosterEntry(store, {
+      kind: "sat",
+      yard: "burnham",
+      truckNumber: "1",
+      name: "Sat Only",
+    }).store;
+    const local = lookupFullRosterDriver(store, "dan kasprzycki", "burnham");
+    expect(local?.truckNumber).toBe("102");
+    expect(local?.driverType).toBe("tanker");
+    const other = lookupFullRosterDriver(store, "Frank Ragano", "burnham");
+    expect(other?.yard).toBe("pontiac");
+    expect(other?.truckNumber).toBe("95");
+    expect(lookupFullRosterDriver(store, "Sat Only", "burnham")).toBeNull();
+    expect(fullRosterNameSuggestions(store, "dan", "rockford")[0]).toBe("Dan Kasprzycki");
+    expect(fullRosterNameSuggestions(store, "sat", "burnham")).toEqual([]);
   });
 
   it("imports only into empty kind/yard groups", () => {
