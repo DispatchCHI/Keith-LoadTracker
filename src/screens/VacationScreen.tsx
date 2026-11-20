@@ -31,6 +31,9 @@ import {
   type VacationWeekKind,
 } from "../lib/vacationBoard";
 import { useVacation } from "../store/VacationContext";
+import { useDriverRoster } from "../store/DriverRosterContext";
+import { driverTypeForName } from "../lib/driverType";
+import { RosterPersonName } from "../components/DriverTypeTag";
 
 const STATUS_OPTIONS: { id: VacationStatus; label: string }[] = [
   { id: "pending", label: vacationStatusLabel("pending") },
@@ -69,6 +72,8 @@ function DriverPill({
   onRemove: () => void;
   onEditDays: (anchor: HTMLButtonElement) => void;
 }) {
+  const { store: rosterStore } = useDriverRoster();
+  const driverType = driverTypeForName(rosterStore, entry.name);
   const custom = isCustomVacationSpan(entry);
   const daysLabel = custom ? formatVacationSpanLabel(entry) : "Days";
   const paidOut = isPaidOutVacationNote(entry.note);
@@ -85,7 +90,9 @@ function DriverPill({
         title={workingTitle}
         aria-label={workingLabel}
       >
-        <span className="vac-pill-name">{entry.name}</span>
+        <span className="vac-pill-name">
+          <RosterPersonName name={entry.name} type={driverType} />
+        </span>
         {noteLabel ? <span className="vac-pill-note">{noteLabel}</span> : null}
       </button>
       <button

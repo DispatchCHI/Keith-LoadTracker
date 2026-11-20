@@ -164,7 +164,7 @@ describe("Full Roster × dialog paths", () => {
     expect(result.goneEntry).toBeNull();
     expect(rosterEntryCount(result.roster, "full", "burnham")).toBe(0);
     expect(entriesForRoster(result.roster, "sat", "burnham").map((row) => row.name)).toEqual([
-      "Dan Kasprzycki -T",
+      "Dan Kasprzycki",
     ]);
     expect(goneEntryCount(result.gone)).toBe(1);
     expect(result.gone.entries).toEqual(goneBefore.entries);
@@ -201,7 +201,7 @@ describe("Full Roster × dialog paths", () => {
       yard: "burnham",
     });
     expect(rosterEntryCount(result.roster, "full", "burnham")).toBe(1);
-    expect(entriesForRoster(result.roster, "full", "burnham")[0].name).toBe("Dan Kasprzycki -T");
+    expect(entriesForRoster(result.roster, "full", "burnham")[0].name).toBe("Dan Kasprzycki");
     expect(matchingSatEntriesForPerson(result.roster, { truckNumber: "56", name: "Dave Vanderbilt" })).toEqual(
       [],
     );

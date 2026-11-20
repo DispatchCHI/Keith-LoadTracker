@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { fetchAllPaged, pagedErrorMessage } from "../lib/cloud";
+import { displayDriverName, resolveStoredDriverType, type DriverType } from "../lib/driverType";
 import { attachCloudRefresh } from "../lib/cloudRefresh";
 import { DRIVER_ROSTER_POLL_TABS, pollWhenTabs } from "../lib/cloudRefreshTabs";
 import {
@@ -80,6 +81,7 @@ type EntryRow = {
   status: string | null;
   hire_date?: string | null;
   phone?: string | null;
+  driver_type?: string | null;
   sort_order: number;
   for_date: string | null;
   created_at: string;
@@ -100,6 +102,7 @@ type DriverRosterContextValue = {
     input: Omit<DriverRosterInput, "kind" | "yard">,
   ) => Promise<{ entry: DriverRosterEntry | null; conflictName?: string }>;
   setDriverStatus: (id: string, status: string | null) => Promise<void>;
+  setDriverType: (id: string, driverType: DriverType) => Promise<void>;
   setDriverAssignedTruck: (
     id: string,
     assignedTruck: string | null,
@@ -129,7 +132,8 @@ function rowsToStore(rows: EntryRow[]): DriverRosterStore {
         cleanDriverRosterKind(row.kind) === "full"
           ? cleanAssignedTruck(row.assigned_truck ?? null)
           : null,
-      name: row.name,
+      name: displayDriverName(row.name),
+      driverType: resolveStoredDriverType(row.name, row.driver_type),
       status: row.status,
       hireDate: cleanDriverRosterKind(row.kind) === "full" ? row.hire_date ?? null : null,
       phone: cleanDriverRosterKind(row.kind) === "full" ? row.phone ?? null : null,
@@ -158,7 +162,8 @@ function entryToRow(
     // Explicit clear writes "" (not NULL) so other desks can tell a dispatcher
     // clear from an older build that re-saved the row with a NULL unit (1.1.54).
     assigned_truck: entry.assignedTruck ?? (opts?.clearAssignedTruck ? "" : null),
-    name: entry.name,
+    name: displayDriverName(entry.name),
+    driver_type: entry.driverType ?? "msw",
     status: entry.status,
     hire_date: entry.hireDate,
     phone: entry.phone,
@@ -260,6 +265,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     let assignedTruckKnown = false;
     const page = await fetchAllPaged<EntryRow>(async (from, to) => {
       const selects = [
+        "id, kind, yard, truck_number, assigned_truck, name, status, hire_date, phone, driver_type, sort_order, for_date, created_at, updated_at",
         "id, kind, yard, truck_number, assigned_truck, name, status, hire_date, phone, sort_order, for_date, created_at, updated_at",
         "id, kind, yard, truck_number, assigned_truck, name, status, hire_date, sort_order, for_date, created_at, updated_at",
         "id, kind, yard, truck_number, assigned_truck, name, status, sort_order, for_date, created_at, updated_at",
@@ -279,7 +285,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
         lastError = result.error;
         const missingCol =
           result.error.code === "42703" ||
-          /hire_date|assigned_truck|phone/i.test(result.error.message ?? "");
+          /hire_date|assigned_truck|phone|driver_type/i.test(result.error.message ?? "");
         if (!missingCol) {
           return { data: result.data as EntryRow[] | null, error: result.error };
         }
@@ -393,7 +399,8 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       const missingHire = /hire_date/i.test(msg);
       const missingAssigned = /assigned_truck/i.test(msg);
       const missingPhone = /\bphone\b/i.test(msg);
-      if (error.code !== "42703" && !missingHire && !missingAssigned && !missingPhone) {
+      const missingType = /driver_type/i.test(msg);
+      if (error.code !== "42703" && !missingHire && !missingAssigned && !missingPhone && !missingType) {
         console.warn("driver roster upsert failed", error.message);
         return;
       }
@@ -406,6 +413,9 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       }
       if (missingPhone) {
         payload = payload.map(({ phone: _p, ...row }) => row);
+      }
+      if (missingType) {
+        payload = payload.map(({ driver_type: _t, ...row }) => row);
       }
       const retry = await supabase.from("driver_roster_entries").upsert(payload);
       if (retry.error) console.warn("driver roster upsert failed", retry.error.message);
@@ -615,6 +625,21 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
     [cloud, cloudDeleteEntries, cloudUpsert, persistLocal, ui.kind, ui.yard],
   );
 
+  const setDriverType = useCallback(
+    async (id: string, driverType: DriverType) => {
+      epochRef.current += 1;
+      const current = storeRef.current.entries[id];
+      const next = updateRosterEntry(storeRef.current, id, {
+        driverType,
+        name: current ? displayDriverName(current.name) : undefined,
+      });
+      const entry = next.entries[id];
+      persistLocal(next);
+      if (cloud && entry) await cloudUpsert([entry]);
+    },
+    [cloud, cloudUpsert, persistLocal],
+  );
+
   const setDriverStatus = useCallback(
     async (id: string, status: string | null) => {
       epochRef.current += 1;
@@ -789,6 +814,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       refresh,
       addDriver,
       setDriverStatus,
+      setDriverType,
       setDriverAssignedTruck,
       setDriverProfile,
       removeDriver,
@@ -809,6 +835,7 @@ export function DriverRosterProvider({ children }: { children: ReactNode }) {
       refresh,
       addDriver,
       setDriverStatus,
+      setDriverType,
       setDriverAssignedTruck,
       setDriverProfile,
       removeDriver,

@@ -11,6 +11,8 @@ import { yearsOfService, yearsOfServiceLabel } from "../lib/rosterHireDate";
 import type { DriverAllotment } from "../lib/rosterAllotment";
 import type { DriverVacationLeft } from "../lib/driverVacation";
 import { notesForDriver } from "../lib/driverNotes";
+import { DRIVER_TYPE_LABELS, type DriverType } from "../lib/driverType";
+import { RosterPersonName } from "./DriverTypeTag";
 import { useDriverNotes } from "../store/DriverNotesContext";
 import { formatMonthDayYear } from "../lib/chicagoDate";
 import "./drivers-table.css";
@@ -29,6 +31,7 @@ type Handlers = {
   onMove: (id: string, delta: -1 | 1) => void;
   onRemove: (entry: DriverRosterEntry) => void;
   onStatus: (id: string, status: string | null) => void;
+  onType: (id: string, driverType: DriverType) => void;
   onTruck: (id: string, truck: string) => Promise<{ ok: boolean; conflictName?: string }>;
   onProfile: (id: string, patch: { hireDate?: string | null; phone?: string | null }) => void;
   onNotes: (entry: DriverRosterEntry) => void;
@@ -185,6 +188,7 @@ export function FullRosterTable({ rows, today, asOf, yardLabel, onAdd, ...handle
               </th>
               {th("emp", "Emp#")}
               {th("name", "Name", "drv-tbl-c-name")}
+              <th className="drv-tbl-c-type">Type</th>
               {th("truck", "Truck")}
               {th("status", "Status")}
               <th className="drv-tbl-c-phone">Phone</th>
@@ -215,7 +219,7 @@ export function FullRosterTable({ rows, today, asOf, yardLabel, onAdd, ...handle
           {shown.length === 0 ? (
             <tbody>
               <tr>
-                <td colSpan={12} className="drv-tbl-empty">
+                <td colSpan={13} className="drv-tbl-empty">
                   No drivers match “{query}”.
                 </td>
               </tr>
@@ -257,6 +261,7 @@ function FullRosterRow({
   onMove,
   onRemove,
   onStatus,
+  onType,
   onTruck,
   onProfile,
   onNotes,
@@ -360,7 +365,9 @@ function FullRosterRow({
           >
             {open ? "⌃" : "⌄"}
           </button>
-          <span className="drv-tbl-name">{entry.name}</span>
+          <span className="drv-tbl-name">
+            <RosterPersonName name={entry.name} type={entry.driverType} />
+          </span>
           {out ? <span className="drv-out-tag">Out</span> : null}
           {onVacation ? (
             <span className="drv-vac-from" title="From the Vacation tab this week">
@@ -380,6 +387,22 @@ function FullRosterRow({
               No start
             </span>
           )}
+        </td>
+        <td className="drv-tbl-c-type" data-label="Type">
+          <select
+            className="drv-type-select"
+            value={entry.driverType ?? "msw"}
+            aria-label={`Driver type for ${entry.name}`}
+            onClick={(event) => event.stopPropagation()}
+            onChange={(event) => {
+              event.stopPropagation();
+              void onType(entry.id, event.target.value as DriverType);
+            }}
+          >
+            <option value="tanker">Tanker</option>
+            <option value="wf">{DRIVER_TYPE_LABELS.wf}</option>
+            <option value="msw">MSW</option>
+          </select>
         </td>
         <td className="drv-tbl-c-truck" data-label="Truck">
           <input

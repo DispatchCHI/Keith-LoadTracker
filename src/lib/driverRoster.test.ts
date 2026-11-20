@@ -311,12 +311,12 @@ describe("roster add/remove helpers", () => {
     expect(rosterEntryCount(store, "full", "rockford")).toBe(1);
     expect(fullRosterHiredNames(store)).toEqual([
       "Christopher Oleson",
-      "Dan Kasprzycki -T",
+      "Dan Kasprzycki",
       "Dave Vanderbilt",
     ]);
     const burnham = entriesForRoster(store, "full", "burnham");
     expect(formatRosterLine(burnham[0])).toBe("56 Dave Vanderbilt");
-    expect(formatRosterCopyList(burnham)).toBe("56 Dave Vanderbilt\n102 Dan Kasprzycki -T");
+    expect(formatRosterCopyList(burnham)).toBe("56 Dave Vanderbilt\n102 Dan Kasprzycki - Tanker");
 
     const removed = removeRosterEntry(store, burnham[0].id);
     expect(removed.removed?.name).toBe("Dave Vanderbilt");
@@ -420,7 +420,7 @@ describe("sat roster seeds and resets from full", () => {
       status: row.status,
     }))).toEqual([
       { emp: "56", name: "Dave Vanderbilt", status: null },
-      { emp: "102", name: "Dan Kasprzycki -T", status: null },
+      { emp: "102", name: "Dan Kasprzycki", status: null },
     ]);
     expect(entriesForRoster(result.store, "sat", "rockford").map((row) => row.name)).toEqual([
       "Christopher Oleson",
@@ -496,7 +496,7 @@ describe("sat roster seeds and resets from full", () => {
       status: row.status,
     }))).toEqual([
       { emp: "56", name: "Dave Vanderbilt", status: null },
-      { emp: "102", name: "Dan Kasprzycki -T", status: null },
+      { emp: "102", name: "Dan Kasprzycki", status: null },
     ]);
     expect(satRosterMatchesFull(result.store, "burnham")).toBe(true);
     expect(entriesForRoster(result.store, "sat", "rockford").map((row) => row.id)).toEqual([
@@ -504,7 +504,7 @@ describe("sat roster seeds and resets from full", () => {
     ]);
     expect(entriesForRoster(result.store, "full", "burnham").map((row) => row.name)).toEqual([
       "Dave Vanderbilt",
-      "Dan Kasprzycki -T",
+      "Dan Kasprzycki",
     ]);
     expect(result.store.entries[rockfordSatId]?.name).toBe("Hank Kingpavong");
   });
@@ -516,7 +516,7 @@ describe("sat roster seeds and resets from full", () => {
     const seeded = seedEmptySatRostersFromFull(store, { yards: ["burnham"] });
     const satLines = formatRosterCopyList(entriesForRoster(seeded.store, "sat", "burnham"));
     const fullLines = formatRosterCopyList(entriesForRoster(seeded.store, "full", "burnham"));
-    expect(satLines).toBe("56 Dave Vanderbilt\n102 Dan Kasprzycki -T");
+    expect(satLines).toBe("56 Dave Vanderbilt\n102 Dan Kasprzycki - Tanker");
     expect(satLines).toBe(fullLines);
     expect(satLines.includes("\t")).toBe(false);
 
@@ -528,7 +528,7 @@ describe("sat roster seeds and resets from full", () => {
     }).store;
     const reset = resetSatRosterFromFull(store, "burnham");
     expect(formatRosterCopyList(entriesForRoster(reset.store, "sat", "burnham"))).toBe(
-      "56 Dave Vanderbilt\n102 Dan Kasprzycki -T",
+      "56 Dave Vanderbilt\n102 Dan Kasprzycki - Tanker",
     );
   });
 

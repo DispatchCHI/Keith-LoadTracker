@@ -4,6 +4,7 @@
  */
 import { comingSaturday, parseISODate } from "./chicagoDate";
 import { formatRosterLine, type DriverRosterEntry } from "./driverRoster";
+import type { DriverType } from "./driverType";
 
 export const DEFAULT_SAT_FOOTER = "Keep phones on case we cut list back";
 
@@ -127,7 +128,9 @@ function escapeHtml(text: string): string {
 
 export type PrintSection = {
   heading: string;
-  entries: readonly Pick<DriverRosterEntry, "truckNumber" | "name">[];
+  entries: readonly (Pick<DriverRosterEntry, "truckNumber" | "name"> & {
+    driverType?: DriverType | null;
+  })[];
 };
 
 /**
@@ -151,7 +154,11 @@ export function buildWorklistPrintHtml(input: {
       const lines = section.entries
         .map((entry) => {
           const emp = entry.truckNumber?.trim() ?? "";
-          const name = formatRosterLine({ truckNumber: null, name: entry.name });
+          const name = formatRosterLine({
+            truckNumber: null,
+            name: entry.name,
+            driverType: entry.driverType,
+          });
           if (!name) return "";
           return `<li><span class="emp">${escapeHtml(emp)}</span><span class="name">${escapeHtml(name)}</span></li>`;
         })
@@ -178,7 +185,7 @@ export function buildWorklistPrintHtml(input: {
   h2 { font-size: 13pt; margin: 12pt 0 4pt; border-bottom: 1px solid #000; padding-bottom: 2pt; }
   .yard { break-inside: avoid; page-break-inside: avoid; }
   .names { list-style: none; margin: 0; padding: 0; columns: ${many ? 4 : 3}; column-gap: 18pt; font-size: ${many ? 10 : 12}pt; }
-  .names li { break-inside: avoid; padding: 1pt 0; white-space: nowrap; }
+  .names li { break-inside: avoid; padding: 1pt 0; }
   .emp { display: inline-block; min-width: 4.2em; font-variant-numeric: tabular-nums; }
   .none { margin: 0; font-style: italic; }
   .footer { margin: 14pt 0 0; font-size: 12pt; font-weight: bold; white-space: pre-wrap; }

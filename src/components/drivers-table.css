@@ -19,6 +19,19 @@
 .drv-tbl-c-move .drv-move { display: flex; gap: 2px; }
 .drv-tbl-c-emp { font-weight: 700; white-space: nowrap; }
 .drv-tbl-c-name { white-space: nowrap; }
+.drv-tbl-c-type { width: 1%; white-space: nowrap; }
+.drv-type-select {
+  width: 118px;
+  max-width: 118px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+}
 .drv-tbl-name { font-weight: 700; margin-right: 4px; }
 .drv-tbl-c-name .drv-yos-tag, .drv-tbl-c-name .drv-out-tag, .drv-tbl-c-name .drv-vac-from { margin-left: 4px; }
 .drv-tbl-caret { border: 0; background: transparent; cursor: pointer; color: var(--muted); width: 18px; padding: 0; }

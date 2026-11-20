@@ -3,6 +3,8 @@ import { DriverNameInput } from "../components/DriverNameInput";
 import { ConfirmOverlay } from "../components/ConfirmOverlay";
 import { DriverNotesPopout } from "../components/DriverNotesPopout";
 import { FullRosterTable } from "../components/FullRosterTable";
+import { RosterPersonName } from "../components/DriverTypeTag";
+import { resolveDriverType, splitTankerSuffix } from "../lib/driverType";
 import { addDays, chicagoToday, formatMonthDayYear, isValidISODate, weekdayOfISO, yearOfISO } from "../lib/chicagoDate";
 import {
   entriesForGoneYear,
@@ -320,6 +322,7 @@ export function DriverScreen() {
     setYard,
     addDriver,
     setDriverStatus,
+    setDriverType,
     setDriverAssignedTruck,
     setDriverProfile,
     removeDriver,
@@ -393,19 +396,25 @@ export function DriverScreen() {
         ? formatYardWorklist({
             yardLabel,
             saturday: planningSaturday,
-            entries,
+            entries: entries.map((entry) => ({
+              ...entry,
+              driverType: resolveDriverType(store, entry),
+            })),
             footer: worklist.footer,
             prefix: worklistPrefix,
           })
         : "",
-    [kind, yardLabel, planningSaturday, entries, worklist.footer, worklistPrefix],
+    [kind, yardLabel, planningSaturday, entries, store, worklist.footer, worklistPrefix],
   );
   const allYardsWorklist = useMemo(() => {
     if (kind !== "sat") return null;
     const yards = DRIVER_ROSTER_YARDS.map((item) => ({
       yardLabel: driverRosterYardLabel(item),
       saturday: satDateForYard(store, item, { today }),
-      entries: entriesForRoster(store, "sat", item),
+      entries: entriesForRoster(store, "sat", item).map((entry) => ({
+        ...entry,
+        driverType: resolveDriverType(store, entry),
+      })),
     }));
     const saturday = allYardsSaturday(
       [satDate, ...yards.map((item) => item.saturday)],
@@ -579,7 +588,13 @@ export function DriverScreen() {
     printHtmlDocument(
       buildWorklistPrintHtml({
         title: worklistTitle(worklistPrefix, yardLabel, planningSaturday),
-        sections: [{ heading: yardLabel, entries }],
+        sections: [{
+          heading: yardLabel,
+          entries: entries.map((entry) => ({
+            ...entry,
+            driverType: resolveDriverType(store, entry),
+          })),
+        }],
         footer: worklist.footer,
       }),
     );
@@ -595,7 +610,10 @@ export function DriverScreen() {
             item.saturday && item.saturday !== allYardsWorklist.saturday
               ? `${item.yardLabel} - Sat ${formatWorklistDate(item.saturday)}`
               : item.yardLabel,
-          entries: item.entries,
+          entries: item.entries.map((entry) => ({
+            ...entry,
+            driverType: resolveDriverType(store, entry),
+          })),
         })),
         footer: worklist.footer,
       }),
@@ -889,6 +907,9 @@ export function DriverScreen() {
                 if (event.key === "Escape") setFooterDraft(null);
               }}
             />
+            <p className="field-hint tight">
+              Tanker and WF are written after the name (Name - Tanker, Name - WF). MSW is left plain.
+            </p>
           </label>
           {allYardsWorklist ? (
             <details className="drv-worklist-all">
@@ -945,7 +966,12 @@ export function DriverScreen() {
               {goneEntries.map((entry) => (
                 <tr key={entry.id} className="drv-row">
                   <td className="drv-col-truck">{entry.employeeNumber ?? "—"}</td>
-                  <td className="drv-col-name">{entry.name}</td>
+                  <td className="drv-col-name">
+                    <RosterPersonName
+                      name={entry.name}
+                      type={splitTankerSuffix(entry.name).tanker ? "tanker" : "msw"}
+                    />
+                  </td>
                   <td className="drv-col-hire">
                     <input
                       className="text-input drv-gone-date"
@@ -1080,10 +1106,12 @@ export function DriverScreen() {
                       title="Signed up for this Saturday"
                       style={{ background: signupTone.background, color: signupTone.color, borderColor: signupTone.border }}
                     >
-                      {entry.name}
+                      <RosterPersonName name={entry.name} type={resolveDriverType(store, entry)} />
                     </span>
                   ) : (
-                    <span className="drv-sat-cell-name">{entry.name}</span>
+                    <span className="drv-sat-cell-name">
+                      <RosterPersonName name={entry.name} type={resolveDriverType(store, entry)} />
+                    </span>
                   )}
                 </div>
                 <button
@@ -1122,6 +1150,7 @@ export function DriverScreen() {
           onMove={(id, delta) => void moveDriver(id, delta)}
           onRemove={(entry) => setRemoveDialog({ step: "choose", entry })}
           onStatus={(id, status) => void setDriverStatus(id, status)}
+          onType={(id, driverType) => void setDriverType(id, driverType)}
           onTruck={(id, value) => setDriverAssignedTruck(id, value || null)}
           onProfile={(id, patch) => void setDriverProfile(id, patch)}
           onNotes={(entry) => setNotesFor(entry)}

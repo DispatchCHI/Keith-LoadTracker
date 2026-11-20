@@ -12,6 +12,14 @@ import { isFullDayOff } from "./driverAvailability";
 import { isIsoAfter } from "./isoTime";
 import { safeSetItem } from "./localStorageSafe";
 import { sanitizeTruck } from "./truck";
+import {
+  cleanDriverType,
+  displayDriverName,
+  resolveStoredDriverType,
+  rosterNameWithType,
+  splitTankerSuffix,
+  type DriverType,
+} from "./driverType";
 
 export const DRIVER_ROSTER_STORE_KEY = "chitrader.load-tracker.driver-roster.v1";
 export const DRIVER_ROSTER_UI_KEY = "chitrader.load-tracker.driver-roster-ui.v1";
@@ -69,6 +77,11 @@ export type DriverRosterEntry = {
   hireDate: string | null;
   /** Full Roster only: optional contact. Sat rows stay null. */
   phone: string | null;
+  /**
+   * Truck type. MSW is the default and is not badged. Sat rows copy the
+   * Full Roster value; the Saturday list still prefers the live Full type.
+   */
+  driverType: DriverType;
   sortOrder: number;
   forDate: string | null;
   createdAt: string;
@@ -142,6 +155,7 @@ export type DriverRosterInput = {
   status?: string | null;
   hireDate?: string | null;
   phone?: string | null;
+  driverType?: DriverType | null;
   sortOrder?: number;
   forDate?: string | null;
 };
@@ -248,11 +262,7 @@ export function cleanPhone(raw: unknown): string | null {
 }
 
 function normalizeRosterPersonName(name: string): string {
-  return cleanDriverName(name)
-    .toLowerCase()
-    .replace(/\s*-\s*t\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return displayDriverName(name).toLowerCase();
 }
 
 export function cleanDriverStatus(raw: unknown): string | null {
@@ -428,7 +438,8 @@ export function cleanDriverRosterEntry(raw: unknown): DriverRosterEntry | null {
       kind === "full"
         ? cleanAssignedTruck(rec.assignedTruck ?? rec.assigned_truck)
         : null,
-    name,
+    name: splitTankerSuffix(name).name,
+    driverType: resolveStoredDriverType(name, rec.driverType ?? rec.driver_type),
     status: kind === "full" ? cleanDriverStatus(rec.status) : null,
     hireDate: kind === "full" ? cleanForDate(rec.hireDate ?? rec.hire_date) : null,
     phone: kind === "full" ? cleanPhone(rec.phone) : null,
@@ -567,6 +578,15 @@ function keepTruckOnUntouchedBlank(
   return { ...winner, assignedTruck: truck };
 }
 
+/** A collapsed duplicate must not drop Tanker / WF back to the MSW default. */
+function keepDriverType(winner: DriverRosterEntry, loser: DriverRosterEntry): DriverRosterEntry {
+  if (winner.driverType && winner.driverType !== "msw") return winner;
+  if (loser.driverType && loser.driverType !== "msw") {
+    return { ...winner, driverType: loser.driverType };
+  }
+  return winner;
+}
+
 /**
  * One hired / Sat row per person at a yard. Emp # wins; a name-only copy of
  * the same person is dropped. Trainer `-T` suffixes do not make a second row.
@@ -599,7 +619,7 @@ export function collapseDuplicateRosterEntries(store: DriverRosterStore): {
       const winner = preferRosterDuplicate(existing, entry);
       const loser = winner.id === existing.id ? entry : existing;
       droppedIds.push(loser.id);
-      byEmp.set(emp, keepTruckOnUntouchedBlank(winner, loser));
+      byEmp.set(emp, keepDriverType(keepTruckOnUntouchedBlank(winner, loser), loser));
     }
     const namesHeld = new Set(
       [...byEmp.values()].map((entry) => normalizeRosterPersonName(entry.name)),
@@ -739,9 +759,13 @@ export function nextSortOrder(
   return max + 1;
 }
 
-export function formatRosterLine(entry: Pick<DriverRosterEntry, "truckNumber" | "name">): string {
+export function formatRosterLine(
+  entry: Pick<DriverRosterEntry, "truckNumber" | "name"> & { driverType?: DriverType | null },
+): string {
+  const split = splitTankerSuffix(entry.name);
+  const type = entry.driverType ?? (split.tanker ? "tanker" : null);
+  const name = rosterNameWithType(split.name, type);
   const truck = entry.truckNumber?.trim();
-  const name = cleanDriverName(entry.name);
   return truck ? `${truck} ${name}` : name;
 }
 
@@ -756,13 +780,13 @@ export function satEntryIdFromFull(
   truckNumber: string | null,
   name: string,
 ): string {
-  const nameKey = cleanDriverName(name).toLowerCase();
+  const nameKey = displayDriverName(name).toLowerCase();
   const truck = cleanTruckNumber(truckNumber) ?? "";
   return driverRosterSeedId(`sat-from-full|${cleanDriverRosterYard(yard)}|${truck}|${nameKey}`);
 }
 
 function rosterIdentityKey(entry: Pick<DriverRosterEntry, "truckNumber" | "name">): string {
-  return `${entry.truckNumber ?? ""}\u0000${cleanDriverName(entry.name).toLowerCase()}`;
+  return `${entry.truckNumber ?? ""}\u0000${displayDriverName(entry.name).toLowerCase()}`;
 }
 
 export function rosterPersonMatches(
@@ -856,6 +880,7 @@ export function seedEmptySatRostersFromFull(
           yard,
           truckNumber: person.truckNumber,
           name: person.name,
+          driverType: person.driverType,
           sortOrder: index,
           forDate,
         },
@@ -942,6 +967,7 @@ export function resetSatRosterFromFull(
         yard: cleanedYard,
         truckNumber: person.truckNumber,
         name: person.name,
+        driverType: person.driverType,
         sortOrder: index,
         forDate,
       },
@@ -961,8 +987,11 @@ export function addRosterEntry(
   input: DriverRosterInput,
   opts?: { id?: string; at?: string; createdAt?: string },
 ): { store: DriverRosterStore; entry: DriverRosterEntry | null } {
-  const name = cleanDriverName(input.name);
+  const typed = splitTankerSuffix(cleanDriverName(input.name));
+  const name = typed.name;
   if (!name) return { store, entry: null };
+  const driverType =
+    cleanDriverType(input.driverType) ?? (typed.tanker ? "tanker" : "msw");
   const at = nowIso(opts?.at);
   const kind = cleanDriverRosterKind(input.kind);
   const yard = cleanDriverRosterYard(input.yard);
@@ -976,6 +1005,7 @@ export function addRosterEntry(
     status: kind === "full" ? cleanDriverStatus(input.status ?? null) : null,
     hireDate: kind === "full" ? cleanForDate(input.hireDate ?? null) : null,
     phone: kind === "full" ? cleanPhone(input.phone ?? null) : null,
+    driverType,
     sortOrder:
       typeof input.sortOrder === "number" && Number.isFinite(input.sortOrder)
         ? Math.floor(input.sortOrder)
@@ -993,15 +1023,31 @@ export function updateRosterEntry(
   patch: Partial<
     Pick<
       DriverRosterEntry,
-      "truckNumber" | "assignedTruck" | "name" | "status" | "hireDate" | "phone" | "sortOrder" | "forDate"
+      | "truckNumber"
+      | "assignedTruck"
+      | "name"
+      | "status"
+      | "hireDate"
+      | "phone"
+      | "driverType"
+      | "sortOrder"
+      | "forDate"
     >
   >,
   at?: string,
 ): DriverRosterStore {
   const prev = store.entries[id];
   if (!prev) return store;
-  const name = patch.name !== undefined ? cleanDriverName(patch.name) : prev.name;
+  const named =
+    patch.name !== undefined ? splitTankerSuffix(cleanDriverName(patch.name)) : null;
+  const name = named ? named.name : prev.name;
   if (!name) return store;
+  const driverType =
+    patch.driverType !== undefined
+      ? cleanDriverType(patch.driverType) ?? prev.driverType
+      : named?.tanker
+        ? "tanker"
+        : prev.driverType;
   const next: DriverRosterEntry = {
     ...prev,
     truckNumber:
@@ -1031,6 +1077,7 @@ export function updateRosterEntry(
           ? cleanPhone(patch.phone)
           : prev.phone
         : null,
+    driverType,
     sortOrder:
       typeof patch.sortOrder === "number" && Number.isFinite(patch.sortOrder)
         ? Math.floor(patch.sortOrder)

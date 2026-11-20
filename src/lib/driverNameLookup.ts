@@ -1,6 +1,7 @@
 /** Log Load truck field: digits stay a truck; letters can pick a Full Roster driver. */
 
 import type { DriverGoneEntry } from "./driverGone";
+import { displayDriverName, type DriverType } from "./driverType";
 import {
   cleanDriverName,
   driverRosterYardLabel,
@@ -17,6 +18,7 @@ export type DriverNameMatch = {
   name: string;
   assignedTruck: string | null;
   yard: DriverRosterYard;
+  driverType: DriverType;
 };
 
 /**
@@ -39,7 +41,7 @@ export function truckFieldIsNameQuery(raw: string): boolean {
 }
 
 function fold(raw: string): string {
-  return cleanDriverName(raw)
+  return displayDriverName(cleanDriverName(raw))
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -128,13 +130,16 @@ export function searchDriversForLogLoad(
   );
   return scored.slice(0, limit).map(({ entry }) => ({
     id: entry.id,
-    name: cleanDriverName(entry.name),
+    name: displayDriverName(entry.name),
     assignedTruck: entry.assignedTruck,
     yard: entry.yard,
+    driverType: entry.driverType ?? "msw",
   }));
 }
 
 export function formatDriverNameChoice(match: DriverNameMatch): string {
   const truck = match.assignedTruck ? `truck ${match.assignedTruck}` : "no truck";
-  return `${match.name} (${truck}) · ${driverRosterYardLabel(match.yard)}`;
+  const type =
+    match.driverType === "tanker" ? " · Tanker" : match.driverType === "wf" ? " · WF" : "";
+  return `${match.name} (${truck})${type} · ${driverRosterYardLabel(match.yard)}`;
 }

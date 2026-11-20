@@ -18,6 +18,8 @@ import { DriverNameInput } from "./DriverNameInput";
 import { useCallOffLog } from "../store/CallOffLogContext";
 import { useDriverRoster } from "../store/DriverRosterContext";
 import { useDrivers } from "../store/DriversContext";
+import { driverTypeForName } from "../lib/driverType";
+import { RosterPersonName } from "./DriverTypeTag";
 import { useVacation } from "../store/VacationContext";
 import "./drivers-card.css";
 
@@ -274,7 +276,7 @@ export function DriversCard({
             <ul className="oot-list">
               {visibleOot.map((name) => (
                 <li key={name} className="oot-chip">
-                  {name}
+                  <RosterPersonName name={name} type={driverTypeForName(rosterStore, name)} />
                 </li>
               ))}
             </ul>
@@ -381,7 +383,7 @@ export function DriversCard({
                   key={`${entry.source}:${entry.name}`}
                   className={`oot-chip calloff-chip calloff-chip-${entry.kind}`}
                 >
-                  <span>{entry.name}</span>
+                  <RosterPersonName name={entry.name} type={driverTypeForName(rosterStore, entry.name)} />
                   {canRemoveTodayCallOff({
                     name: entry.name,
                     date: viewed,
@@ -413,7 +415,7 @@ export function DriversCard({
             <ul className="oot-list">
               {unavailableNames.map((name) => (
                 <li key={name} className="oot-chip">
-                  {name}
+                  <RosterPersonName name={name} type={driverTypeForName(rosterStore, name)} />
                 </li>
               ))}
             </ul>
@@ -430,7 +432,7 @@ export function DriversCard({
             <ul className="oot-list">
               {visibleVacation.map((name) => (
                 <li key={name} className="oot-chip vacation-chip">
-                  {name}
+                  <RosterPersonName name={name} type={driverTypeForName(rosterStore, name)} />
                 </li>
               ))}
             </ul>
